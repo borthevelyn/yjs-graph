@@ -11,3 +11,21 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+.react-flow__node-editNodeLabel {
+  font-size: 12px;
+  background: #eee;
+  border: 1px solid #555;
+  border-radius: 5px;
+  text-align: center;
+  padding: 5px;
+}
+
+.react-flow__node-editNodeLabel > input {
+  width: 100%;
+  border: none;
+  background: none;
+  font-size: 12px;
+  text-align: center;
+  outline: none;
+}
