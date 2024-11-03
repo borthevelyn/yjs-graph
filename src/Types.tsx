@@ -1,13 +1,19 @@
 import * as Y from 'yjs'; 
 import { EdgeBase, NodeBase } from '@xyflow/system';
 
+export interface NamedYMap<TypeMap extends object> extends Omit<Y.Map<TypeMap[keyof TypeMap]>, 'set' | 'get'> {
+    get<Key extends keyof TypeMap>(x: Key): TypeMap[Key] | undefined
+    set<Key extends keyof TypeMap>(key: Key, value: TypeMap[Key]): TypeMap[Key]
+}
+export interface ObjectYMap<TypeMap extends object> extends Omit<Y.Map<TypeMap[keyof TypeMap]>, 'set' | 'get'> {
+    get<Key extends keyof TypeMap>(key: Key): TypeMap[Key]
+    set<Key extends keyof TypeMap>(key: Key, value: TypeMap[Key]): TypeMap[Key]
+}
+
 export type id = string;
 export type FlowNode = NodeBase<{label: string, setLabel: (nodeId: string, label: string) => void}>
 export type FlowEdge = EdgeBase<{label: string, setLabel: (nodeId: string, label: string) => void}>;
 
-export type EdgeInformation = { label: string, selected: boolean }
-export type NodeInformation = Y.Array<FlowNode | Y.Map<EdgeInformation>>
-export type AdjacencyMap = Y.Map<NodeInformation>
 
 export type GraphApi =  {
     addNode: (id: string, label: string, position: { x: number; y: number }) => void, 
