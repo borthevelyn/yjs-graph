@@ -2,10 +2,10 @@ import { useState, useEffect, useCallback } from "react"
 import * as Y from 'yjs'
 import { MarkerType, XYPosition } from "@xyflow/react"
 import { id, FlowEdge, FlowNode, GraphApi, ObjectYMap } from "../Types"
+import { useSet } from "./useSet"
 
 export type EdgeInformation = {
-    label: string,
-    selected: boolean
+    label: string
 }
 export type NodeInformation = ObjectYMap<{
     flowNode: FlowNode,
@@ -21,10 +21,12 @@ function makeNodeInformation(node: FlowNode, edges: Y.Map<EdgeInformation>) {
     return res
 }
 
-
 export function useAdjacencyMap({ yMatrix }: { yMatrix: AdjacencyMap }): GraphApi {
     const [, updateHelper] = useState({})
     const update = useCallback(() => updateHelper({}), [])
+
+    const [selectedNodes, addSelectedNode, removeSelectedNode] = useSet<id>()
+    const [selectedEdges, addSelectedEdge, removeSelectedEdge] = useSet<id>()
 
     function setLabel(nodeId: id, label: string) {
         yMatrix.doc!.transact(() => {
@@ -58,7 +60,7 @@ export function useAdjacencyMap({ yMatrix }: { yMatrix: AdjacencyMap }): GraphAp
                 console.warn("Node does not exist")
                 return 
             }
-            nodeInfo.get('edgeInformation').set(nodeId2, { label, selected: false })
+            nodeInfo.get('edgeInformation').set(nodeId2, { label})
             console.log("added edge with label", label)
         });
     }
@@ -69,6 +71,7 @@ export function useAdjacencyMap({ yMatrix }: { yMatrix: AdjacencyMap }): GraphAp
             for (const nodeInfo of yMatrix.values()) {
                 nodeInfo.get('edgeInformation').delete(nodeId)
             }
+            removeSelectedNode(nodeId)
         });
     }
 
@@ -81,6 +84,7 @@ export function useAdjacencyMap({ yMatrix }: { yMatrix: AdjacencyMap }): GraphAp
             }
             console.log('removed edge', nodeId1, nodeId2)
             innerMap.get('edgeInformation').delete(nodeId2)
+            removeSelectedEdge(nodeId1 + "+" + nodeId2)
         });
     }
 
@@ -108,38 +112,53 @@ export function useAdjacencyMap({ yMatrix }: { yMatrix: AdjacencyMap }): GraphAp
         });
     }
 
-    const changeNodeSelection = (nodeId: id, selected: boolean) => {    
-        yMatrix.doc!.transact(() => {
-            const nodeInfo = yMatrix.get(nodeId)
-            if (nodeInfo === undefined) {
-                console.warn("Node does not exist")
-                return 
-            }
-            nodeInfo.set('flowNode', { ...nodeInfo.get('flowNode'), selected })
-        });
+    const changeNodeSelection = (nodeId: id, selected: boolean) => {
+        const nodeInfo = yMatrix.get(nodeId);
+        if (nodeInfo === undefined) {
+            console.warn("Node does not exist");
+            return 
+        }
+
+        if (selected) {
+            addSelectedNode(nodeId)
+        }
+        else {
+            removeSelectedNode(nodeId)
+        }
     }
 
     const changeEdgeSelection = (edgeId: id, selected: boolean) => {
-        yMatrix.doc!.transact(() => {
-            const [nodeId1, nodeId2] = edgeId.split("+")
-            const nodeInformation = yMatrix.get(nodeId1)
-            if (nodeInformation === undefined) {
-                console.warn("Node does not exist")
-                return 
-            }
-            nodeInformation.get('edgeInformation').set(nodeId2, { ...nodeInformation.get('edgeInformation').get(nodeId2)!, selected})
-        });
+        const [nodeId1, ] = edgeId.split("+");
+        const nodeInformation = yMatrix.get(nodeId1);
+        if (nodeInformation === undefined) {
+            console.warn("Node does not exist");
+            return 
+        }    
+        
+        if (selected) {
+            addSelectedEdge(edgeId)
+        }
+        else {
+            removeSelectedEdge(edgeId)
+        }
     }
 
 
     const nodesAsFlow : () => FlowNode[] = () => {
-        return Array.from(yMatrix.values()).map(x => x.get('flowNode'))
+        return Array.from(yMatrix.values()).map(x => {
+            const flowNode = x.get('flowNode')
+            console.log('node is selected', selectedNodes.has(flowNode.id), selectedNodes)
+            return {
+                ...flowNode,
+                selected: selectedNodes.has(flowNode.id)
+            }
+        })
     }
 
     const edgesAsFlow: () => FlowEdge[] = () => {
         const nestedEdges = 
             Array.from(yMatrix.entries()).map(([sourceNode, nodeInfo]) =>
-                Array.from(nodeInfo.get('edgeInformation')).map(([targetNode, {label, selected}]) => {
+                Array.from(nodeInfo.get('edgeInformation')).map(([targetNode, {label}]) => {
                     return {
                         id: sourceNode + "+" + targetNode,
                         source: sourceNode,
@@ -147,7 +166,7 @@ export function useAdjacencyMap({ yMatrix }: { yMatrix: AdjacencyMap }): GraphAp
                         deletable: true,
                         markerEnd: { type: MarkerType.Arrow},
                         label,
-                        selected,
+                        selected: selectedEdges.has(sourceNode + "+" + targetNode),
                     }
                 })
             )
