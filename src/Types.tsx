@@ -28,4 +28,15 @@ export type GraphApi =  {
     edgesAsFlow: () => FlowEdge[]
 }
 
-    
+export interface YSet extends Omit<Y.Map<undefined>, 'set' | 'get' | 'entries' | 'values'> {
+    /*
+    It seems that the Y.Map type handles `undefined` as a value for the second
+    argument fine. That enables the consumer to omit the argument in the type specification
+    and `set` now is a kind of `add`. However, this seems to go against the design
+    principles of the `set` function and could potentially lead to errors.
+    */
+    set(value: id): undefined
+}
+export function makeYSet(): YSet {
+    return new Y.Map<undefined>() as unknown as YSet;
+}

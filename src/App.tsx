@@ -7,6 +7,7 @@ import { GraphApi } from './Types'
 import { useEffect, useRef } from 'react'
 import { AdjacencyList, useAdjacencyList } from './hooks/useAdjacencyList'
 import { AdjacencyMap, useAdjacencyMap } from './hooks/useAdjacencyMap'
+import { AdjacencyMapWithFasterNodeDeletion, useAdjacencyMapWithFasterNodeDeletion } from './hooks/useAdjacencyMapWithFasterNodeDeletion'
 
 function populateMatrix(graphApi: GraphApi) {  
     // Create nested yarray
@@ -30,12 +31,21 @@ function App() {
   const graphApi2 = useAdjacencyMap({ yMatrix: yMatrix2.current }) */
 
   const ydoc1 = useRef(new Y.Doc())
+  const yMatrix1 = useRef(ydoc1.current.getMap('adjacency map') as AdjacencyMapWithFasterNodeDeletion)
+  const ydoc2 = useRef(new Y.Doc())
+  const yMatrix2 = useRef(ydoc2.current.getMap('adjacency map') as AdjacencyMapWithFasterNodeDeletion)
+
+
+  const graphApi1 = useAdjacencyMapWithFasterNodeDeletion({ yMatrix: yMatrix1.current })
+  const graphApi2 = useAdjacencyMapWithFasterNodeDeletion({ yMatrix: yMatrix2.current })
+/* 
+  const ydoc1 = useRef(new Y.Doc())
   const yMatrix1 = useRef(ydoc1.current.getMap('adjacency list') as AdjacencyList)
   const ydoc2 = useRef(new Y.Doc())
   const yMatrix2 = useRef(ydoc2.current.getMap('adjacency list') as AdjacencyList)
 
   const graphApi1 = useAdjacencyList({ yMatrix: yMatrix1.current })
-  const graphApi2 = useAdjacencyList({ yMatrix: yMatrix2.current })
+  const graphApi2 = useAdjacencyList({ yMatrix: yMatrix2.current }) */
 
   function sync1to2() {
     console.log('State clock 1', Y.encodeStateVector(ydoc1.current))

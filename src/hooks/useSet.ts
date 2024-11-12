@@ -7,8 +7,9 @@ export function useSet<T>(initial?: ReadonlySet<T>):
     const addFun = useCallback((toAdd: T) => {
         setSet(prev => prev.union(new Set([toAdd])))
     }, [setSet])
-    const removeFun = useCallback((toRem: T) => {
-        setSet(prev => prev.difference(new Set([toRem])))
+
+    const removeFun = useCallback((toRemove: T) => {
+        setSet(prev => prev.difference(new Set([toRemove])))
     }, [setSet])
 
     return [set, addFun, removeFun]

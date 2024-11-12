@@ -64,9 +64,11 @@ export default function Graph({
 
     const onEdgesDelete = useCallback(
         (edges: FlowEdge[]) => {
-        console.log("delete edges", edges)
         edges.forEach((edge) => {
-            removeEdge(edge.source, edge.target)
+            if (edge.selected === true) {
+                console.log("delete edge", edge)
+                removeEdge(edge.source, edge.target)
+            }
         })
         },[removeEdge])
 
