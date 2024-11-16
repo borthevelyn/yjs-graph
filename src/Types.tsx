@@ -1,13 +1,17 @@
 import * as Y from 'yjs'; 
 import { EdgeBase, NodeBase } from '@xyflow/system';
 
-export interface NamedYMap<TypeMap extends object> extends Omit<Y.Map<TypeMap[keyof TypeMap]>, 'set' | 'get'> {
+export interface NamedYMap<TypeMap extends object> extends Omit<Y.Map<TypeMap[keyof TypeMap]>, 'set' | 'get' | 'delete'> {
     get<Key extends keyof TypeMap>(x: Key): TypeMap[Key] | undefined
     set<Key extends keyof TypeMap>(key: Key, value: TypeMap[Key]): TypeMap[Key]
+    // this method is theoretically supported by a ymap, but semantically for this type wrong
+    delete(key: never): void
 }
-export interface ObjectYMap<TypeMap extends object> extends Omit<Y.Map<TypeMap[keyof TypeMap]>, 'set' | 'get'> {
+export interface ObjectYMap<TypeMap extends object> extends Omit<Y.Map<TypeMap[keyof TypeMap]>, 'set' | 'get' | 'delete'> {
     get<Key extends keyof TypeMap>(key: Key): TypeMap[Key]
     set<Key extends keyof TypeMap>(key: Key, value: TypeMap[Key]): TypeMap[Key]
+    // this method is theoretically supported by a ymap, but semantically for this type wrong
+    delete(key: never): void
 }
 
 export type id = string;

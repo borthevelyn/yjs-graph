@@ -22,22 +22,22 @@ function populateMatrix(graphApi: GraphApi) {
 }
 
 function App() {
-/*   const ydoc1 = useRef(new Y.Doc())
+  const ydoc1 = useRef(new Y.Doc())
   const yMatrix1 = useRef(ydoc1.current.getMap('adjacency map') as AdjacencyMap)
   const ydoc2 = useRef(new Y.Doc())
   const yMatrix2 = useRef(ydoc2.current.getMap('adjacency map') as AdjacencyMap)
 
   const graphApi1 = useAdjacencyMap({ yMatrix: yMatrix1.current })
-  const graphApi2 = useAdjacencyMap({ yMatrix: yMatrix2.current }) */
+  const graphApi2 = useAdjacencyMap({ yMatrix: yMatrix2.current })
 
-  const ydoc1 = useRef(new Y.Doc())
+/*   const ydoc1 = useRef(new Y.Doc())
   const yMatrix1 = useRef(ydoc1.current.getMap('adjacency map') as AdjacencyMapWithFasterNodeDeletion)
   const ydoc2 = useRef(new Y.Doc())
   const yMatrix2 = useRef(ydoc2.current.getMap('adjacency map') as AdjacencyMapWithFasterNodeDeletion)
 
 
   const graphApi1 = useAdjacencyMapWithFasterNodeDeletion({ yMatrix: yMatrix1.current })
-  const graphApi2 = useAdjacencyMapWithFasterNodeDeletion({ yMatrix: yMatrix2.current })
+  const graphApi2 = useAdjacencyMapWithFasterNodeDeletion({ yMatrix: yMatrix2.current }) */
 /* 
   const ydoc1 = useRef(new Y.Doc())
   const yMatrix1 = useRef(ydoc1.current.getMap('adjacency list') as AdjacencyList)
@@ -56,19 +56,13 @@ function App() {
   }
 
   function sync2to1() {
-    console.log('State clock 1', Y.encodeStateVector(ydoc1.current))
-    console.log('State clock 2', Y.encodeStateVector(ydoc2.current))
     const state = Y.encodeStateAsUpdate(ydoc2.current, Y.encodeStateVector(ydoc1.current))
-    console.log(`Sending updates to first ydoc`)
     Y.applyUpdate(ydoc1.current, state)
   }
 
   function syncConcurrently() {
-    console.log('State clock 1', Y.encodeStateVector(ydoc1.current))
-    console.log('State clock 2', Y.encodeStateVector(ydoc2.current))
     const updates1to2 = Y.encodeStateAsUpdate(ydoc1.current, Y.encodeStateVector(ydoc2.current))
     const updates2to1 = Y.encodeStateAsUpdate(ydoc2.current, Y.encodeStateVector(ydoc1.current))
-    console.log(`Sending updates to both`)
     Y.applyUpdate(ydoc1.current, updates2to1)
     Y.applyUpdate(ydoc2.current, updates1to2)
   }
