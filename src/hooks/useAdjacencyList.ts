@@ -68,9 +68,10 @@ export function useAdjacencyList({ yMatrix }: { yMatrix: AdjacencyList }): Graph
       
     const addEdge = (nodeId1: id, nodeId2: id, label: string) => {
         yMatrix.doc!.transact(() => {
-            const nodeInfo = yMatrix.get(nodeId1)
-            if (nodeInfo === undefined) {
-                console.warn("Node does not exist")
+            const nodeInfo1 = yMatrix.get(nodeId1)
+            const nodeInfo2 = yMatrix.get(nodeId2)
+            if (nodeInfo1 === undefined || nodeInfo2 === undefined) {
+                console.warn("One of the edge nodes does not exist", nodeId1, nodeId2)
                 return 
             }
             const edgeInfo = new Y.Map<string | boolean>() as EdgeInformation
@@ -78,14 +79,14 @@ export function useAdjacencyList({ yMatrix }: { yMatrix: AdjacencyList }): Graph
             edgeInfo.set('id', nodeId2)
             edgeInfo.set('label', label)
 
-            nodeInfo.get('edgeInformation').forEach((edgeInfo) => {
+            nodeInfo1.get('edgeInformation').forEach((edgeInfo) => {
                 if (edgeInfo.get('id') === nodeId2) {
                     console.warn("Edge already exists", edgeInfo)
                     return 
                 }
             })
 
-            nodeInfo.get('edgeInformation').push([edgeInfo])
+            nodeInfo1.get('edgeInformation').push([edgeInfo])
             console.log("added edge with label", label)
         });
     }

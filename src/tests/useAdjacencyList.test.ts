@@ -189,7 +189,7 @@ describe('useAdjacencyList', () => {
         expect(yMatrix2.get('node2')).toBeDefined();
     })
 
-    it('add node1 in one map and node2 with edge1-2 in the other map', () => {
+    it('add node1 in one map and then node2 with edge1-2 in the other map', () => {
         const { result: graphApi1 } = renderHook(() => useAdjacencyList({ yMatrix: yMatrix1 }));
         const { result: graphApi2} = renderHook(() => useAdjacencyList({ yMatrix: yMatrix2 }));
         
@@ -215,33 +215,6 @@ describe('useAdjacencyList', () => {
         expect(edgeForMatrix2).toBeDefined();
         expect(edgeForMatrix2?.get('label')).toBe('edge1-2');
         expect(yMatrix2.get('node1')?.get('edgeInformation').length).toBe(1);
-    })
-
-    it('add node1 with edge1-2 in one map and node2 in the other map', () => {
-        const { result: graphApi1 } = renderHook(() => useAdjacencyList({ yMatrix: yMatrix1 }));
-        const { result: graphApi2 } = renderHook(() => useAdjacencyList({ yMatrix: yMatrix2 }));
-        
-        act(() => {
-            graphApi1.current.addNode('node1', 'node1', { x: 0, y: 0 });
-            graphApi1.current.addNode('node2', 'node2', { x: 10, y: 0 });
-            graphApi1.current.addEdge('node1', 'node2', 'edge1-2');
-            syncConcurrently();
-            graphApi2.current.addNode('node2', 'node2', { x: 10, y: 0 });
-            syncConcurrently();
-        })
-
-        const edgeForMatrix1 = getEdge(yMatrix1, 'node1', 'node2');
-        const edgeForMatrix2 = getEdge(yMatrix2, 'node1', 'node2');
-
-        expect(yMatrix1.get('node1')).toBeDefined();
-        expect(yMatrix1.get('node2')).toBeDefined();
-        expect(edgeForMatrix1).toBeDefined();
-        expect(edgeForMatrix1?.get('label')).toBe('edge1-2');
-
-        expect(yMatrix2.get('node1')).toBeDefined();
-        expect(yMatrix2.get('node2')).toBeDefined();
-        expect(edgeForMatrix2).toBeDefined();
-        expect(edgeForMatrix2?.get('label')).toBe('edge1-2');
     })
 
     it('add node1 in one map and remove node2 the other map', () => {

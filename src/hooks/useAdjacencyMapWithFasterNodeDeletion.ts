@@ -35,6 +35,24 @@ export function useAdjacencyMapWithFasterNodeDeletion({ yMatrix }: { yMatrix: Ad
     const [selectedNodes, addSelectedNode, removeSelectedNode] = useSet<id>()
     const [selectedEdges, addSelectedEdge, removeSelectedEdge] = useSet<id>()
 
+    function removeDanglingEdges() {
+        for (const source of yMatrix.values()) {
+            for (const target of source.get('edgeInformation').keys()) {
+                if (yMatrix.get(target) !== undefined)
+                    continue
+
+                source.get('edgeInformation').delete(target);
+                removeSelectedEdge(source.get('flowNode').id + "+" + target)
+            }
+            for (const incomingNode of source.get('incomingNodes').keys()) {
+                if (yMatrix.get(incomingNode) !== undefined)
+                    continue
+
+                source.get('incomingNodes').delete(incomingNode);
+            }
+        }
+    }
+
     function setLabel(nodeId: id, label: string) {
         yMatrix.doc!.transact(() => {
             const nodeInfo = yMatrix.get(nodeId)
@@ -67,7 +85,7 @@ export function useAdjacencyMapWithFasterNodeDeletion({ yMatrix }: { yMatrix: Ad
             const nodeInfo = yMatrix.get(nodeId1)
             const nodeInfo2 = yMatrix.get(nodeId2)
             if (nodeInfo === undefined || nodeInfo2 === undefined) {
-                console.warn("Node does not exist")
+                console.warn("One of the edge nodes does not exist", nodeId1, nodeId2)
                 return 
             }
             /* 
@@ -191,6 +209,7 @@ export function useAdjacencyMapWithFasterNodeDeletion({ yMatrix }: { yMatrix: Ad
     }
 
     const edgesAsFlow: () => FlowEdge[] = () => {
+        removeDanglingEdges();
         const nestedEdges = 
             Array.from(yMatrix.entries()).map(([sourceNode, nodeInfo]) =>
                 Array.from(nodeInfo.get('edgeInformation')).map(([targetNode, {label}]) => {

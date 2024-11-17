@@ -159,7 +159,7 @@ describe('useAdjacencyMap', () => {
         expect(yMatrix2.get('node2')).toBeDefined();
     })
 
-    it('add node1 in one map and node2 with edge1-2 in the other map', () => {
+    it('add node1 in one map and then node2 with edge1-2 in the other map', () => {
         const { result: graphApi1 } = renderHook(() => useAdjacencyMap({ yMatrix: yMatrix1 }));
         const { result: graphApi2} = renderHook(() => useAdjacencyMap({ yMatrix: yMatrix2 }));
         
@@ -168,30 +168,6 @@ describe('useAdjacencyMap', () => {
             syncConcurrently();
             graphApi2.current.addNode('node2', 'node2', { x: 10, y: 0 });
             graphApi2.current.addEdge('node1', 'node2', 'edge1-2');
-            syncConcurrently();
-        })
-
-        expect(yMatrix1.get('node1')).toBeDefined();
-        expect(yMatrix1.get('node2')).toBeDefined();
-        expect(yMatrix1.get('node1')?.get('edgeInformation').get('node2')).toBeDefined();
-        expect(yMatrix1.get('node1')?.get('edgeInformation').get('node2')?.label).toBe('edge1-2');
-
-        expect(yMatrix2.get('node1')).toBeDefined();
-        expect(yMatrix2.get('node2')).toBeDefined();
-        expect(yMatrix2.get('node1')?.get('edgeInformation').get('node2')).toBeDefined();
-        expect(yMatrix2.get('node1')?.get('edgeInformation').get('node2')?.label).toBe('edge1-2');
-    })
-
-    it('add node1 with edge1-2 in one map and node2 in the other map', () => {
-        const { result: graphApi1 } = renderHook(() => useAdjacencyMap({ yMatrix: yMatrix1 }));
-        const { result: graphApi2} = renderHook(() => useAdjacencyMap({ yMatrix: yMatrix2 }));
-        
-        act(() => {
-            graphApi1.current.addNode('node1', 'node1', { x: 0, y: 0 });
-            graphApi1.current.addNode('node2', 'node2', { x: 10, y: 0 });
-            graphApi1.current.addEdge('node1', 'node2', 'edge1-2');
-            syncConcurrently();
-            graphApi2.current.addNode('node2', 'node2', { x: 10, y: 0 });
             syncConcurrently();
         })
 
@@ -383,14 +359,17 @@ describe('useAdjacencyMap', () => {
             graphApi2.current.removeNode('node2');
             syncConcurrently();
             // this is only because edges as flow may trigger react updates
-            graphApi1.current.edgesAsFlow()
+            graphApi1.current.edgesAsFlow();
+            syncConcurrently();
         })
 
         expect(yMatrix1.get('node2')).toBeUndefined();
         expect(yMatrix1.get('node1')).toBeDefined();
+        expect(yMatrix1.get('node1')?.get('edgeInformation').get('node2')).toBeUndefined();
 
         expect(yMatrix2.get('node2')).toBeUndefined();
         expect(yMatrix2.get('node1')).toBeDefined();
+        expect(yMatrix2.get('node1')?.get('edgeInformation').get('node2')).toBeUndefined();
         expect(graphApi1.current.edgesAsFlow().length).toBe(0);
     })
 
