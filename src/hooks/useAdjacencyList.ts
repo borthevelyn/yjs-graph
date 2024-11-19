@@ -42,6 +42,21 @@ export function useAdjacencyList({ yMatrix }: { yMatrix: AdjacencyList }): Graph
         }
     }
 
+    function removeDuplicateEdges() {
+        for (const source of yMatrix.values()) {
+            const uniqueEdgesForNode: Set<id> = new Set();
+            source.get('edgeInformation').forEach((edge, index) => {
+                const edgeId = edge.get('id');
+                if (uniqueEdgesForNode.has(edgeId)) {
+                    source.get('edgeInformation').delete(index, 1);
+                    removeSelectedEdge(source.get('flowNode').id + "+" + edgeId)
+                } else {
+                    uniqueEdgesForNode.add(edgeId);
+                } 
+            })
+        }
+    }
+
     function setLabel(nodeId: id, label: string) {
         yMatrix.doc!.transact(() => {
             const nodeInfo = yMatrix.get(nodeId)
@@ -79,18 +94,20 @@ export function useAdjacencyList({ yMatrix }: { yMatrix: AdjacencyList }): Graph
             edgeInfo.set('id', nodeId2)
             edgeInfo.set('label', label)
 
-            nodeInfo1.get('edgeInformation').forEach((edgeInfo) => {
-                if (edgeInfo.get('id') === nodeId2) {
-                    console.warn("Edge already exists", edgeInfo)
-                    return 
-                }
-            })
+            // If the edge already exists in the local state, we replace the edge label 
+            let duplicateEdgeIndex = nodeInfo1.get('edgeInformation').toArray().findIndex((edgeInfo) => edgeInfo.get('id') === nodeId2)
+
+            if (duplicateEdgeIndex !== -1) {
+                nodeInfo1.get('edgeInformation').get(duplicateEdgeIndex)!.set('label', label)
+                console.log("replaced edge with label, edges", label)
+                return
+            }
 
             nodeInfo1.get('edgeInformation').push([edgeInfo])
-            console.log("added edge with label", label)
+            
+            console.log("added edge with label, edges", label)
         });
     }
-
 
 
     const removeNode = (nodeId: id) => {
@@ -200,6 +217,7 @@ export function useAdjacencyList({ yMatrix }: { yMatrix: AdjacencyList }): Graph
 
     const edgesAsFlow: () => FlowEdge[] = () => {
         removeDanglingEdges();
+        removeDuplicateEdges(); 
         const nestedEdges = 
             Array.from(yMatrix.entries()).map(([sourceNode, nodeInfo]) =>
                 Array.from(nodeInfo.get('edgeInformation')).map((edge) => {

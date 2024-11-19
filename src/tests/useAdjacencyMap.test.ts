@@ -344,7 +344,6 @@ describe('useAdjacencyMap', () => {
     })
 
 // addEdge(m1,m2), addEdge(n1,n2) m1 == n1, m2 == n2
-// TODO, not working yet
     it('try to add edge twice', () => {
         const { result: graphApi1 } = renderHook(() => useAdjacencyMap({ yMatrix: yMatrix1 }));
         const { result: graphApi2} = renderHook(() => useAdjacencyMap({ yMatrix: yMatrix2 }));
@@ -361,12 +360,18 @@ describe('useAdjacencyMap', () => {
         const edgeForMatrix2 = yMatrix2.get('node1')?.get('edgeInformation').get('node2');
 
         expect(edgeForMatrix1).toBeDefined();
-        expect(edgeForMatrix2).toBeDefined();
         expect(yMatrix1.get('node1')).toBeDefined();
         expect(yMatrix1.get('node2')).toBeDefined();
         expect(yMatrix1.get('node1')?.get('edgeInformation').size).toBe(1);
         expect(yMatrix1.get('node1')?.get('edgeInformation').has('node2')).toBe(true);
+        // yjs decides which label to take for the edge
         // expect(yMatrix1.get('node1')?.get('edgeInformation').get('node2')?.label).toBe('edge1-2');
+
+        expect(edgeForMatrix2).toBeDefined();
+        expect(yMatrix2.get('node1')).toBeDefined();
+        expect(yMatrix2.get('node2')).toBeDefined();
+        expect(yMatrix2.get('node1')?.get('edgeInformation').size).toBe(1);
+        expect(yMatrix2.get('node1')?.get('edgeInformation').has('node2')).toBe(true);
     })
 
 // addEdge(m1,m2), removeNode(n) m1 == n, m2 != n

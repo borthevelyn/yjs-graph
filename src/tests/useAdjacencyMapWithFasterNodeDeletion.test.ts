@@ -246,26 +246,26 @@ describe('useAdjacencyMapWithFasterNodeDeletion', () => {
 // addNode(m), removeNode(n), m == n, combination does not exist
 
 // addNode(m), removeNode(n), m != n
-it('add node1 in one map and remove node2 the other map', () => {
-    const { result: graphApi1 } = renderHook(() => useAdjacencyMapWithFasterNodeDeletion({ yMatrix: yMatrix1 }));
-    const { result: graphApi2} = renderHook(() => useAdjacencyMapWithFasterNodeDeletion({ yMatrix: yMatrix2 }));
-    
-    act(() => {
-        graphApi2.current.addNode('node2', 'node2', { x: 10, y: 0 });
-        syncConcurrently();
-        graphApi1.current.addNode('node1', 'node1', { x: 0, y: 0 });
-        graphApi2.current.removeNode('node2');
-        syncConcurrently();
+    it('add node1 in one map and remove node2 the other map', () => {
+        const { result: graphApi1 } = renderHook(() => useAdjacencyMapWithFasterNodeDeletion({ yMatrix: yMatrix1 }));
+        const { result: graphApi2} = renderHook(() => useAdjacencyMapWithFasterNodeDeletion({ yMatrix: yMatrix2 }));
+        
+        act(() => {
+            graphApi2.current.addNode('node2', 'node2', { x: 10, y: 0 });
+            syncConcurrently();
+            graphApi1.current.addNode('node1', 'node1', { x: 0, y: 0 });
+            graphApi2.current.removeNode('node2');
+            syncConcurrently();
+        })
+
+        expect(yMatrix1.get('node1')).toBeDefined();
+        expect(yMatrix1.get('node2')).toBeUndefined();
+        expect(yMatrix1.get('node1')?.get("flowNode").data.label).toBe('node1');
+
+        expect(yMatrix2.get('node1')).toBeDefined();
+        expect(yMatrix2.get('node2')).toBeUndefined();
+        expect(yMatrix2.get('node1')?.get("flowNode").data.label).toBe('node1');
     })
-
-    expect(yMatrix1.get('node1')).toBeDefined();
-    expect(yMatrix1.get('node2')).toBeUndefined();
-    expect(yMatrix1.get('node1')?.get("flowNode").data.label).toBe('node1');
-
-    expect(yMatrix2.get('node1')).toBeDefined();
-    expect(yMatrix2.get('node2')).toBeUndefined();
-    expect(yMatrix2.get('node1')?.get("flowNode").data.label).toBe('node1');
-})
 
 // addNode(m), removeEdge(n1,n2), m != n1,n2
     it('add node3 in one map and remove edge1-2 in the other map', () => {
@@ -469,7 +469,41 @@ it('add node1 in one map and remove node2 the other map', () => {
     })
 
 // addEdge(m1,m2), addEdge(n1,n2) m1 == n1, m2 == n2
-// TODO, not working yet
+    it('try to add edge twice', () => {
+        const { result: graphApi1 } = renderHook(() => useAdjacencyMapWithFasterNodeDeletion({ yMatrix: yMatrix1 }));
+        const { result: graphApi2} = renderHook(() => useAdjacencyMapWithFasterNodeDeletion({ yMatrix: yMatrix2 }));
+        act(() => {
+            graphApi1.current.addNode('node1', 'node1', { x: 0, y: 0 });
+            graphApi1.current.addNode('node2', 'node2', { x: 10, y: 0 });
+            syncConcurrently();
+            graphApi2.current.addEdge('node1', 'node2', 'second edge1-2');
+            graphApi1.current.addEdge('node1', 'node2', 'edge1-2');
+            syncConcurrently();
+        })
+
+        const edgeForMatrix1 = yMatrix1.get('node1')?.get('edgeInformation').get('node2');
+        const edgeForMatrix2 = yMatrix2.get('node1')?.get('edgeInformation').get('node2');
+        const incomingNodesForNode2InMatrix1 = yMatrix1.get('node2')?.get('incomingNodes');
+        const incomingNodesForNode2InMatrix2 = yMatrix1.get('node2')?.get('incomingNodes');
+
+        expect(edgeForMatrix1).toBeDefined();
+        expect(yMatrix1.get('node1')).toBeDefined();
+        expect(yMatrix1.get('node2')).toBeDefined();
+        expect(yMatrix1.get('node1')?.get('edgeInformation').size).toBe(1);
+        expect(yMatrix1.get('node1')?.get('edgeInformation').has('node2')).toBe(true);
+        expect(incomingNodesForNode2InMatrix1?.size).toBe(1);
+        expect(incomingNodesForNode2InMatrix1?.has('node1')).toBe(true);
+        // yjs decides which label to take for the edge
+        // expect(yMatrix1.get('node1')?.get('edgeInformation').get('node2')?.label).toBe('edge1-2');
+
+        expect(edgeForMatrix2).toBeDefined();
+        expect(yMatrix2.get('node1')).toBeDefined();
+        expect(yMatrix2.get('node2')).toBeDefined();
+        expect(yMatrix2.get('node1')?.get('edgeInformation').size).toBe(1);
+        expect(yMatrix2.get('node1')?.get('edgeInformation').has('node2')).toBe(true);
+        expect(incomingNodesForNode2InMatrix2?.size).toBe(1);
+        expect(incomingNodesForNode2InMatrix2?.has('node1')).toBe(true);
+    })
 
 
 // addEdge(m1,m2), removeNode(n) m1 == n, m2 != n
@@ -958,6 +992,7 @@ it('add node1 in one map and remove node2 the other map', () => {
         expect(yMatrix2.get('node2')?.get('incomingNodes')?.size).toBe(0);
         expect(yMatrix2.size).toBe(2);
     })
+
 // removeEdge(m1,m2), removeEdge(n1,n2) m1 == n1, m2 != n2
     it('remove edge1-2 in one map and remove edge2-3 in the other map', () => {
         const { result: graphApi1 } = renderHook(() => useAdjacencyMapWithFasterNodeDeletion({ yMatrix: yMatrix1 }));

@@ -397,7 +397,7 @@ describe('useAdjacencyList', () => {
     })
 
 // addEdge(m1,m2), addEdge(n1,n2) m1 == n1, m2 == n2
-// TODO, not working yet
+// Garbage collection for duplicate edges is required
     it('try to add edge twice', () => {
         const { result: graphApi1 } = renderHook(() => useAdjacencyList({ yMatrix: yMatrix1 }));
         const { result: graphApi2} = renderHook(() => useAdjacencyList({ yMatrix: yMatrix2 }));
@@ -406,7 +406,10 @@ describe('useAdjacencyList', () => {
             graphApi1.current.addNode('node2', 'node2', { x: 10, y: 0 });
             syncConcurrently();
             graphApi1.current.addEdge('node1', 'node2', 'edge1-2');
-            graphApi1.current.addEdge('node1', 'node2', 'second edge1-2');
+            graphApi2.current.addEdge('node1', 'node2', 'second edge1-2');
+            syncConcurrently();
+            // Garbage collection for duplicate edges is done here
+            graphApi1.current.edgesAsFlow();
             syncConcurrently();
         })
 
@@ -414,10 +417,14 @@ describe('useAdjacencyList', () => {
         const edgeForMatrix2 = getEdge(yMatrix2, 'node1', 'node2');
 
         expect(edgeForMatrix1).toBeDefined();
-        expect(edgeForMatrix2).toBeDefined();
         expect(yMatrix1.get('node1')).toBeDefined();
         expect(yMatrix1.get('node2')).toBeDefined();
-        // expect(yMatrix1.get('node1')?.get('edgeInformation').length).toBe(1);
+        expect(yMatrix1.get('node1')?.get('edgeInformation').length).toBe(1);
+
+        expect(edgeForMatrix2).toBeDefined();
+        expect(yMatrix2.get('node1')).toBeDefined();
+        expect(yMatrix2.get('node2')).toBeDefined();
+        expect(yMatrix2.get('node1')?.get('edgeInformation').length).toBe(1);
     })
 
 // addEdge(m1,m2), removeNode(n) m1 == n, m2 != n
