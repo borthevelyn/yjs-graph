@@ -1,13 +1,12 @@
-import '@xyflow/react/dist/style.css'
-
 import './App.css'
 import * as Y from 'yjs'
 import Graph from './components/Graph'
 import { GraphApi } from './Types'
 import { useEffect, useRef } from 'react'
-import { AdjacencyList, useAdjacencyList } from './hooks/useAdjacencyList'
-import { AdjacencyMap, useAdjacencyMap } from './hooks/useAdjacencyMap'
-import { AdjacencyMapWithFasterNodeDeletion, useAdjacencyMapWithFasterNodeDeletion } from './hooks/useAdjacencyMapWithFasterNodeDeletion'
+import '@xyflow/react/dist/style.css'
+import { useAdjacencyMap } from './hooks/useAdjacencyMap'
+import { useAdjacencyList } from './hooks/useAdjacencyList'
+import { useAdjacencyMapWithFasterNodeDeletion } from './hooks/useAdjacencyMapWithFasterNodeDeletion'
 
 function populateMatrix(graphApi: GraphApi) {  
     // Create nested yarray
@@ -15,37 +14,18 @@ function populateMatrix(graphApi: GraphApi) {
     const nodeId2 = 'nodeId2'
     const nodeId3 = 'nodeId3'
 
-    graphApi.addNode(nodeId1, "label1", {x: 1, y: 0})
-    graphApi.addNode(nodeId2, "label2", {x: 1, y: 100})
-    graphApi.addNode(nodeId3, "label3", {x: 1, y: 200})
-    graphApi.addEdge(nodeId1, nodeId2, "edge1")
+    graphApi.addNode(nodeId1, 'label1', {x: 1, y: 0})
+    graphApi.addNode(nodeId2, 'label2', {x: 1, y: 100})
+    graphApi.addNode(nodeId3, 'label3', {x: 1, y: 200})
+    graphApi.addEdge(nodeId1, nodeId2, 'edge1')
 }
 
 function App() {
   const ydoc1 = useRef(new Y.Doc())
-  const yMatrix1 = useRef(ydoc1.current.getMap('adjacency map') as AdjacencyMap)
   const ydoc2 = useRef(new Y.Doc())
-  const yMatrix2 = useRef(ydoc2.current.getMap('adjacency map') as AdjacencyMap)
 
-  const graphApi1 = useAdjacencyMap({ yMatrix: yMatrix1.current })
-  const graphApi2 = useAdjacencyMap({ yMatrix: yMatrix2.current })
-
-/*   const ydoc1 = useRef(new Y.Doc())
-  const yMatrix1 = useRef(ydoc1.current.getMap('adjacency map') as AdjacencyMapWithFasterNodeDeletion)
-  const ydoc2 = useRef(new Y.Doc())
-  const yMatrix2 = useRef(ydoc2.current.getMap('adjacency map') as AdjacencyMapWithFasterNodeDeletion)
-
-
-  const graphApi1 = useAdjacencyMapWithFasterNodeDeletion({ yMatrix: yMatrix1.current })
-  const graphApi2 = useAdjacencyMapWithFasterNodeDeletion({ yMatrix: yMatrix2.current }) */
-/* 
-  const ydoc1 = useRef(new Y.Doc())
-  const yMatrix1 = useRef(ydoc1.current.getMap('adjacency list') as AdjacencyList)
-  const ydoc2 = useRef(new Y.Doc())
-  const yMatrix2 = useRef(ydoc2.current.getMap('adjacency list') as AdjacencyList)
-
-  const graphApi1 = useAdjacencyList({ yMatrix: yMatrix1.current })
-  const graphApi2 = useAdjacencyList({ yMatrix: yMatrix2.current }) */
+  const graphApi1 = useAdjacencyList({ yMatrix: ydoc1.current.getMap('adjacency map') })
+  const graphApi2 = useAdjacencyList({ yMatrix: ydoc2.current.getMap('adjacency map') })
 
   function sync1to2() {
     console.log('State clock 1', Y.encodeStateVector(ydoc1.current))
@@ -80,6 +60,8 @@ function App() {
     <button onClick={syncConcurrently}>Sync concurrently</button>
     <div style={{ height: '96vh', width: '100vw', display: 'inline-flex', alignItems: 'flex-start', justifyContent: 'space-between'}}>
       <div style={{ height: '100%', width: '50%', borderRight: '1px solid black' }}>
+        {/* This relies on the assumption that graphApi has enumerable properties which are the functions. 
+        Functions in the prototype chain are not expanded as expected. Typescript does NOT log an error here */}
         <Graph {...graphApi1}/>
       </div>
       <div style={{ height: '100%', width: '50%' }}>

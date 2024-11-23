@@ -25,10 +25,10 @@ export type GraphApi =  {
     removeNode: (id: string) => void, 
     removeEdge: (source: string, target: string) => void, 
     changeNodePosition: (id: string, position: { x: number; y: number }) => void, 
-    nodesAsFlow: () => FlowNode[], 
     changeNodeDimension: (id: string, dimensions: { width: number; height: number }) => void, 
     changeNodeSelection: (id: string, selected: boolean) => void, 
     changeEdgeSelection: (id: string, selected: boolean) => void, 
+    nodesAsFlow: () => FlowNode[], 
     edgesAsFlow: () => FlowEdge[]
 }
 
@@ -43,4 +43,22 @@ export interface YSet extends Omit<Y.Map<undefined>, 'set' | 'get' | 'entries' |
 }
 export function makeYSet(): YSet {
     return new Y.Map<undefined>() as unknown as YSet;
+}
+
+
+export class EventEmitter {
+    private lambdas: (() => void)[];
+
+    constructor() {
+        this.lambdas = [];
+    }
+
+    addListener(lambda: () => void) {
+        this.lambdas.push(lambda);
+    }
+
+    fire() {
+        for (const lambda of this.lambdas)
+            lambda();
+    }
 }

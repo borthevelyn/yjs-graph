@@ -1,8 +1,8 @@
-import { Background, Connection, ControlButton, Controls, EdgeChange, NodeChange, ReactFlow } from "@xyflow/react"
-import { FlowEdge, FlowNode, GraphApi } from "../Types"
-import { useCallback } from "react"
-import EditLabelNode from "./EditLabelNode"
-import { v4 } from "uuid"
+import { Background, Connection, ControlButton, Controls, EdgeChange, NodeChange, ReactFlow } from '@xyflow/react'
+import { FlowEdge, FlowNode, GraphApi } from '../Types'
+import { useCallback } from 'react'
+import EditLabelNode from './EditLabelNode'
+import { v4 } from 'uuid'
 
 export default function Graph({ 
     addNode, 
@@ -26,29 +26,32 @@ export default function Graph({
             if (change.dimensions !== undefined)
             changeNodeDimension(change.id, change.dimensions)
         } else if (change.type === 'select') {
+            console.log('change node selection', change)
             changeNodeSelection(change.id, change.selected);
         } else {
-            console.warn("unhandled change!", change);
+            console.warn('unhandled change!', change);
         }
         }),
-        [],
+        [changeNodeDimension, changeNodePosition, changeNodeSelection],
     );
 
+    console.log('nodes as flow', nodesAsFlow())
+    
     const onEdgesChange = useCallback(
         (changes: EdgeChange<any>[]) => changes.forEach((change) => {
-        console.log("edge change", change);
+        console.log('edge change', change);
         if (change.type === 'select') {
             changeEdgeSelection(change.id, change.selected);
         }
         else
-            console.warn("unhandled change!", change);
+            console.warn('unhandled change!', change);
         }),
-        [],
+        [changeEdgeSelection],
     );
 
     const onNodesDelete = useCallback(
         (nodes: FlowNode[]) => {
-        console.log("delete nodes", nodes);
+        console.log('delete nodes', nodes);
         nodes.forEach((node) => {
             removeNode(node.id)
         })
@@ -56,8 +59,8 @@ export default function Graph({
 
     const onConnect = useCallback(
         (connection: Connection) => {
-        console.log("connect")
-        addEdge(connection.source, connection.target, "edge label")
+        console.log('connect')
+        addEdge(connection.source, connection.target, 'edge label')
         },
         [addEdge],
     ) 
@@ -66,7 +69,7 @@ export default function Graph({
         (edges: FlowEdge[]) => {
         edges.forEach((edge) => {
             if (edge.selected === true) {
-                console.log("delete edge", edge)
+                console.log('delete edge', edge)
                 removeEdge(edge.source, edge.target)
             }
         })
@@ -90,7 +93,7 @@ export default function Graph({
         >
         <Background />
         <Controls>
-            <ControlButton onClick={() => addNode(v4(), "node label", {x: 0, y: 0})}>Add Node</ControlButton>
+            <ControlButton onClick={() => addNode(v4(), 'node label', {x: 0, y: 0})}>Add Node</ControlButton>
         </Controls> 
         </ReactFlow>
         </>

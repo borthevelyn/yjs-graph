@@ -1,247 +1,26 @@
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { AdjacencyList, AdjacencyListGraph } from '../graphs/AdjacencyList'
+import { EventEmitter, GraphApi } from '../Types'
 
-import { useState, useEffect, useCallback } from "react"
-import * as Y from 'yjs'
-import { FlowEdge, FlowNode, GraphApi, id, ObjectYMap } from "../Types"
-import { MarkerType, XYPosition } from "@xyflow/react"
-import { useSet } from "./useSet"
-
-type EdgeInformation = ObjectYMap<{
-    id: string,
-    label: string
-}>
-type NodeInformation = ObjectYMap<{
-    flowNode: FlowNode,
-    edgeInformation: Y.Array<EdgeInformation>
-}>
-export type AdjacencyList = Y.Map<NodeInformation>
-
-function makeNodeInformation(node: FlowNode, edges: Y.Array<EdgeInformation>) {
-    const res = new Y.Map<FlowNode | Y.Array<EdgeInformation>>() as NodeInformation
-    res.set('flowNode', node)
-    res.set('edgeInformation', edges)
-    return res
-}
-
-export function useAdjacencyList({ yMatrix }: { yMatrix: AdjacencyList }): GraphApi {
+export function useAdjacencyList({ yMatrix }: { yMatrix: AdjacencyListGraph }): GraphApi {
     const [, updateHelper] = useState({})
     const update = useCallback(() => updateHelper({}), [])
-
-    const [selectedNodes, addSelectedNode, removeSelectedNode] = useSet<id>()
-    const [selectedEdges, addSelectedEdge, removeSelectedEdge] = useSet<id>()
-
-    function removeDanglingEdges() {
-        for (const source of yMatrix.values()) {
-            source.get('edgeInformation').forEach((target, index) => {
-                const targetId = target.get('id')
-                if (yMatrix.get(targetId) !== undefined)
-                    return
-
-                source.get('edgeInformation').delete(index, 1);
-                removeSelectedEdge(source.get('flowNode').id + "+" + targetId)
-            })
-        }
-    }
-
-    function removeDuplicateEdges() {
-        for (const source of yMatrix.values()) {
-            const uniqueEdgesForNode: Set<id> = new Set();
-            source.get('edgeInformation').forEach((edge, index) => {
-                const edgeId = edge.get('id');
-                if (uniqueEdgesForNode.has(edgeId)) {
-                    source.get('edgeInformation').delete(index, 1);
-                    removeSelectedEdge(source.get('flowNode').id + "+" + edgeId)
-                } else {
-                    uniqueEdgesForNode.add(edgeId);
-                } 
-            })
-        }
-    }
-
-    function setLabel(nodeId: id, label: string) {
-        yMatrix.doc!.transact(() => {
-            const nodeInfo = yMatrix.get(nodeId)
-            if (nodeInfo === undefined) {
-                console.warn("Node does not exist")
-                return 
-            }
-            nodeInfo.set('flowNode', { ...nodeInfo.get('flowNode'), data: { label, setLabel } })
-        });
-    }
-
-    const addNode = (nodeId: id, label: string, position: XYPosition) => {
-        const innerMap = makeNodeInformation({ 
-            id: nodeId, 
-            data : { label, setLabel }, 
-            position, 
-            deletable: true, 
-            // type: 'editNodeLabel' 
-        }, 
-        new Y.Array<EdgeInformation>())
-        yMatrix.set(nodeId, innerMap)
-        console.log('document of newly created map (should not be null)', yMatrix.get(nodeId)!.get('edgeInformation').doc)
-      }
-      
-    const addEdge = (nodeId1: id, nodeId2: id, label: string) => {
-        yMatrix.doc!.transact(() => {
-            const nodeInfo1 = yMatrix.get(nodeId1)
-            const nodeInfo2 = yMatrix.get(nodeId2)
-            if (nodeInfo1 === undefined || nodeInfo2 === undefined) {
-                console.warn("One of the edge nodes does not exist", nodeId1, nodeId2)
-                return 
-            }
-            const edgeInfo = new Y.Map<string | boolean>() as EdgeInformation
-            
-            edgeInfo.set('id', nodeId2)
-            edgeInfo.set('label', label)
-
-            // If the edge already exists in the local state, we replace the edge label 
-            let duplicateEdgeIndex = nodeInfo1.get('edgeInformation').toArray().findIndex((edgeInfo) => edgeInfo.get('id') === nodeId2)
-
-            if (duplicateEdgeIndex !== -1) {
-                nodeInfo1.get('edgeInformation').get(duplicateEdgeIndex)!.set('label', label)
-                console.log("replaced edge with label, edges", label)
-                return
-            }
-
-            nodeInfo1.get('edgeInformation').push([edgeInfo])
-            
-            console.log("added edge with label, edges", label)
-        });
-    }
-
-
-    const removeNode = (nodeId: id) => {
-        yMatrix.doc!.transact(() => {   
-            yMatrix.delete(nodeId)
-            removeSelectedNode(nodeId);
-            yMatrix.forEach((nodeInfo) => {
-                const edges = nodeInfo.get('edgeInformation')
-                edges.forEach((edgeInfo, index) => {
-                    if (edgeInfo.get('id') === nodeId) {
-                        edges.delete(index, 1)
-                    }
-                })
-            })
-        });
-    }
-
-    const removeEdge = (nodeId1: id, nodeId2: id) => {
-        yMatrix.doc!.transact(() => {
-            const innerMap = yMatrix.get(nodeId1)
-            if (innerMap === undefined) {
-                console.warn("Edge does not exist")
-                return 
-            }
-            console.log('removed edge', nodeId1, nodeId2)
-            const edges = innerMap.get('edgeInformation')
-            edges.forEach((edgeInfo, index) => {
-                if (edgeInfo.get('id') === nodeId2) {
-                    innerMap.get('edgeInformation').delete(index, 1)
-                    removeSelectedEdge(nodeId1 + "+" + nodeId2);
-                }
-            })
-        });
-    }
-
-    const changeNodePosition = (nodeId: id, position: XYPosition) => {
-        yMatrix.doc!.transact(() => {
-            const nodeInfo = yMatrix.get(nodeId)
-            if (nodeInfo === undefined) {
-                console.warn("Node does not exist")
-                return 
-            }
-            nodeInfo.set('flowNode', { ...nodeInfo.get('flowNode'), position })
-        });
-    }
-
-    const changeNodeDimension = (nodeId: id, dim: {width: number, height: number}) => {
-        yMatrix.doc!.transact(() => {
-            const nodeInfo = yMatrix.get(nodeId)
-            if (nodeInfo === undefined) {
-                console.warn("Node does not exist")
-                return 
-            }
-
-            nodeInfo.set('flowNode', { ...nodeInfo.get('flowNode'), measured: dim })
-        });
-    }
-
-    const changeNodeSelection = (nodeId: id, selected: boolean) => {    
-        yMatrix.doc!.transact(() => {
-            const nodeInfo = yMatrix.get(nodeId)
-            if (nodeInfo === undefined) {
-                console.warn("Node does not exist")
-                return 
-            }
-
-            if (selected) {
-                addSelectedNode(nodeId)
-            }
-            else {
-                removeSelectedNode(nodeId)
-            }
-        });
-    }
-
-    const changeEdgeSelection = (edgeId: id, selected: boolean) => {
-        yMatrix.doc!.transact(() => {
-            const [nodeId1, nodeId2] = edgeId.split("+")
-            const nodeInformation = yMatrix.get(nodeId1)
-            if (nodeInformation === undefined) {
-                console.warn("Node does not exist")
-                return 
-            }
-            nodeInformation.get('edgeInformation').forEach((edgeInfo) => {
-                if (edgeInfo.get('id') === nodeId2) {
-                    if (selected) {
-                        addSelectedEdge(edgeId)
-                    }
-                    else {
-                        removeSelectedEdge(edgeId)
-                    }
-                }
-            })
-        });
-    }
-
-    const nodesAsFlow : () => FlowNode[] = () => {
-        return Array.from(yMatrix.values()).map(x => {
-            const flowNode = x.get('flowNode')
-            console.log('node is selected', selectedNodes.has(flowNode.id), selectedNodes)
-            return {
-                ...flowNode,
-                selected: selectedNodes.has(flowNode.id)
-            }
-        })
-    }
-
-    const edgesAsFlow: () => FlowEdge[] = () => {
-        removeDanglingEdges();
-        removeDuplicateEdges(); 
-        const nestedEdges = 
-            Array.from(yMatrix.entries()).map(([sourceNode, nodeInfo]) =>
-                Array.from(nodeInfo.get('edgeInformation')).map((edge) => {
-                    return {
-                        id: sourceNode + "+" + edge.get('id'),
-                        source: sourceNode,
-                        target: edge.get('id'),
-                        deletable: true,
-                        markerEnd: { type: MarkerType.Arrow},
-                        label: edge.get('label'),
-                        selected: selectedEdges.has(sourceNode + "+" + edge.get('id')),
-                    }
-                })
-            )
-
-        return nestedEdges.flat()
-    }
+    const graph = useRef(new AdjacencyList(yMatrix, new EventEmitter()));
 
     useEffect(() => {
-        yMatrix.observeDeep((m) => {
-            update() 
-        })
-      }, [yMatrix, update])
+        graph.current.observe(update)
+      }, [update])
 
- 
-    return {addNode, addEdge, removeNode, removeEdge, changeNodePosition, changeNodeDimension, changeNodeSelection, changeEdgeSelection, nodesAsFlow, edgesAsFlow}
+      return {
+        addNode: graph.current.addNode.bind(graph.current),
+        addEdge: graph.current.addEdge.bind(graph.current),
+        removeNode: graph.current.removeNode.bind(graph.current),
+        removeEdge: graph.current.removeEdge.bind(graph.current),
+        changeNodePosition: graph.current.changeNodePosition.bind(graph.current),
+        changeNodeDimension: graph.current.changeNodeDimension.bind(graph.current),
+        changeNodeSelection: graph.current.changeNodeSelection.bind(graph.current),
+        changeEdgeSelection: graph.current.changeEdgeSelection.bind(graph.current),
+        nodesAsFlow: graph.current.nodesAsFlow.bind(graph.current),
+        edgesAsFlow: graph.current.edgesAsFlow.bind(graph.current),
+    }
 }

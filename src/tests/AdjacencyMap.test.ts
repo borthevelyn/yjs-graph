@@ -1,5 +1,5 @@
 import * as Y from 'yjs'
-import { AdjacencyMapWithFasterNodeDeletion } from '../graphs/AdjacencyMapWithFasterNodeDeletion'
+import { AdjacencyMap } from '../graphs/AdjacencyMap'
 
 /* 
 Assumptions: 
@@ -8,11 +8,11 @@ Assumptions:
 as edge ids are generated from node ids connected by the edge
 */
 
-describe('useAdjacencyMapWithFasterNodeDeletion', () => {
+describe('AdjacencyMap', () => {
     let ydoc1: Y.Doc
-    let yMatrix1: AdjacencyMapWithFasterNodeDeletion
+    let yMatrix1: AdjacencyMap
     let ydoc2: Y.Doc
-    let yMatrix2: AdjacencyMapWithFasterNodeDeletion
+    let yMatrix2: AdjacencyMap
 
     function syncConcurrently() {
         const updates1to2 = Y.encodeStateAsUpdate(ydoc1, Y.encodeStateVector(ydoc2))
@@ -20,23 +20,26 @@ describe('useAdjacencyMapWithFasterNodeDeletion', () => {
         Y.applyUpdate(ydoc1, updates2to1)
         Y.applyUpdate(ydoc2, updates1to2)
       }
-    
+
     beforeEach(() => {
         ydoc1 = new Y.Doc()
-        yMatrix1 = new AdjacencyMapWithFasterNodeDeletion(ydoc1.getMap('adjacency map with faster node deletion')) 
+        yMatrix1 = new AdjacencyMap(ydoc1.getMap('adjacency map'))
         ydoc2 = new Y.Doc()
-        yMatrix2 = new AdjacencyMapWithFasterNodeDeletion(ydoc2.getMap('adjacency map with faster node deletion')) 
+        yMatrix2 = new AdjacencyMap(ydoc2.getMap('adjacency map'))
     })
 
     it('should add a node from yMatrix1 to both maps', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         syncConcurrently();
 
+        const node1LabelForMatrix1 = yMatrix1.getNode('node1')?.data.label;
+        const node1LabelForMatrix2 = yMatrix2.getNode('node1')?.data.label;
+
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix2.getNode('node1')).toBeDefined();
 
-        expect(yMatrix1.getNode('node1')?.data.label).toBe('node1');
-        expect(yMatrix2.getNode('node1')?.data.label).toBe('node1');
+        expect(node1LabelForMatrix1).toBe('node1');
+        expect(node1LabelForMatrix2).toBe('node1');
 
         expect(yMatrix1.nodeCount).toBe(1);
         expect(yMatrix2.nodeCount).toBe(1);
@@ -46,11 +49,14 @@ describe('useAdjacencyMapWithFasterNodeDeletion', () => {
         yMatrix2.addNode('node1', 'node1', { x: 0, y: 0 });
         syncConcurrently();
 
+        const node1LabelForMatrix1 = yMatrix1.getNode('node1')?.data.label;
+        const node1LabelForMatrix2 = yMatrix2.getNode('node1')?.data.label;
+
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix2.getNode('node1')).toBeDefined();
 
-        expect(yMatrix1.getNode('node1')?.data.label).toBe('node1');
-        expect(yMatrix2.getNode('node1')?.data.label).toBe('node1');
+        expect(node1LabelForMatrix1).toBe('node1');
+        expect(node1LabelForMatrix2).toBe('node1');
 
         expect(yMatrix1.nodeCount).toBe(1);
         expect(yMatrix2.nodeCount).toBe(1);
@@ -78,31 +84,19 @@ describe('useAdjacencyMapWithFasterNodeDeletion', () => {
         yMatrix1.addEdge('node1', 'node2', 'edge 1');
         syncConcurrently();
 
-        const incomingNodesForNode1InMatrix1 = yMatrix1.getIncomingNodes('node1');
-        const incomingNodesForNode1Matrix2 = yMatrix2.getIncomingNodes('node1');
-        const incomingNodesForNode2InMatrix1 = yMatrix1.getIncomingNodes('node2');
-        const incomingNodesForNode2Matrix2 = yMatrix2.getIncomingNodes('node2');
+        const edgeLabelForMatrix1 = yMatrix1.getEdge('node1', 'node2')?.data?.label;
+        const edgeLabelForMatrix2 = yMatrix2.getEdge('node1', 'node2')?.data?.label;
 
-        expect(yMatrix1.getEdge('node1', 'node2')?.data?.label).toBe('edge 1');
-        expect(yMatrix2.getEdge('node1', 'node2')?.data?.label).toBe('edge 1');
+        expect(edgeLabelForMatrix1).toBe('edge 1');
+        expect(edgeLabelForMatrix2).toBe('edge 1');
 
-        expect(incomingNodesForNode1InMatrix1?.size).toBe(0);
-        expect(incomingNodesForNode1Matrix2?.size).toBe(0);
-
-        expect(incomingNodesForNode2InMatrix1).toBeDefined();
-        expect(incomingNodesForNode2Matrix2).toBeDefined();
-
-        expect(incomingNodesForNode2InMatrix1?.size).toBe(1);
-        expect(incomingNodesForNode2Matrix2?.size).toBe(1);
-
-        expect(incomingNodesForNode2InMatrix1?.has('node1')).toBe(true);
-        expect(incomingNodesForNode2Matrix2?.has('node1')).toBe(true);
-
-        expect(yMatrix1.nodeCount).toBe(2);
-        expect(yMatrix2.nodeCount).toBe(2);
+        expect(yMatrix1.getEdge('node1', 'node2')?.data?.label).toBeDefined();
+        expect(yMatrix2.getEdge('node1', 'node2')?.data?.label).toBeDefined();
 
         expect(yMatrix1.edgeCount).toBe(1);
         expect(yMatrix2.edgeCount).toBe(1);
+        expect(yMatrix1.nodeCount).toBe(2);
+        expect(yMatrix2.nodeCount).toBe(2);
     })
 
     it('should add an edge from yMatrix2 to both maps', () => {
@@ -110,32 +104,20 @@ describe('useAdjacencyMapWithFasterNodeDeletion', () => {
         yMatrix2.addNode('node2', 'node2', { x: 0, y: 0 });
         yMatrix2.addEdge('node1', 'node2', 'edge1');
         syncConcurrently();
- 
-        const incomingNodesForNode1InMatrix1 = yMatrix1.getIncomingNodes('node1');
-        const incomingNodesForNode1Matrix2 = yMatrix2.getIncomingNodes('node1');
-        const incomingNodesForNode2InMatrix1 = yMatrix1.getIncomingNodes('node2');
-        const incomingNodesForNode2Matrix2 = yMatrix2.getIncomingNodes('node2');
 
-        expect(yMatrix1.getEdge('node1', 'node2')?.data?.label).toBe('edge1');
-        expect(yMatrix2.getEdge('node1', 'node2')?.data?.label).toBe('edge1');
+        const edgeLabelForMatrix1 = yMatrix1.getEdge('node1', 'node2')?.data?.label;
+        const edgeLabelForMatrix2 = yMatrix2.getEdge('node1', 'node2')?.data?.label;
 
-        expect(incomingNodesForNode1InMatrix1?.size).toBe(0);
-        expect(incomingNodesForNode1Matrix2?.size).toBe(0);
+        expect(edgeLabelForMatrix1).toBe('edge1');
+        expect(edgeLabelForMatrix2).toBe('edge1');
 
-        expect(incomingNodesForNode2InMatrix1).toBeDefined();
-        expect(incomingNodesForNode2Matrix2).toBeDefined();
-
-        expect(incomingNodesForNode2InMatrix1?.size).toBe(1);
-        expect(incomingNodesForNode2Matrix2?.size).toBe(1);
-
-        expect(incomingNodesForNode2InMatrix1?.has('node1')).toBe(true);
-        expect(incomingNodesForNode2Matrix2?.has('node1')).toBe(true);
-
-        expect(yMatrix1.nodeCount).toBe(2);
-        expect(yMatrix2.nodeCount).toBe(2);
+        expect(yMatrix1.getEdge('node1', 'node2')?.data?.label).toBeDefined();
+        expect(yMatrix2.getEdge('node1', 'node2')?.data?.label).toBeDefined();
 
         expect(yMatrix1.edgeCount).toBe(1);
         expect(yMatrix2.edgeCount).toBe(1);
+        expect(yMatrix1.nodeCount).toBe(2);
+        expect(yMatrix2.nodeCount).toBe(2);
     })
 
     it('should delete an edge in both maps', () => {
@@ -146,20 +128,14 @@ describe('useAdjacencyMapWithFasterNodeDeletion', () => {
         yMatrix1.removeEdge('node1', 'node2');
         syncConcurrently();
 
-        const incomingNodesForNode2InMatrix1 = yMatrix1.getIncomingNodes('node2');
-        const incomingNodesForNode2Matrix2 = yMatrix2.getIncomingNodes('node2');
-
         expect(yMatrix1.getEdge('node1', 'node2')).toBeUndefined();
         expect(yMatrix2.getEdge('node1', 'node2')).toBeUndefined();
-        expect(incomingNodesForNode2InMatrix1?.has('node1')).toBe(false);
-        expect(incomingNodesForNode2Matrix2?.has('node1')).toBe(false);
-        expect(incomingNodesForNode2InMatrix1?.size).toBe(0);
-        expect(incomingNodesForNode2Matrix2?.size).toBe(0);
+
         expect(yMatrix1.edgeCount).toBe(0);
         expect(yMatrix2.edgeCount).toBe(0);
         expect(yMatrix1.nodeCount).toBe(2);
         expect(yMatrix2.nodeCount).toBe(2);
-    })    
+    })
 
 // addNode(m), addNode(n), m != n
     it('add node1 in one map and node2 in the other map)', () => {
@@ -183,28 +159,16 @@ describe('useAdjacencyMapWithFasterNodeDeletion', () => {
         yMatrix2.addEdge('node1', 'node2', 'edge1-2');
         syncConcurrently();
 
-        const incomingNodesForNode2InMatrix1 = yMatrix1.getIncomingNodes('node2');
-        const incomingNodesForNode2InMatrix2 = yMatrix2.getIncomingNodes('node2');
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.getEdge('node1', 'node2')).toBeDefined();
         expect(yMatrix1.getEdge('node1', 'node2')?.data?.label).toBe('edge1-2');
-        expect(incomingNodesForNode2InMatrix1).toBeDefined();
-        expect(incomingNodesForNode2InMatrix1?.size).toBe(1);
-        expect(incomingNodesForNode2InMatrix1?.has('node1')).toBe(true);
-        expect(yMatrix1.nodeCount).toBe(2);
-        expect(yMatrix1.edgeCount).toBe(1);
 
         expect(yMatrix2.getNode('node1')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
         expect(yMatrix2.getEdge('node1', 'node2')).toBeDefined();
         expect(yMatrix2.getEdge('node1', 'node2')?.data?.label).toBe('edge1-2');
-        expect(incomingNodesForNode2InMatrix2).toBeDefined();
-        expect(incomingNodesForNode2InMatrix2?.size).toBe(1);   
-        expect(incomingNodesForNode2InMatrix2?.has('node1')).toBe(true);
-        expect(yMatrix2.nodeCount).toBe(2);
-        expect(yMatrix2.edgeCount).toBe(1);
     })
 
 // addNode(m), removeNode(n), m == n, combination does not exist
@@ -238,15 +202,10 @@ describe('useAdjacencyMapWithFasterNodeDeletion', () => {
         yMatrix2.removeEdge('node1', 'node2');
         syncConcurrently();
 
-        const incomingNodesForNode2InMatrix1 = yMatrix1.getIncomingNodes('node2');
-        const incomingNodesForNode2InMatrix2 = yMatrix2.getIncomingNodes('node2');
-
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.getNode('node3')).toBeDefined();
         expect(yMatrix1.getEdge('node1', 'node2')).toBeUndefined();
-        expect(incomingNodesForNode2InMatrix1?.has('node1')).toBe(false);
-        expect(incomingNodesForNode2InMatrix1?.size).toBe(0);
         expect(yMatrix1.nodeCount).toBe(3);
         expect(yMatrix1.edgeCount).toBe(0);
 
@@ -254,15 +213,13 @@ describe('useAdjacencyMapWithFasterNodeDeletion', () => {
         expect(yMatrix2.getNode('node2')).toBeDefined();
         expect(yMatrix2.getNode('node3')).toBeDefined();
         expect(yMatrix2.getEdge('node1', 'node2')).toBeUndefined();
-        expect(incomingNodesForNode2InMatrix2?.has('node1')).toBe(false);
-        expect(incomingNodesForNode2InMatrix2?.size).toBe(0);
         expect(yMatrix2.nodeCount).toBe(3);
         expect(yMatrix2.edgeCount).toBe(0);
     })
 
 // addNode(m), removeEdge(n1,n2), m == n1,n2, combinations do not exist
 
-// addEdge(m1,m2), addEdge(n1,n2) m1 == n1, m2 != n2 
+// addEdge(m1,m2), addEdge(n1,n2) m1 == n1, m2 != n2
     it('add edge1-2 in one map and add edge1-3 in the other map', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
@@ -272,11 +229,6 @@ describe('useAdjacencyMapWithFasterNodeDeletion', () => {
         yMatrix2.addEdge('node1', 'node3', 'edge1-3');
         syncConcurrently();
 
-        const incomingNodesForNode2InMatrix1 = yMatrix1.getIncomingNodes('node2');
-        const incomingNodesForNode2InMatrix2 = yMatrix2.getIncomingNodes('node2');
-        const incomingNodesForNode3InMatrix1 = yMatrix1.getIncomingNodes('node3');
-        const incomingNodesForNode3InMatrix2 = yMatrix2.getIncomingNodes('node3');
-
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.getNode('node3')).toBeDefined();
@@ -284,14 +236,8 @@ describe('useAdjacencyMapWithFasterNodeDeletion', () => {
         expect(yMatrix1.getEdge('node1', 'node3')).toBeDefined();
         expect(yMatrix1.getEdge('node1', 'node2')?.data?.label).toBe('edge1-2');
         expect(yMatrix1.getEdge('node1', 'node3')?.data?.label).toBe('edge1-3');
-        expect(incomingNodesForNode2InMatrix1).toBeDefined();
-        expect(incomingNodesForNode2InMatrix1?.size).toBe(1);
-        expect(incomingNodesForNode2InMatrix1?.has('node1')).toBe(true);
-        expect(incomingNodesForNode3InMatrix1).toBeDefined();
-        expect(incomingNodesForNode3InMatrix1?.size).toBe(1);
-        expect(incomingNodesForNode3InMatrix1?.has('node1')).toBe(true);
-        expect(yMatrix1.nodeCount).toBe(3);
         expect(yMatrix1.edgeCount).toBe(2);
+        expect(yMatrix1.nodeCount).toBe(3);
 
         expect(yMatrix2.getNode('node1')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
@@ -300,14 +246,8 @@ describe('useAdjacencyMapWithFasterNodeDeletion', () => {
         expect(yMatrix2.getEdge('node1', 'node3')).toBeDefined();
         expect(yMatrix2.getEdge('node1', 'node2')?.data?.label).toBe('edge1-2');
         expect(yMatrix2.getEdge('node1', 'node3')?.data?.label).toBe('edge1-3');
-        expect(incomingNodesForNode2InMatrix2).toBeDefined();
-        expect(incomingNodesForNode2InMatrix2?.size).toBe(1);
-        expect(incomingNodesForNode2InMatrix2?.has('node1')).toBe(true);
-        expect(incomingNodesForNode3InMatrix2).toBeDefined();
-        expect(incomingNodesForNode3InMatrix2?.size).toBe(1);
-        expect(incomingNodesForNode3InMatrix2?.has('node1')).toBe(true);
-        expect(yMatrix2.nodeCount).toBe(3);
         expect(yMatrix2.edgeCount).toBe(2);
+        expect(yMatrix2.nodeCount).toBe(3);
     })
 
 // addEdge(m1,m2), addEdge(n1,n2) m1 != n1, m2 == n2
@@ -320,36 +260,25 @@ describe('useAdjacencyMapWithFasterNodeDeletion', () => {
         yMatrix2.addEdge('node3', 'node2', 'edge3-2');
         syncConcurrently();
 
-        const incomingNodesForNode2InMatrix1 = yMatrix1.getIncomingNodes('node2');
-        const incomingNodesForNode2InMatrix2 = yMatrix2.getIncomingNodes('node2');
-
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.getNode('node3')).toBeDefined();
-        expect(yMatrix1.getEdge('node1', 'node2')).toBeDefined();
         expect(yMatrix1.getEdge('node3', 'node2')).toBeDefined();
+        expect(yMatrix1.getEdge('node1', 'node2')).toBeDefined();
         expect(yMatrix1.getEdge('node1', 'node2')?.data?.label).toBe('edge1-2');
         expect(yMatrix1.getEdge('node3', 'node2')?.data?.label).toBe('edge3-2');
-        expect(incomingNodesForNode2InMatrix1).toBeDefined();
-        expect(incomingNodesForNode2InMatrix1?.size).toBe(2);
-        expect(incomingNodesForNode2InMatrix1?.has('node1')).toBe(true);
-        expect(incomingNodesForNode2InMatrix1?.has('node3')).toBe(true);
-        expect(yMatrix1.nodeCount).toBe(3);
         expect(yMatrix1.edgeCount).toBe(2);
+        expect(yMatrix1.nodeCount).toBe(3);
 
         expect(yMatrix2.getNode('node1')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
         expect(yMatrix2.getNode('node3')).toBeDefined();
-        expect(yMatrix2.getEdge('node1', 'node2')).toBeDefined();
         expect(yMatrix2.getEdge('node3', 'node2')).toBeDefined();
+        expect(yMatrix2.getEdge('node1', 'node2')).toBeDefined();
         expect(yMatrix2.getEdge('node1', 'node2')?.data?.label).toBe('edge1-2');
         expect(yMatrix2.getEdge('node3', 'node2')?.data?.label).toBe('edge3-2');
-        expect(incomingNodesForNode2InMatrix2).toBeDefined();
-        expect(incomingNodesForNode2InMatrix2?.size).toBe(2);
-        expect(incomingNodesForNode2InMatrix2?.has('node1')).toBe(true);
-        expect(incomingNodesForNode2InMatrix2?.has('node3')).toBe(true);
-        expect(yMatrix2.nodeCount).toBe(3);
         expect(yMatrix2.edgeCount).toBe(2);
+        expect(yMatrix2.nodeCount).toBe(3);
     })
 
 // addEdge(m1,m2), addEdge(n1,n2) m1 != n1, m2 != n2
@@ -363,11 +292,6 @@ describe('useAdjacencyMapWithFasterNodeDeletion', () => {
         yMatrix2.addEdge('node3', 'node4', 'edge3-4');
         syncConcurrently();
 
-        const incomingNodesForNode2InMatrix1 = yMatrix1.getIncomingNodes('node2');
-        const incomingNodesForNode2InMatrix2 = yMatrix2.getIncomingNodes('node2');
-        const incomingNodesForNode4InMatrix1 = yMatrix1.getIncomingNodes('node4');
-        const incomingNodesForNode4InMatrix2 = yMatrix2.getIncomingNodes('node4');
-
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.getNode('node3')).toBeDefined();
@@ -376,14 +300,8 @@ describe('useAdjacencyMapWithFasterNodeDeletion', () => {
         expect(yMatrix1.getEdge('node3', 'node4')).toBeDefined();
         expect(yMatrix1.getEdge('node1', 'node2')?.data?.label).toBe('edge1-2');
         expect(yMatrix1.getEdge('node3', 'node4')?.data?.label).toBe('edge3-4');
-        expect(incomingNodesForNode2InMatrix1).toBeDefined();
-        expect(incomingNodesForNode2InMatrix1?.size).toBe(1);
-        expect(incomingNodesForNode2InMatrix1?.has('node1')).toBe(true);
-        expect(incomingNodesForNode4InMatrix1).toBeDefined();
-        expect(incomingNodesForNode4InMatrix1?.size).toBe(1);
-        expect(incomingNodesForNode4InMatrix1?.has('node3')).toBe(true);
-        expect(yMatrix1.nodeCount).toBe(4);
         expect(yMatrix1.edgeCount).toBe(2);
+        expect(yMatrix1.nodeCount).toBe(4);
 
         expect(yMatrix2.getNode('node1')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
@@ -393,14 +311,8 @@ describe('useAdjacencyMapWithFasterNodeDeletion', () => {
         expect(yMatrix2.getEdge('node3', 'node4')).toBeDefined();
         expect(yMatrix2.getEdge('node1', 'node2')?.data?.label).toBe('edge1-2');
         expect(yMatrix2.getEdge('node3', 'node4')?.data?.label).toBe('edge3-4');
-        expect(incomingNodesForNode2InMatrix2).toBeDefined();
-        expect(incomingNodesForNode2InMatrix2?.size).toBe(1);
-        expect(incomingNodesForNode2InMatrix2?.has('node1')).toBe(true);
-        expect(incomingNodesForNode4InMatrix2).toBeDefined();
-        expect(incomingNodesForNode4InMatrix2?.size).toBe(1);
-        expect(incomingNodesForNode4InMatrix2?.has('node3')).toBe(true);
-        expect(yMatrix2.nodeCount).toBe(4);
         expect(yMatrix2.edgeCount).toBe(2);
+        expect(yMatrix2.nodeCount).toBe(4);
     })
 
 // addEdge(m1,m2), addEdge(n1,n2) m1 == n1, m2 == n2
@@ -412,33 +324,25 @@ describe('useAdjacencyMapWithFasterNodeDeletion', () => {
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         syncConcurrently();
 
-        const incomingNodesForNode2InMatrix1 = yMatrix1.getIncomingNodes('node2');
-        const incomingNodesForNode2InMatrix2 = yMatrix1.getIncomingNodes('node2');
+        const edgeForMatrix1 = yMatrix1.getEdge('node1', 'node2');
+        const edgeForMatrix2 = yMatrix2.getEdge('node1', 'node2');
 
-        expect(yMatrix1.getEdge('node1', 'node2')).toBeDefined();
+        expect(edgeForMatrix1).toBeDefined();
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
-        expect(yMatrix1.getEdge('node1', 'node2')).toBeDefined();
-        expect(incomingNodesForNode2InMatrix1?.size).toBe(1);
-        expect(incomingNodesForNode2InMatrix1?.has('node1')).toBe(true);
-        expect(yMatrix1.nodeCount).toBe(2);
         expect(yMatrix1.edgeCount).toBe(1);
+        expect(yMatrix1.nodeCount).toBe(2);
         // yjs decides which label to take for the edge
-        // expect(yMatrix1.getEdge('node1', 'node2')?.data?.label).toBe('edge1-2');
+        // expect(yMatrix1.getEdge('node1',  'node2')?.label).toBe('edge1-2');
 
-        expect(yMatrix2.getEdge('node1', 'node2')).toBeDefined();
+        expect(edgeForMatrix2).toBeDefined();
         expect(yMatrix2.getNode('node1')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
-        expect(yMatrix2.getEdge('node1', 'node2')).toBeDefined();
-        expect(incomingNodesForNode2InMatrix2?.size).toBe(1);
-        expect(incomingNodesForNode2InMatrix2?.has('node1')).toBe(true);
-        expect(yMatrix2.nodeCount).toBe(2);
         expect(yMatrix2.edgeCount).toBe(1);
+        expect(yMatrix2.nodeCount).toBe(2);
     })
 
-
 // addEdge(m1,m2), removeNode(n) m1 == n, m2 != n
-// Dangling incoming nodes need to be removed here
     it('add edge1-2 in one map and remove node1 in the other map', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
@@ -446,59 +350,43 @@ describe('useAdjacencyMapWithFasterNodeDeletion', () => {
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix2.removeNode('node1');
         syncConcurrently();
-        // Garbage colection
-        yMatrix1.edgesAsFlow();
-        syncConcurrently(); 
 
         expect(yMatrix1.getNode('node1')).toBeUndefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.getEdge('node1', 'node2')).toBeUndefined();
-        // Dangling incoming node appears here when executing without garbage collection
-        expect(yMatrix1.getIncomingNodes('node2')?.size).toBe(0);
-        expect(yMatrix1.edgeCount).toBe(0);
         expect(yMatrix1.nodeCount).toBe(1);
 
         expect(yMatrix2.getNode('node1')).toBeUndefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
         expect(yMatrix2.getEdge('node1', 'node2')).toBeUndefined();
-        // Dangling incoming node appears here when executing without garbage collection
-        expect(yMatrix2.getIncomingNodes('node2')?.size).toBe(0);
-        expect(yMatrix2.edgeCount).toBe(0);
         expect(yMatrix2.nodeCount).toBe(1);
     })
 
-// addEdge(m1,m2), removeNode(n) m2 == n, m1 != n
-// Dangling edges need to be removed here
+// addEdge(m1,m2), removeNode(n) m1 != n, m2 == n
+// This test requires garbage collection because of dangling edges
     it('add edge1-2 in one map and remove node2 in the other map', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
         syncConcurrently();
-        yMatrix1.addEdge('node1', 'node2', 'edge1-2');  
+        yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix2.removeNode('node2');
         syncConcurrently();
-        // Garbage colection
+        // this is only because edges as flow may trigger react updates
         yMatrix1.edgesAsFlow();
-        syncConcurrently(); 
-
-        const incomingNodesForNode1InMatrix1 = yMatrix1.getIncomingNodes('node1');
-        const incomingNodesForNode1InMatrix2 = yMatrix2.getIncomingNodes('node1');
+        syncConcurrently();
 
         expect(yMatrix1.getNode('node2')).toBeUndefined();
         expect(yMatrix1.getNode('node1')).toBeDefined();
-        // Dangling edge appears here when executing without garbage collection
-        expect(yMatrix1.getEdge('node1', 'node2')).toBeUndefined(); 
-        expect(incomingNodesForNode1InMatrix1?.size).toBe(0);
-        expect(yMatrix1.nodeCount).toBe(1);
+        expect(yMatrix1.getEdge('node1', 'node2')).toBeUndefined();
         expect(yMatrix1.edgeCount).toBe(0);
+        expect(yMatrix1.nodeCount).toBe(1);
 
         expect(yMatrix2.getNode('node2')).toBeUndefined();
         expect(yMatrix2.getNode('node1')).toBeDefined();
-        // Dangling edge appears here when executing without garbage collection
-        expect(yMatrix2.getEdge('node1', 'node2')).toBeUndefined(); 
-        expect(incomingNodesForNode1InMatrix2?.size).toBe(0);
-        expect(yMatrix2.nodeCount).toBe(1);
+        expect(yMatrix2.getEdge('node1', 'node2')).toBeUndefined();
         expect(yMatrix2.edgeCount).toBe(0);
-    }) 
+        expect(yMatrix2.nodeCount).toBe(1);
+    })
 
 // addEdge(m1,m2), removeNode(n) m1 == n, m2 == n
     it('add edge1-1 in one map and remove node1 in the other map', () => {
@@ -512,8 +400,6 @@ describe('useAdjacencyMapWithFasterNodeDeletion', () => {
         expect(yMatrix2.getNode('node1')).toBeUndefined();
         expect(yMatrix1.nodeCount).toBe(0);
         expect(yMatrix2.nodeCount).toBe(0);
-        expect(yMatrix1.edgeCount).toBe(0);
-        expect(yMatrix2.edgeCount).toBe(0);
     })
 
 // addEdge(m1,m2), removeNode(n) m1 != n, m2 != n
@@ -526,8 +412,6 @@ describe('useAdjacencyMapWithFasterNodeDeletion', () => {
         yMatrix2.removeNode('node3');
         syncConcurrently();
 
-        const incomingNodesForNode2InMatrix1 = yMatrix1.getIncomingNodes('node2');
-        const incomingNodesForNode2InMatrix2 = yMatrix2.getIncomingNodes('node2');
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -535,19 +419,13 @@ describe('useAdjacencyMapWithFasterNodeDeletion', () => {
         expect(yMatrix1.getEdge('node1', 'node2')).toBeDefined();
         expect(yMatrix1.edgeCount).toBe(1);
         expect(yMatrix1.nodeCount).toBe(2);
-        expect(incomingNodesForNode2InMatrix1).toBeDefined();
-        expect(incomingNodesForNode2InMatrix1?.size).toBe(1);
-        expect(incomingNodesForNode2InMatrix1?.has('node1')).toBe(true);
 
         expect(yMatrix2.getNode('node1')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
         expect(yMatrix2.getNode('node3')).toBeUndefined();
         expect(yMatrix2.getEdge('node1', 'node2')).toBeDefined();
-        expect(yMatrix2.edgeCount).toBe(1);
+        expect(yMatrix1.edgeCount).toBe(1);
         expect(yMatrix2.nodeCount).toBe(2);
-        expect(incomingNodesForNode2InMatrix2).toBeDefined();
-        expect(incomingNodesForNode2InMatrix2?.size).toBe(1);
-        expect(incomingNodesForNode2InMatrix2?.has('node1')).toBe(true);
     })
 
 // addEdge(m1,m2), removeEdge(n1,n2) m1 != n1, m2 != n2
@@ -562,23 +440,14 @@ describe('useAdjacencyMapWithFasterNodeDeletion', () => {
         yMatrix2.removeEdge('node3', 'node4');
         syncConcurrently();
 
-        const incomingNodesForNode2InMatrix1 = yMatrix1.getIncomingNodes('node2');
-        const incomingNodesForNode2InMatrix2 = yMatrix2.getIncomingNodes('node2');
-        const incomingNodesForNode4InMatrix1 = yMatrix1.getIncomingNodes('node4');
-        const incomingNodesForNode4InMatrix2 = yMatrix2.getIncomingNodes('node4');
-
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.getNode('node3')).toBeDefined();
         expect(yMatrix1.getNode('node4')).toBeDefined();
         expect(yMatrix1.getEdge('node1', 'node2')).toBeDefined();
         expect(yMatrix1.getEdge('node3', 'node4')).toBeUndefined();
-        expect(incomingNodesForNode2InMatrix1).toBeDefined();
-        expect(incomingNodesForNode2InMatrix1?.size).toBe(1);
-        expect(incomingNodesForNode2InMatrix1?.has('node1')).toBe(true);
-        expect(incomingNodesForNode4InMatrix1?.size).toBe(0); 
-        expect(yMatrix1.nodeCount).toBe(4);
         expect(yMatrix1.edgeCount).toBe(1);
+        expect(yMatrix1.nodeCount).toBe(4);
 
         expect(yMatrix2.getNode('node1')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
@@ -586,12 +455,8 @@ describe('useAdjacencyMapWithFasterNodeDeletion', () => {
         expect(yMatrix2.getNode('node4')).toBeDefined();
         expect(yMatrix2.getEdge('node1', 'node2')).toBeDefined();
         expect(yMatrix2.getEdge('node3', 'node4')).toBeUndefined();
-        expect(incomingNodesForNode2InMatrix2).toBeDefined();
-        expect(incomingNodesForNode2InMatrix2?.size).toBe(1);
-        expect(incomingNodesForNode2InMatrix2?.has('node1')).toBe(true);
-        expect(incomingNodesForNode4InMatrix2?.size).toBe(0); 
-        expect(yMatrix2.nodeCount).toBe(4);
         expect(yMatrix2.edgeCount).toBe(1);
+        expect(yMatrix2.nodeCount).toBe(4);
     })
 
 // addEdge(m1,m2), removeEdge(n1,n2) m1 == n1, m2 != n2
@@ -605,9 +470,6 @@ describe('useAdjacencyMapWithFasterNodeDeletion', () => {
         yMatrix2.removeEdge('node1', 'node3');
         syncConcurrently();
 
-        const incomingNodesForNode2InMatrix1 = yMatrix1.getIncomingNodes('node2');
-        const incomingNodesForNode2InMatrix2 = yMatrix2.getIncomingNodes('node2');
-
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.getNode('node3')).toBeDefined();
@@ -615,9 +477,6 @@ describe('useAdjacencyMapWithFasterNodeDeletion', () => {
         expect(yMatrix1.getEdge('node1', 'node3')).toBeUndefined();
         expect(yMatrix1.getEdge('node1', 'node2')?.data?.label).toBe('edge1-2');
         expect(yMatrix1.edgeCount).toBe(1);
-        expect(incomingNodesForNode2InMatrix1).toBeDefined();
-        expect(incomingNodesForNode2InMatrix1?.size).toBe(1);
-        expect(incomingNodesForNode2InMatrix1?.has('node1')).toBe(true);
         expect(yMatrix1.nodeCount).toBe(3);
 
         expect(yMatrix2.getNode('node1')).toBeDefined();
@@ -627,9 +486,6 @@ describe('useAdjacencyMapWithFasterNodeDeletion', () => {
         expect(yMatrix2.getEdge('node1', 'node3')).toBeUndefined();
         expect(yMatrix2.getEdge('node1', 'node2')?.data?.label).toBe('edge1-2');
         expect(yMatrix2.edgeCount).toBe(1);
-        expect(incomingNodesForNode2InMatrix2).toBeDefined();
-        expect(incomingNodesForNode2InMatrix2?.size).toBe(1);
-        expect(incomingNodesForNode2InMatrix2?.has('node1')).toBe(true);
         expect(yMatrix2.nodeCount).toBe(3);
     })
 
@@ -644,33 +500,22 @@ describe('useAdjacencyMapWithFasterNodeDeletion', () => {
         yMatrix2.removeEdge('node3', 'node2');
         syncConcurrently();
 
-        const incomingNodesForNode2InMatrix1 = yMatrix1.getIncomingNodes('node2');
-        const incomingNodesForNode2InMatrix2 = yMatrix2.getIncomingNodes('node2');
-
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.getNode('node3')).toBeDefined();
-        expect(yMatrix1.getEdge('node1', 'node2')).toBeDefined();
-        expect(yMatrix1.getEdge('node1', 'node3')).toBeUndefined();
-        expect(yMatrix1.getEdge('node1', 'node2')?.data?.label).toBe('edge1-2');
+        expect(yMatrix1.getEdge('node1','node2')).toBeDefined();
+        expect(yMatrix1.getEdge('node1','node3')).toBeUndefined();
+        expect(yMatrix1.getEdge('node1','node2')?.data?.label).toBe('edge1-2');
         expect(yMatrix1.edgeCount).toBe(1);
-        expect(incomingNodesForNode2InMatrix1).toBeDefined();
-        expect(incomingNodesForNode2InMatrix1?.size).toBe(1);
-        expect(incomingNodesForNode2InMatrix1?.has('node1')).toBe(true);
-        expect(yMatrix1.getIncomingNodes('node3')?.size).toBe(0);
         expect(yMatrix1.nodeCount).toBe(3);
 
         expect(yMatrix2.getNode('node1')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
         expect(yMatrix2.getNode('node3')).toBeDefined();
-        expect(yMatrix2.getEdge('node1', 'node2')).toBeDefined();
-        expect(yMatrix2.getEdge('node1', 'node3')).toBeUndefined();
-        expect(yMatrix2.getEdge('node1', 'node2')?.data?.label).toBe('edge1-2');
+        expect(yMatrix2.getEdge('node1','node2')).toBeDefined();
+        expect(yMatrix2.getEdge('node1','node3')).toBeUndefined();
+        expect(yMatrix2.getEdge('node1','node2')?.data?.label).toBe('edge1-2');
         expect(yMatrix2.edgeCount).toBe(1);
-        expect(incomingNodesForNode2InMatrix2).toBeDefined();
-        expect(incomingNodesForNode2InMatrix2?.size).toBe(1);
-        expect(incomingNodesForNode2InMatrix2?.has('node1')).toBe(true);
-        expect(yMatrix2.getIncomingNodes('node3')?.size).toBe(0);
         expect(yMatrix2.nodeCount).toBe(3);
     })
 
@@ -713,20 +558,17 @@ describe('useAdjacencyMapWithFasterNodeDeletion', () => {
         yMatrix2.removeEdge('node1', 'node2');
         syncConcurrently();
 
-
         expect(yMatrix1.getNode('node1')).toBeUndefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.getEdge('node1', 'node2')).toBeUndefined();
         expect(yMatrix1.nodeCount).toBe(1);
         expect(yMatrix1.edgeCount).toBe(0);
-        expect(yMatrix1.getIncomingNodes('node2')?.size).toBe(0);
 
         expect(yMatrix2.getNode('node1')).toBeUndefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
         expect(yMatrix2.getEdge('node1', 'node2')).toBeUndefined();
         expect(yMatrix2.nodeCount).toBe(1);
         expect(yMatrix2.edgeCount).toBe(0);
-        expect(yMatrix2.getIncomingNodes('node2')?.size).toBe(0);
     })
 
 // removeNode(m), removeEdge(n1,n2) m != n1, m == n2
@@ -744,14 +586,12 @@ describe('useAdjacencyMapWithFasterNodeDeletion', () => {
         expect(yMatrix1.getEdge('node1', 'node2')).toBeUndefined();
         expect(yMatrix1.nodeCount).toBe(1);
         expect(yMatrix1.edgeCount).toBe(0);
-        expect(yMatrix1.getIncomingNodes('node2')).toBeUndefined();
 
         expect(yMatrix2.getNode('node2')).toBeUndefined();
         expect(yMatrix2.getNode('node1')).toBeDefined();
         expect(yMatrix2.getEdge('node1', 'node2')).toBeUndefined();
         expect(yMatrix2.nodeCount).toBe(1);
         expect(yMatrix2.edgeCount).toBe(0);
-        expect(yMatrix2.getIncomingNodes('node2')).toBeUndefined();
     })
 
 // removeNode(m), removeEdge(n1,n2) m != n1, m != n2
@@ -768,10 +608,9 @@ describe('useAdjacencyMapWithFasterNodeDeletion', () => {
         expect(yMatrix1.getNode('node1')).toBeUndefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.getNode('node3')).toBeDefined();
-        expect(yMatrix1.getEdge('node1', 'node2')).toBeUndefined();
+        expect(yMatrix1.getEdge('node1',  'node2')).toBeUndefined();
         expect(yMatrix1.nodeCount).toBe(2);
         expect(yMatrix1.edgeCount).toBe(0);
-        expect(yMatrix1.getIncomingNodes('node3')?.size).toBe(0);
 
         expect(yMatrix2.getNode('node1')).toBeUndefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
@@ -779,7 +618,6 @@ describe('useAdjacencyMapWithFasterNodeDeletion', () => {
         expect(yMatrix2.getEdge('node2', 'node3')).toBeUndefined();
         expect(yMatrix2.nodeCount).toBe(2);
         expect(yMatrix2.edgeCount).toBe(0);
-        expect(yMatrix2.getIncomingNodes('node3')?.size).toBe(0);
     })
 
 // removeNode(m), removeEdge(n1,n2) m == n1, m == n2
@@ -803,25 +641,20 @@ describe('useAdjacencyMapWithFasterNodeDeletion', () => {
 // removeEdge(m1,m2), removeEdge(n1,n2) m1 == n1, m2 == n2
     it('remove edge1-2 in one map and remove edge1-2 in the other map', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
-        yMatrix2.addEdge('node1', 'node1', 'edge1-2');
+        yMatrix2.addEdge('node1', 'node1', 'edge1-1');
         syncConcurrently();
-        yMatrix1.removeEdge('node1', 'node2');
-        yMatrix2.removeEdge('node1', 'node2');
+        yMatrix1.removeEdge('node1', 'node1');
+        yMatrix2.removeEdge('node1', 'node1');
         syncConcurrently();
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
-        expect(yMatrix1.getNode('node2')).toBeDefined();
-        expect(yMatrix1.getEdge('node1', 'node2')).toBeUndefined();
-        expect(yMatrix1.getIncomingNodes('node2')?.size).toBe(0);
-        expect(yMatrix1.nodeCount).toBe(2);
+        expect(yMatrix1.getEdge('node1', 'node1')).toBeUndefined();
+        expect(yMatrix1.nodeCount).toBe(1);
         expect(yMatrix1.edgeCount).toBe(0);
 
         expect(yMatrix2.getNode('node1')).toBeDefined();
-        expect(yMatrix2.getNode('node2')).toBeDefined();
-        expect(yMatrix2.getEdge('node1', 'node2')).toBeUndefined();
-        expect(yMatrix1.getIncomingNodes('node2')?.size).toBe(0);
-        expect(yMatrix2.nodeCount).toBe(2);
+        expect(yMatrix2.getEdge('node1', 'node1')).toBeUndefined();
+        expect(yMatrix2.nodeCount).toBe(1);
         expect(yMatrix2.edgeCount).toBe(0);
     })
 
@@ -837,19 +670,15 @@ describe('useAdjacencyMapWithFasterNodeDeletion', () => {
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
-        expect(yMatrix1.getEdge('node1', 'node2')).toBeUndefined();
+        expect(yMatrix1.getEdge('node1',  'node2')).toBeUndefined();
         expect(yMatrix1.getEdge('node3', 'node2')).toBeUndefined();
-        expect(yMatrix1.getIncomingNodes('node2')?.size).toBe(0);
         expect(yMatrix1.nodeCount).toBe(2);
-        expect(yMatrix1.edgeCount).toBe(0);
 
         expect(yMatrix2.getNode('node1')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
         expect(yMatrix2.getEdge('node1', 'node2')).toBeUndefined();
         expect(yMatrix2.getEdge('node3', 'node2')).toBeUndefined();
-        expect(yMatrix2.getIncomingNodes('node2')?.size).toBe(0);
         expect(yMatrix2.nodeCount).toBe(2);
-        expect(yMatrix2.edgeCount).toBe(0);
     })
 
 // removeEdge(m1,m2), removeEdge(n1,n2) m1 == n1, m2 != n2
@@ -864,29 +693,21 @@ describe('useAdjacencyMapWithFasterNodeDeletion', () => {
         yMatrix2.removeEdge('node2', 'node3');
         syncConcurrently();
 
-        const incomingNodesForNode2InMatrix1 = yMatrix1.getIncomingNodes('node2');
-        const incomingNodesForNode2InMatrix2 = yMatrix2.getIncomingNodes('node2');
-        const incomingNodesForNode3InMatrix1 = yMatrix1.getIncomingNodes('node3');
-        const incomingNodesForNode3InMatrix2 = yMatrix2.getIncomingNodes('node3');
-
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.getNode('node3')).toBeDefined();
         expect(yMatrix1.getEdge('node1', 'node2')).toBeUndefined();
         expect(yMatrix1.getEdge('node2', 'node3')).toBeUndefined();
+        expect(yMatrix1.edgeCount).toBe(0);
         expect(yMatrix1.nodeCount).toBe(3);
-        expect(incomingNodesForNode2InMatrix1?.size).toBe(0);
-        expect(incomingNodesForNode3InMatrix1?.size).toBe(0);
-
 
         expect(yMatrix2.getNode('node1')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
         expect(yMatrix2.getNode('node3')).toBeDefined();
         expect(yMatrix2.getEdge('node1', 'node2')).toBeUndefined();
         expect(yMatrix2.getEdge('node2', 'node3')).toBeUndefined();
+        expect(yMatrix2.edgeCount).toBe(0);
         expect(yMatrix2.nodeCount).toBe(3);
-        expect(incomingNodesForNode2InMatrix2?.size).toBe(0);
-        expect(incomingNodesForNode3InMatrix2?.size).toBe(0);
     })
 
 // removeEdge(m1,m2), removeEdge(n1,n2) m1 != n1, m2 != n2
@@ -902,11 +723,6 @@ describe('useAdjacencyMapWithFasterNodeDeletion', () => {
         yMatrix2.removeEdge('node3', 'node4');
         syncConcurrently();
 
-        const incomingNodesForNode2InMatrix1 = yMatrix1.getIncomingNodes('node2');
-        const incomingNodesForNode2InMatrix2 = yMatrix2.getIncomingNodes('node2');
-        const incomingNodesForNode4InMatrix1 = yMatrix1.getIncomingNodes('node4');
-        const incomingNodesForNode4InMatrix2 = yMatrix2.getIncomingNodes('node4');
-
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.getNode('node3')).toBeDefined();
@@ -914,9 +730,8 @@ describe('useAdjacencyMapWithFasterNodeDeletion', () => {
         expect(yMatrix1.getEdge('node1', 'node2')).toBeUndefined();
         expect(yMatrix1.getEdge('node3', 'node4')).toBeUndefined();
         expect(yMatrix1.edgeCount).toBe(0);
+        expect(yMatrix1.edgeCount).toBe(0);
         expect(yMatrix1.nodeCount).toBe(4);
-        expect(incomingNodesForNode2InMatrix1?.size).toBe(0);
-        expect(incomingNodesForNode4InMatrix1?.size).toBe(0);
 
         expect(yMatrix2.getNode('node1')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
@@ -925,9 +740,8 @@ describe('useAdjacencyMapWithFasterNodeDeletion', () => {
         expect(yMatrix2.getEdge('node1', 'node2')).toBeUndefined();
         expect(yMatrix2.getEdge('node3', 'node4')).toBeUndefined();
         expect(yMatrix2.edgeCount).toBe(0);
+        expect(yMatrix2.edgeCount).toBe(0);
         expect(yMatrix2.nodeCount).toBe(4);
-        expect(incomingNodesForNode2InMatrix2?.size).toBe(0);
-        expect(incomingNodesForNode4InMatrix2?.size).toBe(0);
     })
 
     it('select node', () => {
@@ -975,4 +789,61 @@ describe('useAdjacencyMapWithFasterNodeDeletion', () => {
         expect(yMatrix1.isEdgeSelected('node1', 'node2')).toBe(false);
         expect(yMatrix2.isEdgeSelected('node1', 'node2')).toBe(false);
     })
+
+    it('select nodes and edges', () => {
+        yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
+        yMatrix1.addNode('node2', 'node2', { x: 0, y: 10 });
+        yMatrix1.addNode('node3', 'node3', { x: 10, y: 0 });
+        yMatrix1.addNode('node4', 'node4', { x: 10, y: 10 });
+        yMatrix1.addEdge('node1', 'node2', 'edge1-2');
+        yMatrix1.addEdge('node1', 'node2', 'edge3-4');
+        yMatrix1.changeNodeSelection('node1', true);
+        yMatrix1.changeNodeSelection('node2', true);
+        yMatrix1.changeNodeSelection('node3', true);
+        yMatrix1.changeEdgeSelection('node1+node2', true);
+        yMatrix1.changeEdgeSelection('node3+node4', true);
+        syncConcurrently();
+
+        expect(yMatrix1.isNodeSelected('node1')).toBe(true);
+        expect(yMatrix1.isNodeSelected('node2')).toBe(true);
+        expect(yMatrix1.isNodeSelected('node3')).toBe(true);
+        expect(yMatrix1.isNodeSelected('node4')).toBe(false);
+        expect(yMatrix1.isEdgeSelected('node1', 'node2')).toBe(true);
+        expect(yMatrix1.isEdgeSelected('node3', 'node4')).toBe(true);
+        expect(yMatrix1.selectedEdgesCount).toBe(2);
+        expect(yMatrix1.selectedNodesCount).toBe(3);
+
+        expect(yMatrix2.selectedEdgesCount).toBe(0);
+        expect(yMatrix2.selectedNodesCount).toBe(0);
+    })
+
+    it('select and deselect nodes and edges', () => {
+        yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
+        yMatrix1.addNode('node2', 'node2', { x: 0, y: 10 });
+        yMatrix1.addNode('node3', 'node3', { x: 10, y: 0 });
+        yMatrix1.addNode('node4', 'node4', { x: 10, y: 10 });
+        yMatrix1.addEdge('node1', 'node2', 'edge1-2');
+        yMatrix1.addEdge('node1', 'node2', 'edge3-4');
+        yMatrix1.changeNodeSelection('node1', true);
+        yMatrix1.changeNodeSelection('node2', true);
+        yMatrix1.changeNodeSelection('node3', true);
+        yMatrix1.changeEdgeSelection('node1+node2', true);
+        yMatrix1.changeEdgeSelection('node3+node4', true);
+        yMatrix1.changeNodeSelection('node1', false);
+        yMatrix1.changeEdgeSelection('node1+node2', false);
+        syncConcurrently();
+
+        expect(yMatrix1.isNodeSelected('node1')).toBe(false);
+        expect(yMatrix1.isNodeSelected('node2')).toBe(true);
+        expect(yMatrix1.isNodeSelected('node3')).toBe(true);
+        expect(yMatrix1.isNodeSelected('node4')).toBe(false);
+        expect(yMatrix1.isEdgeSelected('node1', 'node2')).toBe(false);
+        expect(yMatrix1.isEdgeSelected('node3', 'node4')).toBe(true);
+        expect(yMatrix1.selectedEdgesCount).toBe(1);
+        expect(yMatrix1.selectedNodesCount).toBe(2);
+
+        expect(yMatrix2.selectedEdgesCount).toBe(0);
+        expect(yMatrix2.selectedNodesCount).toBe(0);
+    })
+
 })
