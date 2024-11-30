@@ -67,7 +67,7 @@ export class AdjacencyList implements Graph {
                 console.warn('Node does not exist');
                 return 
             }
-            nodeInfo.set('flowNode', { ...nodeInfo.get('flowNode'), data: { label, setLabel: this.setLabel } });
+            nodeInfo.set('flowNode', { ...nodeInfo.get('flowNode'), data: { label, } });
         });
     }
 
@@ -81,7 +81,7 @@ export class AdjacencyList implements Graph {
     addNode(nodeId: string, label: string, position: XYPosition): void {
         const innerMap = this.makeNodeInformation({ 
             id: nodeId, 
-            data : { label, setLabel: this.setLabel }, 
+            data : { label }, 
             position, 
             deletable: true, 
             // type: 'editNodeLabel' 
@@ -259,7 +259,7 @@ export class AdjacencyList implements Graph {
             target, 
             deletable: true, 
             markerEnd: { type: MarkerType.Arrow },
-            data: { label: edge.get('label'), setLabel: this.setLabel },
+            data: { label: edge.get('label') },
             selected: this.selectedEdges.has(source + '+' + target), 
         }
     }

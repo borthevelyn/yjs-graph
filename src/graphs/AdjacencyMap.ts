@@ -54,7 +54,7 @@ export class AdjacencyMap implements Graph {
                 return 
             }
             
-            nodeInfo.set('flowNode', { ...nodeInfo.get('flowNode'), data: { label, setLabel: this.setLabel } });
+            nodeInfo.set('flowNode', { ...nodeInfo.get('flowNode'), data: { label } });
         });
     }
 
@@ -68,7 +68,7 @@ export class AdjacencyMap implements Graph {
     addNode(nodeId: id, label: string, position: XYPosition) {
         const innerMap = this.makeNodeInformation({ 
                 id: nodeId, 
-                data : { label, setLabel: this.setLabel }, 
+                data : { label }, 
                 position, 
                 deletable: true, 
                 // type: 'editNodeLabel',
@@ -230,8 +230,8 @@ export class AdjacencyMap implements Graph {
                 source, 
                 target, 
                 deletable: true, 
-                markerEnd: { type: MarkerType.Arrow}, 
-                data: { label: edge.label, setLabel: this.setLabel }, 
+                markerEnd: {type: MarkerType.Arrow}, 
+                data: {label: edge.label }, 
                 selected: this.selectedEdges.has(source + '+' + target), 
         }
     }

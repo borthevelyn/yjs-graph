@@ -1,12 +1,17 @@
 import './App.css'
 import * as Y from 'yjs'
 import Graph from './components/Graph'
-import { GraphApi } from './Types'
 import { useEffect, useRef } from 'react'
+import { type Graph as GraphApi } from './graphs/Graph'
 import '@xyflow/react/dist/style.css'
 import { useAdjacencyMap } from './hooks/useAdjacencyMap'
 import { useAdjacencyList } from './hooks/useAdjacencyList'
 import { useAdjacencyMapWithFasterNodeDeletion } from './hooks/useAdjacencyMapWithFasterNodeDeletion'
+import * as automerge from "@automerge/automerge"
+import { useAdjacencyMapAutomerge } from './hooks/useAdjacencyMapAutomerge'
+import { AdjacencyMapAutomerge, AdjacencyMapAutomergeGraph } from './graphs/AdjacencyMapAutomerge'
+import { AdjacencyMap } from './graphs/AdjacencyMap'
+
 
 function populateMatrix(graphApi: GraphApi) {  
     // Create nested yarray
@@ -22,10 +27,18 @@ function populateMatrix(graphApi: GraphApi) {
 
 function App() {
   const ydoc1 = useRef(new Y.Doc())
-  const ydoc2 = useRef(new Y.Doc())
+  const ydoc2 = useRef(new Y.Doc()) 
 
-  const graphApi1 = useAdjacencyList({ yMatrix: ydoc1.current.getMap('adjacency map') })
-  const graphApi2 = useAdjacencyList({ yMatrix: ydoc2.current.getMap('adjacency map') })
+  let amdoc1 = automerge.init<AdjacencyMapAutomergeGraph>()
+  amdoc1 = automerge.change(amdoc1, d => {
+      d.map = {};
+  });
+
+  let amdoc2 = automerge.init<AdjacencyMapAutomergeGraph>()
+  amdoc2 = automerge.merge(amdoc2, automerge.clone(amdoc1))
+
+  const graphApi1 = useAdjacencyMapAutomerge({ amDoc: amdoc1})
+  const graphApi2 = useAdjacencyMapAutomerge({ amDoc: amdoc2}) 
 
   function sync1to2() {
     console.log('State clock 1', Y.encodeStateVector(ydoc1.current))
@@ -49,23 +62,48 @@ function App() {
 
   useEffect(() => {
     populateMatrix(graphApi1)
-    sync1to2()
+    //sync1to2()
+    AdjacencyMapAutomerge.syncFirstToSecond(graphApi1, graphApi2)
   }, [])
+
+  function syncObjects<T extends AdjacencyMapAutomerge>(g1: T, g2: T) {
+      AdjacencyMapAutomerge.sync(g1, g2)
+  }
 
   return (
     <>
-    <button onClick={() => { populateMatrix(graphApi1); sync1to2() }}>Populate</button>
-    <button onClick={sync1to2}>Sync 1 to 2</button>
-    <button onClick={sync2to1}>Sync 2 to 1</button>
-    <button onClick={syncConcurrently}>Sync concurrently</button>
+    <button onClick={() => { populateMatrix(graphApi1); AdjacencyMapAutomerge.syncFirstToSecond(graphApi1, graphApi2) }}>Populate</button>
+    <button onClick={() => AdjacencyMapAutomerge.syncFirstToSecond(graphApi1, graphApi2)}>Sync 1 to 2</button>
+    <button onClick={() => AdjacencyMapAutomerge.syncFirstToSecond(graphApi2, graphApi1)}>Sync 2 to 1</button>
+    <button onClick={() => AdjacencyMapAutomerge.sync(graphApi1, graphApi2)}>Sync concurrently</button>
     <div style={{ height: '96vh', width: '100vw', display: 'inline-flex', alignItems: 'flex-start', justifyContent: 'space-between'}}>
       <div style={{ height: '100%', width: '50%', borderRight: '1px solid black' }}>
-        {/* This relies on the assumption that graphApi has enumerable properties which are the functions. 
-        Functions in the prototype chain are not expanded as expected. Typescript does NOT log an error here */}
-        <Graph {...graphApi1}/>
+        <Graph
+          addEdge={(source, target, label) => graphApi1.addEdge(source, target, label)}
+          addNode={(id, label, position) => graphApi1.addNode(id, label, position)}
+          changeEdgeSelection={(id, selected) => graphApi1.changeEdgeSelection(id, selected)}
+          changeNodeDimension={(id, dim) => graphApi1.changeNodeDimension(id, dim)}
+          changeNodePosition={(id, position) => graphApi1.changeNodePosition(id, position)}
+          changeNodeSelection={(id, selected) => graphApi1.changeNodeSelection(id, selected)}
+          edgesAsFlow={() => graphApi1.edgesAsFlow()}
+          nodesAsFlow={() => graphApi1.nodesAsFlow()} 
+          removeEdge={(source, target) => graphApi1.removeEdge(source, target)}
+          removeNode={(id) => graphApi1.removeNode(id)}
+        />
       </div>
       <div style={{ height: '100%', width: '50%' }}>
-        <Graph {...graphApi2}/>
+        <Graph
+          addEdge={(source, target, label) => graphApi2.addEdge(source, target, label)}
+          addNode={(id, label, position) => graphApi2.addNode(id, label, position)}
+          changeEdgeSelection={(id, selected) => graphApi2.changeEdgeSelection(id, selected)}
+          changeNodeDimension={(id, dim) => graphApi2.changeNodeDimension(id, dim)}
+          changeNodePosition={(id, position) => graphApi2.changeNodePosition(id, position)}
+          changeNodeSelection={(id, selected) => graphApi2.changeNodeSelection(id, selected)}
+          edgesAsFlow={() => graphApi2.edgesAsFlow()}
+          nodesAsFlow={() => graphApi2.nodesAsFlow()} 
+          removeEdge={(source, target) => graphApi2.removeEdge(source, target)}
+          removeNode={(id) => graphApi2.removeNode(id)}
+          />
       </div>
     </div>
     </>

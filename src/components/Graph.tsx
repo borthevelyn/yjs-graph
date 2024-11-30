@@ -1,8 +1,21 @@
 import { Background, Connection, ControlButton, Controls, EdgeChange, NodeChange, ReactFlow } from '@xyflow/react'
-import { FlowEdge, FlowNode, GraphApi } from '../Types'
+import { FlowEdge, FlowNode } from '../Types'
 import { useCallback } from 'react'
 import EditLabelNode from './EditLabelNode'
+import { type Graph as GraphApi } from '../graphs/Graph'
 import { v4 } from 'uuid'
+
+type GraphInput = Pick<GraphApi, 
+    'addNode' |
+    'addEdge' |
+    'removeNode' |
+    'removeEdge' |
+    'changeNodePosition' |
+    'nodesAsFlow' |
+    'changeNodeDimension' |
+    'changeNodeSelection' |
+    'changeEdgeSelection' |
+    'edgesAsFlow'>
 
 export default function Graph({ 
     addNode, 
@@ -14,7 +27,7 @@ export default function Graph({
     changeNodeDimension, 
     changeNodeSelection, 
     changeEdgeSelection, 
-    edgesAsFlow }: GraphApi) {
+    edgesAsFlow }: GraphInput) {
 
     const onNodesChange = useCallback(
         (changes: NodeChange<FlowNode>[]) => changes.forEach((change) => {

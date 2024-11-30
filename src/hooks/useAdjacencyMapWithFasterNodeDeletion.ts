@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { AdjacencyMapWithFasterNodeDeletion, AdjacencyMapWithFasterNodeDeletionGraph } from '../graphs/AdjacencyMapWithFasterNodeDeletion'
-import { EventEmitter, GraphApi } from '../Types'
+import { EventEmitter } from '../Types'
 
-export function useAdjacencyMapWithFasterNodeDeletion({ yMatrix }: { yMatrix: AdjacencyMapWithFasterNodeDeletionGraph }): GraphApi {
+export function useAdjacencyMapWithFasterNodeDeletion({ yMatrix }: { yMatrix: AdjacencyMapWithFasterNodeDeletionGraph }): AdjacencyMapWithFasterNodeDeletion {
     const [, updateHelper] = useState({})
     const update = useCallback(() => updateHelper({}), [])
 
@@ -12,18 +12,7 @@ export function useAdjacencyMapWithFasterNodeDeletion({ yMatrix }: { yMatrix: Ad
         graph.current.observe(update);
       }, [update])
 
-      return {
-        addNode: graph.current.addNode.bind(graph.current),
-        addEdge: graph.current.addEdge.bind(graph.current),
-        removeNode: graph.current.removeNode.bind(graph.current),
-        removeEdge: graph.current.removeEdge.bind(graph.current),
-        changeNodePosition: graph.current.changeNodePosition.bind(graph.current),
-        changeNodeDimension: graph.current.changeNodeDimension.bind(graph.current),
-        changeNodeSelection: graph.current.changeNodeSelection.bind(graph.current),
-        changeEdgeSelection: graph.current.changeEdgeSelection.bind(graph.current),
-        nodesAsFlow: graph.current.nodesAsFlow.bind(graph.current),
-        edgesAsFlow: graph.current.edgesAsFlow.bind(graph.current),
-    }
+      return graph.current
 
 }
 

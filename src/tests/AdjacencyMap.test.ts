@@ -20,7 +20,7 @@ describe('AdjacencyMap', () => {
         Y.applyUpdate(ydoc1, updates2to1)
         Y.applyUpdate(ydoc2, updates1to2)
       }
-
+  
     beforeEach(() => {
         ydoc1 = new Y.Doc()
         yMatrix1 = new AdjacencyMap(ydoc1.getMap('adjacency map'))

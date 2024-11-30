@@ -1,3 +1,4 @@
+//@ts-nocheck
 import { useCallback, useState } from "react"
 
 export function useSet<T>(initial?: ReadonlySet<T>): 
