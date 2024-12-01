@@ -120,6 +120,11 @@ export class AdjacencyList implements Graph {
     }
 
     removeNode(nodeId: string): void {
+        const nodeInfo = this.yMatrix.get(nodeId); 
+        if (nodeInfo === undefined) {
+            console.log('Node does not exist (removeNode)')
+            return 
+        }
         this.yMatrix.doc!.transact(() => {   
             this.yMatrix.delete(nodeId);
             this.selectedNodes.delete(nodeId);

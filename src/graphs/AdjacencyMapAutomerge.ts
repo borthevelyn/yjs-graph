@@ -89,9 +89,10 @@ export class AdjacencyMapAutomerge extends AutomergeObject<AdjacencyMapAutomerge
     }
 
     removeEdge(source: id, target: string): void {
-        const nodeInfo1 = this.doc.map[source];
-        if (nodeInfo1 === undefined) {
-            console.warn('Node does not exist');
+        const innerMap = this.doc.map[source];
+        const innerMap2 = this.doc.map[target];
+        if (innerMap === undefined || innerMap2 === undefined) {
+            console.warn('One of the edge nodes does not exist', innerMap, innerMap2)
             return 
         }
         console.log('remove edge', source, target);

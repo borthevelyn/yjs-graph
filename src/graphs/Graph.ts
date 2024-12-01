@@ -1,5 +1,5 @@
 import { XYPosition } from '@xyflow/react';
-import { FlowEdge, FlowNode, id, YSet } from '../Types';
+import { FlowEdge, FlowNode, id} from '../Types';
 
 export interface Graph {
     addNode(nodeId: id, label: string, position: XYPosition): void; 
@@ -23,6 +23,6 @@ export interface Graph {
     get selectedEdgesCount(): number;
 }
 
-export interface IncomingNodesGraph {
-    getIncomingNodes(nodeId: id): YSet | undefined;
+export interface IncomingNodesGraph<NodeSet> {
+    getIncomingNodes(nodeId: id): NodeSet | undefined;
 }

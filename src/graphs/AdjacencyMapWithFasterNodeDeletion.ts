@@ -18,7 +18,7 @@ type NodeInformation = ObjectYMap<{
 }>
 export type AdjacencyMapWithFasterNodeDeletionGraph = Y.Map<NodeInformation>
 
-export class AdjacencyMapWithFasterNodeDeletion implements Graph, IncomingNodesGraph {
+export class AdjacencyMapWithFasterNodeDeletion implements Graph, IncomingNodesGraph<YSet> {
     private yMatrix: AdjacencyMapWithFasterNodeDeletionGraph;
     private selectedNodes: Set<id>;
     private selectedEdges: Set<id>;
@@ -112,7 +112,7 @@ export class AdjacencyMapWithFasterNodeDeletion implements Graph, IncomingNodesG
         this.yMatrix.doc!.transact(() => {
             const nodeInfo = this.yMatrix.get(nodeId)  
             if (nodeInfo === undefined) {
-                console.warn('Node does not exist (removeNode)')
+                console.log('Node does not exist (removeNode)')
                 return 
             }
             const incomingNodes = nodeInfo.get('incomingNodes')
@@ -128,6 +128,7 @@ export class AdjacencyMapWithFasterNodeDeletion implements Graph, IncomingNodesG
                     return 
                 }
                 innerMap.get('edgeInformation').delete(nodeId);
+                this.selectedEdges.delete(innerMap.get('flowNode').id + '+' + nodeId);
             }
             // Removes the node and its outgoing edges 
             this.yMatrix.delete(nodeId)
@@ -194,13 +195,13 @@ export class AdjacencyMapWithFasterNodeDeletion implements Graph, IncomingNodesG
     }
 
     changeEdgeSelection(edgeId: string, selected: boolean): void {
-        const [nodeId1, ] = edgeId.split('+');
-        const nodeInformation = this.yMatrix.get(nodeId1);
-        if (nodeInformation === undefined) {
-            console.warn('Node does not exist');
+        const [source, target ] = edgeId.split('+');
+        const innerMap = this.yMatrix.get(source);
+        const innerMap2 = this.yMatrix.get(target);
+        if (innerMap === undefined || innerMap2 === undefined) {
+            console.warn('One of the edge nodes does not exist in edge selection', innerMap, innerMap2)
             return 
-        }    
-        
+        }
         if (selected) {
             this.selectedEdges.add(edgeId);
         }

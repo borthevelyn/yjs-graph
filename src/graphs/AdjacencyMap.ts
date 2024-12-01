@@ -92,6 +92,11 @@ export class AdjacencyMap implements Graph {
     }
 
     removeNode(nodeId: id) {
+        const nodeInfo = this.yMatrix.get(nodeId);
+        if (nodeInfo === undefined) {
+            console.log('Node does not exist (removeNode)')
+            return 
+        }
         this.yMatrix.doc!.transact(() => {   
             this.yMatrix.delete(nodeId)
             for (const nodeInfo of this.yMatrix.values()) {
