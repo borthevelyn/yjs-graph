@@ -128,6 +128,7 @@ export class AdjacencyList implements Graph {
                 edges.forEach((edgeInfo, index) => {
                     if (edgeInfo.get('id') === nodeId) {
                         edges.delete(index, 1);
+                        this.selectedEdges.delete(nodeInfo.get('flowNode').id + '+' + nodeId);
                     }
                 })
             })
@@ -191,22 +192,19 @@ export class AdjacencyList implements Graph {
     }
 
     changeEdgeSelection(edgeId: string, selected: boolean): void {
-        const [nodeId1, nodeId2] = edgeId.split('+');
-        const nodeInformation = this.yMatrix.get(nodeId1);
-        if (nodeInformation === undefined) {
-            console.warn('Node does not exist');
+        const [source, target] = edgeId.split('+');
+        const nodeInfo1 = this.yMatrix.get(source);
+        const nodeInfo2 = this.yMatrix.get(target);
+        if (nodeInfo1 === undefined || nodeInfo2 === undefined) {
+            console.warn('one of the edge nodes does not exist', nodeInfo1, nodeInfo2)
             return 
         }
-        nodeInformation.get('edgeInformation').forEach((edgeInfo) => {
-            if (edgeInfo.get('id') === nodeId2) {
-                if (selected) {
-                    this.selectedEdges.add(edgeId);
-                }
-                else {
-                    this.selectedEdges.delete(edgeId);
-                }
-            }
-        })
+        if (selected) {
+            this.selectedEdges.add(edgeId);
+        }
+        else {
+            this.selectedEdges.delete(edgeId);
+        }
         this.eventEmitter?.fire();
     }
 
