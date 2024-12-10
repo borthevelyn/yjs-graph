@@ -221,8 +221,8 @@ export class AdjacencyMap implements Graph {
         return nestedEdges.flat()
     }
 
-    getNode(id: string): FlowNode | undefined {
-        return this.yMatrix.get(id)?.get('flowNode');
+    getNode(nodeId: string): FlowNode | undefined {
+        return this.yMatrix.get(nodeId)?.get('flowNode');
     }
 
     getEdge(source: string, target: string): FlowEdge | undefined {

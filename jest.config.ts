@@ -2,10 +2,12 @@ const jestConfig = {
     collectCoverage: true,
     collectCoverageFrom: ['src/**/*.{ts,tsx}', '!src/**/*.d.ts', '!**/vendor/**'],
     coverageDirectory: 'coverage',
-    testEnvironment: 'jsdom',
+    // testEnvironment: 'tsdom',
+    testEnvironment: 'node',
     transform: {
-    ".(ts|tsx)": "ts-jest"
+    ".(ts|tsx)": ["ts-jest", { diagnostics: true, tsconfig: 'tsconfig.json' }]
     },
+    preset: 'ts-jest',
     coveragePathIgnorePatterns: [
     "/node_modules/",
     "/coverage",
