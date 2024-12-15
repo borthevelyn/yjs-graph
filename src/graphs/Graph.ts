@@ -1,15 +1,15 @@
 import { XYPosition } from '@xyflow/react';
-import { FlowEdge, FlowNode, id} from '../Types';
+import { EdgeId, FlowEdge, FlowNode, id} from '../Types';
 
 export interface Graph {
     addNode(nodeId: id, label: string, position: XYPosition): void; 
-    addEdge(source: id, target: string, label: string): void;
+    addEdge(source: id, target: id, label: string): void;
     removeNode(nodeId: id): void;
-    removeEdge(source: id, target: string): void;
+    removeEdge(source: id, target: id): void;
     changeNodePosition(nodeId: id, position: XYPosition): void; 
     changeNodeDimension(nodeId: id, dimensions: { width: number; height: number }): void; 
     changeNodeSelection(nodeId: id, selected: boolean): void; 
-    changeEdgeSelection(edgeId: id, selected: boolean): void; 
+    changeEdgeSelection(edgeId: EdgeId, selected: boolean): void; 
     nodesAsFlow(): FlowNode[]; 
     edgesAsFlow(): FlowEdge[];
 

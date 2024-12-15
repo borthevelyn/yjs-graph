@@ -15,6 +15,10 @@ export interface ObjectYMap<TypeMap extends object> extends Omit<Y.Map<TypeMap[k
 }
 
 export type id = string;
+export type EdgeId = `${id}+${id}`
+export function splitEdgeId(e: EdgeId): [id, id] {
+    return e.split('+') as [id, id]
+}
 export type FlowNode = NodeBase<{label: string}>
 // export type FlowNode = NodeBase<{label: string, setLabel (label: string) => void }>
 

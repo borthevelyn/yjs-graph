@@ -1,7 +1,7 @@
 import { Graph } from './Graph';
 import * as Y from 'yjs'
 import { MarkerType, XYPosition } from '@xyflow/react'
-import { id, FlowEdge, FlowNode, ObjectYMap, EventEmitter } from '../Types'
+import { id, FlowEdge, FlowNode, ObjectYMap, EventEmitter, EdgeId, splitEdgeId } from '../Types'
 
 type EdgeInformation = {
     label: string
@@ -18,7 +18,7 @@ export type AdjacencyMapGraph = Y.Map<NodeInformation>
 export class AdjacencyMap implements Graph {
     private yMatrix: AdjacencyMapGraph;
     private selectedNodes: Set<id>;
-    private selectedEdges: Set<id>;
+    private selectedEdges: Set<EdgeId>;
     private eventEmitter: EventEmitter | undefined;
 
     constructor(yMatrix: AdjacencyMapGraph, eventEmitter?: EventEmitter) {
@@ -41,7 +41,7 @@ export class AdjacencyMap implements Graph {
                     continue
 
                 source.get('edgeInformation').delete(target);
-                this.selectedEdges.delete(source.get('flowNode').id + '+' + target);
+                this.selectedEdges.delete(`${source.get('flowNode').id}+${target}`);
             }
         }
     }
@@ -100,8 +100,8 @@ export class AdjacencyMap implements Graph {
         this.yMatrix.doc!.transact(() => {   
             this.yMatrix.delete(nodeId)
             for (const nodeInfo of this.yMatrix.values()) {
-                nodeInfo.get('edgeInformation').delete(nodeId) ;     
-                this.selectedEdges.delete(nodeInfo.get('flowNode').id + '+' + nodeId);
+                nodeInfo.get('edgeInformation').delete(nodeId);     
+                this.selectedEdges.delete(`${nodeInfo.get('flowNode').id}+${nodeId}`);
             }
             this.selectedNodes.delete(nodeId);
         });
@@ -116,7 +116,7 @@ export class AdjacencyMap implements Graph {
             }
             console.log('removed edge', source, target);
             innerMap.get('edgeInformation').delete(target);
-            this.selectedEdges.delete(source + '+' + target);
+            this.selectedEdges.delete(`${source}+${target}`);
         });
     }
 
@@ -162,8 +162,8 @@ export class AdjacencyMap implements Graph {
         this.eventEmitter?.fire();
     }
 
-    changeEdgeSelection(edgeId: id, selected: boolean) {
-        const [nodeId1, ] = edgeId.split('+');
+    changeEdgeSelection(edgeId: EdgeId, selected: boolean) {
+        const [nodeId1, ] = splitEdgeId(edgeId);
         const nodeInformation = this.yMatrix.get(nodeId1);
         if (nodeInformation === undefined) {
             console.warn('Node does not exist');
@@ -205,15 +205,16 @@ export class AdjacencyMap implements Graph {
                 Array.from(nodeInfo.get('edgeInformation')).map(([targetNode, {label}]) => {
                     if (this.yMatrix.get(targetNode) === undefined)
                         throw new Error('target node still dangling and contained');
+                    const edgeId: EdgeId = `${sourceNode}+${targetNode}`;
                     return {
-                        id: sourceNode + '+' + targetNode,
+                        id: edgeId,
                         source: sourceNode,
                         target: targetNode,
                         deletable: true,
                         markerEnd: { type: MarkerType.Arrow},
                         data: { label, setLabel: this.setLabel },
                         label,
-                        selected: this.selectedEdges.has(sourceNode + '+' + targetNode),
+                        selected: this.selectedEdges.has(edgeId),
                     }
                 })
             )
@@ -225,19 +226,20 @@ export class AdjacencyMap implements Graph {
         return this.yMatrix.get(nodeId)?.get('flowNode');
     }
 
-    getEdge(source: string, target: string): FlowEdge | undefined {
+    getEdge(source: string, target: id): FlowEdge | undefined {
         this.removeDanglingEdges();
         let edge = this.yMatrix.get(source)?.get('edgeInformation').get(target);
         if (edge === undefined)
             return undefined 
+        const edgeId: EdgeId = `${source}+${target}`;
         return { 
-                id: source + '+' + target, 
+                id: edgeId, 
                 source, 
                 target, 
                 deletable: true, 
                 markerEnd: {type: MarkerType.Arrow}, 
                 data: {label: edge.label }, 
-                selected: this.selectedEdges.has(source + '+' + target), 
+                selected: this.selectedEdges.has(edgeId), 
         }
     }
 
@@ -246,7 +248,7 @@ export class AdjacencyMap implements Graph {
     }
 
     isEdgeSelected(source: id, target: id) {
-        return this.selectedEdges.has(source + '+' + target);
+        return this.selectedEdges.has(`${source}+${target}`);
     }
 
     get nodeCount() {

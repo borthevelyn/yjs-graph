@@ -1,5 +1,5 @@
 import { MarkerType, XYPosition } from "@xyflow/react";
-import { id, FlowNode, FlowEdge, EventEmitter } from "../Types";
+import { id, FlowNode, FlowEdge, EventEmitter, EdgeId, splitEdgeId } from "../Types";
 import { Graph } from "./Graph";
 import * as automerge from "@automerge/automerge";
 import { AutomergeObject } from "./AutomergeObject";
@@ -16,7 +16,7 @@ export type AdjacencyListAutomergeGraph = {map: {[key: string]: NodeInformation}
 
 export class AdjacencyListAutomerge extends AutomergeObject<AdjacencyListAutomergeGraph> implements Graph {
     private selectedNodes: Set<id>;
-    private selectedEdges: Set<id>;
+    private selectedEdges: Set<EdgeId>;
 
     constructor(amdoc: automerge.next.Doc<AdjacencyListAutomergeGraph>, eventEmitter?: EventEmitter) {
         super(amdoc, eventEmitter)
@@ -32,7 +32,7 @@ export class AdjacencyListAutomerge extends AutomergeObject<AdjacencyListAutomer
                 this.changeDoc(doc => {
                     doc.map[source.flowNode.id].edgeInformation.splice(index, 1);
                 })
-                this.selectedEdges.delete(source.flowNode.id + '+' + targetId);
+                this.selectedEdges.delete(`${source.flowNode.id}+${targetId}`);
             })
         }
     }
@@ -45,7 +45,7 @@ export class AdjacencyListAutomerge extends AutomergeObject<AdjacencyListAutomer
                     this.changeDoc(doc => {
                         doc.map[source.flowNode.id].edgeInformation.splice(index, 1);
                     })
-                    this.selectedEdges.delete(source.flowNode.id + '+' + edgeId);
+                    this.selectedEdges.delete(`${source.flowNode.id}+${edgeId}`);
                 } else {
                     uniqueEdgesForNode.add(edgeId);
                 } 
@@ -68,7 +68,7 @@ export class AdjacencyListAutomerge extends AutomergeObject<AdjacencyListAutomer
         });
         console.log('document of newly created map (should not be null)', this.doc.map[nodeId]);
     }
-    addEdge(source: id, target: string, label: string): void {
+    addEdge(source: id, target: id, label: string): void {
         const nodeInfo1 = this.doc.map[source];
         const nodeInfo2 = this.doc.map[target];
         if (nodeInfo1 === undefined || nodeInfo2 === undefined) {
@@ -107,14 +107,14 @@ export class AdjacencyListAutomerge extends AutomergeObject<AdjacencyListAutomer
                 edges.forEach((edge, index) => {
                     if (edge.id === nodeId) {
                         edges.splice(index, 1);
-                        this.selectedEdges.delete(nodeId + '+' + edge.id);
+                        this.selectedEdges.delete(`${nodeId}+${edge.id}`);
                     }
                 });
             }
         });
         console.log('removed node, node in doc should be undefined', nodeId, this.doc.map[nodeId]);
     }
-    removeEdge(source: id, target: string): void {
+    removeEdge(source: id, target: id): void {
         const nodeInfo1 = this.doc.map[source];
         if (nodeInfo1 === undefined) {
             console.warn('Node does not exist');
@@ -127,7 +127,7 @@ export class AdjacencyListAutomerge extends AutomergeObject<AdjacencyListAutomer
                     this.changeDoc(doc => {
                         doc.map[source].edgeInformation.splice(index, 1);
                     });
-                    this.selectedEdges.delete(source + '+' + target);
+                    this.selectedEdges.delete(`${source}+${target}`);
                 }
             });
     }
@@ -164,8 +164,8 @@ export class AdjacencyListAutomerge extends AutomergeObject<AdjacencyListAutomer
         }
         this.fireEventEmitter();
     }
-    changeEdgeSelection(edgeId: id, selected: boolean): void {
-        const [source, target] = edgeId.split('+');
+    changeEdgeSelection(edgeId: EdgeId, selected: boolean): void {
+        const [source, target] = splitEdgeId(edgeId);
         const nodeInfo1 = this.doc.map[source];
         const nodeInfo2 = this.doc.map[target];
         if (nodeInfo1 === undefined || nodeInfo2 === undefined) {
@@ -191,7 +191,7 @@ export class AdjacencyListAutomerge extends AutomergeObject<AdjacencyListAutomer
         const nestedEdges = 
             Object.entries(this.doc.map).map(([sourceNode, nodeInfo]) => {  
                 return Object.entries(nodeInfo.edgeInformation).map(([targetNode, edgeInfo]) => {
-                    const edgeId = sourceNode + '+' + targetNode;
+                    const edgeId: EdgeId = `${sourceNode}+${targetNode}`;
                     return {
                         id: edgeId,
                         source: sourceNode,
@@ -218,21 +218,22 @@ export class AdjacencyListAutomerge extends AutomergeObject<AdjacencyListAutomer
             console.log('targetindex is -1', source, target, this.doc.map[source]?.edgeInformation);
             return undefined;
         }
+        const edgeId: EdgeId = `${source}+${target}`;
         return {
-            id: source + '+' + target,
+            id: edgeId,
             source,
             target,
             deletable: true,
             markerEnd: {type: MarkerType.Arrow},
             data: {label: this.doc.map[source]?.edgeInformation[targetIndex].label},                   
-            selected: this.selectedEdges.has(source + '+' + target)
+            selected: this.selectedEdges.has(edgeId)
         }  
     }
     isNodeSelected(nodeId: id): boolean {
         return this.selectedNodes.has(nodeId);
     }
     isEdgeSelected(source: id, target: id): boolean {
-        return this.selectedEdges.has(source + '+' + target);
+        return this.selectedEdges.has(`${source}+${target}`);
     }
     get nodeCount(): number {
         return Object.keys(this.doc.map).length;

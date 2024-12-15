@@ -1,5 +1,5 @@
 import * as Y from 'yjs'
-import { EventEmitter, FlowEdge, FlowNode, id, ObjectYMap } from '../Types'
+import { EdgeId, EventEmitter, FlowEdge, FlowNode, id, ObjectYMap, splitEdgeId } from '../Types'
 import { MarkerType, XYPosition } from '@xyflow/react';
 import { Graph } from './Graph';
 
@@ -16,7 +16,7 @@ export type AdjacencyListGraph = Y.Map<NodeInformation>;
 export class AdjacencyList implements Graph {
     private yMatrix: AdjacencyListGraph;
     private selectedNodes: Set<id>;
-    private selectedEdges: Set<id>;
+    private selectedEdges: Set<EdgeId>;
     private eventEmitter: EventEmitter | undefined
 
     constructor(yMatrix: AdjacencyListGraph, eventEmitter?: EventEmitter) {
@@ -40,7 +40,7 @@ export class AdjacencyList implements Graph {
                     return
 
                 source.get('edgeInformation').delete(index, 1);
-                this.selectedEdges.delete(source.get('flowNode').id + '+' + targetId);
+                this.selectedEdges.delete(`${source.get('flowNode').id}+${targetId}`);
             })
         }
     }
@@ -52,7 +52,7 @@ export class AdjacencyList implements Graph {
                 const edgeId = edge.get('id');
                 if (uniqueEdgesForNode.has(edgeId)) {
                     source.get('edgeInformation').delete(index, 1);
-                    this.selectedEdges.delete(source.get('flowNode').id + '+' + edgeId);
+                    this.selectedEdges.delete(`${source.get('flowNode').id}+${edgeId}`);
                 } else {
                     uniqueEdgesForNode.add(edgeId);
                 } 
@@ -91,7 +91,7 @@ export class AdjacencyList implements Graph {
         console.log('document of newly created map (should not be null)', this.yMatrix.get(nodeId)!.get('edgeInformation').doc);
     }
 
-    addEdge(source: string, target: string, label: string): void {
+    addEdge(source: string, target: id, label: string): void {
         this.yMatrix.doc!.transact(() => {
             const nodeInfo1 = this.yMatrix.get(source);
             const nodeInfo2 = this.yMatrix.get(target);
@@ -133,14 +133,14 @@ export class AdjacencyList implements Graph {
                 edges.forEach((edgeInfo, index) => {
                     if (edgeInfo.get('id') === nodeId) {
                         edges.delete(index, 1);
-                        this.selectedEdges.delete(nodeInfo.get('flowNode').id + '+' + nodeId);
+                        this.selectedEdges.delete(`${nodeInfo.get('flowNode').id}+${nodeId}`);
                     }
                 })
             })
         });
     }
 
-    removeEdge(source: string, target: string): void {
+    removeEdge(source: string, target: id): void {
         this.yMatrix.doc!.transact(() => {
             const innerMap = this.yMatrix.get(source);
             if (innerMap === undefined) {
@@ -152,7 +152,7 @@ export class AdjacencyList implements Graph {
             edges.forEach((edgeInfo, index) => {
                 if (edgeInfo.get('id') === target) {
                     innerMap.get('edgeInformation').delete(index, 1);
-                    this.selectedEdges.delete(source + '+' + target);
+                    this.selectedEdges.delete(`${source}+${target}`);
                 }
             })
         });
@@ -196,8 +196,8 @@ export class AdjacencyList implements Graph {
         this.eventEmitter?.fire();
     }
 
-    changeEdgeSelection(edgeId: string, selected: boolean): void {
-        const [source, target] = edgeId.split('+');
+    changeEdgeSelection(edgeId: EdgeId, selected: boolean): void {
+        const [source, target] = splitEdgeId(edgeId);
         const nodeInfo1 = this.yMatrix.get(source);
         const nodeInfo2 = this.yMatrix.get(target);
         if (nodeInfo1 === undefined || nodeInfo2 === undefined) {
@@ -230,15 +230,16 @@ export class AdjacencyList implements Graph {
         const nestedEdges = 
             Array.from(this.yMatrix.entries()).map(([sourceNode, nodeInfo]) =>
                 Array.from(nodeInfo.get('edgeInformation')).map<FlowEdge>((edge) => {
+                    const edgeId: EdgeId = `${sourceNode}+${edge.get('id')}`;
                     return {
-                        id: sourceNode + '+' + edge.get('id'),
+                        id: edgeId,
                         source: sourceNode,
                         target: edge.get('id'),
                         deletable: true,
                         markerEnd: { type: MarkerType.Arrow },
                         data: { label: edge.get('label'), setLabel: this.setLabel },
                         label: edge.get('label'),
-                        selected: this.selectedEdges.has(sourceNode + '+' + edge.get('id')),
+                        selected: this.selectedEdges.has(edgeId),
                     }
                 })
             )
@@ -250,20 +251,21 @@ export class AdjacencyList implements Graph {
         return this.yMatrix.get(nodeId)?.get('flowNode');
     }
 
-    getEdge(source: string, target: string): FlowEdge | undefined {
+    getEdge(source: string, target: id): FlowEdge | undefined {
         this.removeDanglingEdges();
         this.removeDuplicateEdges();
         let edge = this.yMatrix.get(source)?.get('edgeInformation').toArray().find((edgeInfo) => edgeInfo.get('id') === target);
         if (edge === undefined)
             return undefined
+        const edgeId: EdgeId = `${source}+${target}`;
         return { 
-            id: source + '+' + target, 
+            id: edgeId, 
             source, 
             target, 
             deletable: true, 
             markerEnd: { type: MarkerType.Arrow },
             data: { label: edge.get('label') },
-            selected: this.selectedEdges.has(source + '+' + target), 
+            selected: this.selectedEdges.has(edgeId), 
         }
     }
 
@@ -271,8 +273,8 @@ export class AdjacencyList implements Graph {
         return this.selectedNodes.has(nodeId);
     }
 
-    isEdgeSelected(source: string, target: string): boolean {
-        return this.selectedEdges.has(source + '+' + target);
+    isEdgeSelected(source: string, target: id): boolean {
+        return this.selectedEdges.has(`${source}+${target}`);
     }
 
     get nodeCount(): number {

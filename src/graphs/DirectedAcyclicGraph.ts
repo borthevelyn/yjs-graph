@@ -1,5 +1,5 @@
 import { MarkerType, XYPosition } from "@xyflow/react";
-import { id, FlowNode, FlowEdge, ObjectYMap, EventEmitter } from "../Types";
+import { id, FlowNode, FlowEdge, ObjectYMap, EventEmitter, EdgeId, splitEdgeId } from "../Types";
 import { Graph } from "./Graph";
 import * as Y from 'yjs'
 
@@ -24,14 +24,13 @@ function unionWithSets<T>(set1: ReadonlySet<T>, set2: ReadonlySet<T>): ReadonlyS
 
 export class DirectedAcyclicGraph implements Graph {
     private yMatrix: AdjacencyMapGraph;
-    private yEdges: Y.Array<id>;
+    private yEdges: Y.Array<EdgeId>;
 
     private selectedNodes: Set<id>;
-    private selectedEdges: Set<id>;
+    private selectedEdges: Set<EdgeId>;
     private eventEmitter: EventEmitter | undefined;
 
-    constructor(yMatrix: AdjacencyMapGraph, yEdges: Y.Array<id>, eventEmitter?: EventEmitter) {
-        
+    constructor(yMatrix: AdjacencyMapGraph, yEdges: Y.Array<EdgeId>, eventEmitter?: EventEmitter) {
         this.yMatrix = yMatrix;
         this.yEdges = yEdges;
         this.selectedNodes = new Set();
@@ -40,7 +39,6 @@ export class DirectedAcyclicGraph implements Graph {
         if (this.eventEmitter !== undefined) {
             this.yMatrix.observeDeep(() => this.eventEmitter?.fire());
         }
-
     }
 
     observe(lambda: () => void) {
@@ -48,15 +46,17 @@ export class DirectedAcyclicGraph implements Graph {
     }
 
     private removeDanglingEdges() {
-        for (const source of this.yMatrix.values()) {
-            for (const target of source.get('edgeInformation').keys()) {
-                if (this.yMatrix.get(target) !== undefined)
-                    continue
+        this.yMatrix.doc!.transact(() => {
+            for (const source of this.yMatrix.values()) {
+                for (const target of source.get('edgeInformation').keys()) {
+                    if (this.yMatrix.get(target) !== undefined)
+                        continue
 
-                source.get('edgeInformation').delete(target);
-                this.selectedEdges.delete(source.get('flowNode').id + '+' + target);
+                    this.removeEdge(source.get('flowNode').id, target)
+                    this.selectedEdges.delete(`${source.get('flowNode').id}+${target}`);
+                }
             }
-        }
+        });
     }
 
     private makeNodeInformation(node: FlowNode, edges: Y.Map<EdgeInformation>) {
@@ -117,25 +117,24 @@ export class DirectedAcyclicGraph implements Graph {
                 .map(path => [source, ...path])
             )
             
-        
         return unionWithSets(multiEdgePaths, oneEdgePaths)
     }
-    private nodeListToEdgeList(nodeList: ReadonlyArray<id>): ReadonlyArray<id> {
+    private nodeListToEdgeList(nodeList: ReadonlyArray<id>): ReadonlyArray<EdgeId> {
         if (nodeList.length < 2)
             return []
 
         return Array.from(
             new Array(nodeList.length).keys())
-            .map(i => `${nodeList[i]}+${nodeList[(i + 1) % nodeList.length]}`)
+            .map<EdgeId>(i => `${nodeList[i]}+${nodeList[(i + 1) % nodeList.length]}`)
     }
     // Returns a set of all paths described by an edge list
-    private findAllCyclesFromEdge(edgeId: id): ReadonlySet<ReadonlyArray<id>> {
-        const [source, target] = edgeId.split('+');
+    private findAllCyclesFromEdge(edgeId: EdgeId): ReadonlySet<ReadonlyArray<id>> {
+        const [source, target] = splitEdgeId(edgeId);
         const paths = this.findAllPaths(target, source);
         return new Set(Array.from(paths.values()).map(this.nodeListToEdgeList))
     }
-    private willAddEdgeCreateCycle(edgeId: id): boolean {
-        const [source, target] = edgeId.split('+');
+    private willAddEdgeCreateCycle(edgeId: EdgeId): boolean {
+        const [source, target] = splitEdgeId(edgeId);
         return this.findAllPaths(target, source).size !== 0;
     }
     private sameNodeCycle(nodeList1: ReadonlyArray<id>, nodeList2: ReadonlyArray<id>): boolean {
@@ -181,20 +180,21 @@ export class DirectedAcyclicGraph implements Graph {
         )
     }
     // Returns a set of all edgeIds that contribute to cycles
-    public findAllEdgesContributingToCycles(): ReadonlySet<id> {
+    public findAllEdgesContributingToCycles(): ReadonlySet<EdgeId> {
         return new Set(
             Array.from(this.findAllCycles())
             .flatMap(x => this.nodeListToEdgeList(x))
         )
     }
 
-    private findEdgeIndex(edgesContributingToCycles: ReadonlySet<string>)  {
-        const reverseIdx = this.yEdges.toArray().reverse().findIndex((edge: string) => edgesContributingToCycles.has(edge));
+    private findEdgeIndex(edgesContributingToCycles: ReadonlySet<EdgeId>): number {
+        const reverseIdx = this.yEdges.toArray().reverse().findIndex((edge: EdgeId) => edgesContributingToCycles.has(edge));
         return this.yEdges.length - 1 - reverseIdx
     }
 
     public removeCycles(): void {
         this.yEdges.doc!.transact(() => {
+            this.removeDanglingEdges();
             let edgesContributingToCycles = this.findAllEdgesContributingToCycles(); 
             while (edgesContributingToCycles.size > 0) {
                 console.log('Current edges with cycle', edgesContributingToCycles)
@@ -203,7 +203,7 @@ export class DirectedAcyclicGraph implements Graph {
                     console.warn('Edge not found in yEdges, but is part of a cycle.')
                     return
                 }
-                const edgeToBeRemoved = this.yEdges.get(edgeIndex).split('+')
+                const edgeToBeRemoved = splitEdgeId(this.yEdges.get(edgeIndex));
                 this.removeEdge(edgeToBeRemoved[0], edgeToBeRemoved[1])
                 edgesContributingToCycles = this.findAllEdgesContributingToCycles()
             }
@@ -220,8 +220,8 @@ export class DirectedAcyclicGraph implements Graph {
         }, new Y.Map<EdgeInformation>());
         this.yMatrix.set(nodeId, innerMap);
     }
-    addEdge(source: id, target: string, label: string): void {
-        const edgeId = source + '+' + target;
+    addEdge(source: id, target: id, label: string): void {
+        const edgeId: EdgeId = `${source}+${target}`;
         if (source === target) {
             console.warn('Try to add edge, self loops are not allowed.')
             return
@@ -253,8 +253,7 @@ export class DirectedAcyclicGraph implements Graph {
             this.yMatrix.delete(nodeId)
             for (const nodeInfo of this.yMatrix.values()) {
                 nodeInfo.get('edgeInformation').delete(nodeId);
-                const edgeId = nodeInfo.get('flowNode').id + '+' + nodeId;
-
+                const edgeId: EdgeId = `${nodeInfo.get('flowNode').id}+${nodeId}`;
 
                 let edgeIndex;
                 do {
@@ -268,7 +267,7 @@ export class DirectedAcyclicGraph implements Graph {
             this.selectedNodes.delete(nodeId);
         });
     }
-    removeEdge(source: id, target: string): void {
+    removeEdge(source: id, target: id): void {
         this.yMatrix.doc!.transact(() => {
             const innerMap = this.yMatrix.get(source);
             if (innerMap === undefined) {
@@ -278,7 +277,7 @@ export class DirectedAcyclicGraph implements Graph {
             console.log('removed edge', source, target);
             innerMap.get('edgeInformation').delete(target);
 
-            const edgeId = source + '+' + target;
+            const edgeId: EdgeId = `${source}+${target}`;
             let edgeIndex;
             do {
                 edgeIndex = this.yEdges.toArray().findIndex(x => x === edgeId);  
@@ -324,15 +323,16 @@ export class DirectedAcyclicGraph implements Graph {
                 Array.from(nodeInfo.get('edgeInformation')).map(([targetNode, {label}]) => {
                     if (this.yMatrix.get(targetNode) === undefined)
                         throw new Error('target node still dangling and contained');
+                    const edgeId: EdgeId = `${sourceNode}+${targetNode}`;
                     return {
-                        id: sourceNode + '+' + targetNode,
+                        id: edgeId,
                         source: sourceNode,
                         target: targetNode,
                         deletable: true,
                         markerEnd: { type: MarkerType.Arrow},
                         data: { label },
                         label,
-                        selected: this.selectedEdges.has(sourceNode + '+' + targetNode),
+                        selected: this.selectedEdges.has(edgeId),
                     }
                 })
             )
@@ -347,14 +347,16 @@ export class DirectedAcyclicGraph implements Graph {
         let edge = this.yMatrix.get(source)?.get('edgeInformation').get(target);
         if (edge === undefined)
             return undefined 
+
+        const edgeId: EdgeId = `${source}+${target}`;
         return { 
-            id: source + '+' + target, 
+            id: edgeId, 
             source, 
             target, 
             deletable: true, 
             markerEnd: {type: MarkerType.Arrow}, 
             data: {label: edge.label }, 
-            selected: this.selectedEdges.has(source + '+' + target), 
+            selected: this.selectedEdges.has(edgeId), 
         }
     }
     isAcyclic(): boolean {
@@ -364,7 +366,7 @@ export class DirectedAcyclicGraph implements Graph {
         return this.selectedNodes.has(nodeId);
     }
     isEdgeSelected(source: id, target: id): boolean {
-        return this.selectedEdges.has(source + '+' + target);
+        return this.selectedEdges.has(`${source}+${target}`);
     }
     getYEdgesAsJson(): string {
         return JSON.stringify(this.yEdges.toArray());
