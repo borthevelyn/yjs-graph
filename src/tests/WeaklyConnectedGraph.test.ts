@@ -69,11 +69,11 @@ describe('WeaklyConnectedGraph', () => {
   
     beforeEach(() => {
         ydoc1 = new Y.Doc()
-        yMatrix1 = new WeaklyConnectedGraph(ydoc1.getMap('adjacency map'), ydoc1.getArray('edges'))
+        yMatrix1 = new WeaklyConnectedGraph(ydoc1.getMap('adjacency map'), ydoc1.getArray('graphElements'))
         ydoc2 = new Y.Doc()
-        yMatrix2 = new WeaklyConnectedGraph(ydoc2.getMap('adjacency map'), ydoc2.getArray('edges'))
+        yMatrix2 = new WeaklyConnectedGraph(ydoc2.getMap('adjacency map'), ydoc2.getArray('graphElements'))
         ydoc3 = new Y.Doc()
-        yMatrix3 = new WeaklyConnectedGraph(ydoc3.getMap('adjacency map'), ydoc3.getArray('edges'))
+        yMatrix3 = new WeaklyConnectedGraph(ydoc3.getMap('adjacency map'), ydoc3.getArray('graphElements'))
     })
 
     // Basic tests
@@ -168,7 +168,6 @@ describe('WeaklyConnectedGraph', () => {
         expect(yMatrix2.nodeCount).toBe(2);
     })
 
-
 // Tests checking weakly connectness property in a local graph
     it('try to add a single node to an existing graph, should not work', () => {
         yMatrix1.addNode('node1', 'node 1', { x: 0, y: 0 });
@@ -227,9 +226,6 @@ describe('WeaklyConnectedGraph', () => {
         expect(yMatrix1.nodeCount).toBe(2);
     })
 
-
-
-// Testing synchronization between two acyclic graphs
 // addNode(m), addNode(n), m != n
     it('add node1 in one map and node2 in the other map)', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
@@ -373,14 +369,15 @@ describe('WeaklyConnectedGraph', () => {
         expect(yMatrix2.nodeCount).toBe(3);
     })
     
-// TODO
-/* // addEdge(m1,m2), addEdge(n1,n2) m1 != n1, m2 != n2
+// addEdge(m1,m2), addEdge(n1,n2) m1 != n1, m2 != n2
     it('add edge1-2 in one map and add edge3-4 in the other map', () => {
+        // Additional edges are required here to generate an initial weakly connected graph
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
-        yMatrix2.addNode('node3', 'node3', { x: 0, y: 10 });
-        yMatrix2.addNode('node4', 'node4', { x: 10, y: 10 });
+        yMatrix1.addNodeWithEdge('node3', 'node3', { x: 0, y: 0 }, 'node1', 'node3', 'edge1-3');
+        yMatrix1.addNodeWithEdge('node4', 'node4', { x: 0, y: 0 }, 'node1', 'node4', 'edge1-4');
+        yMatrix1.addNodeWithEdge('node2', 'node2', { x: 0, y: 0 }, 'node2', 'node4', 'edge2-4');
         sync12Concurrently();
+
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix2.addEdge('node3', 'node4', 'edge3-4');
         sync12Concurrently();
@@ -393,7 +390,7 @@ describe('WeaklyConnectedGraph', () => {
         expect(yMatrix1.getEdge('node3', 'node4')).toBeDefined();
         expect(yMatrix1.getEdge('node1', 'node2')?.data?.label).toBe('edge1-2');
         expect(yMatrix1.getEdge('node3', 'node4')?.data?.label).toBe('edge3-4');
-        expect(yMatrix1.edgeCount).toBe(2);
+        expect(yMatrix1.edgeCount).toBe(5);
         expect(yMatrix1.nodeCount).toBe(4);
 
         expect(yMatrix2.getNode('node1')).toBeDefined();
@@ -404,14 +401,17 @@ describe('WeaklyConnectedGraph', () => {
         expect(yMatrix2.getEdge('node3', 'node4')).toBeDefined();
         expect(yMatrix2.getEdge('node1', 'node2')?.data?.label).toBe('edge1-2');
         expect(yMatrix2.getEdge('node3', 'node4')?.data?.label).toBe('edge3-4');
-        expect(yMatrix2.edgeCount).toBe(2);
+        expect(yMatrix2.edgeCount).toBe(5);
         expect(yMatrix2.nodeCount).toBe(4);
     })
 
 // addEdge(m1,m2), addEdge(n1,n2) m1 == n1, m2 == n2
     it('try to add edge twice', () => {
+        // Additional edges are required here to generate an initial weakly connected graph
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
+        yMatrix1.addNodeWithEdge('node3', 'node3', { x: 0, y: 0 }, 'node1', 'node3', 'edge1-3');
+        yMatrix1.addNodeWithEdge('node4', 'node4', { x: 0, y: 0 }, 'node1', 'node4', 'edge1-4');
+        yMatrix1.addNodeWithEdge('node2', 'node2', { x: 0, y: 0 }, 'node2', 'node4', 'edge2-4');
         sync12Concurrently();
         yMatrix2.addEdge('node1', 'node2', 'second edge1-2');
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
@@ -423,22 +423,21 @@ describe('WeaklyConnectedGraph', () => {
         expect(edgeForMatrix1).toBeDefined();
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
-        expect(yMatrix1.edgeCount).toBe(1);
-        expect(yMatrix1.nodeCount).toBe(2);
-        // yjs decides which label to take for the edge
-        // expect(yMatrix1.getEdge('node1',  'node2')?.label).toBe('edge1-2');
+        expect(yMatrix1.edgeCount).toBe(4);
+        expect(yMatrix1.nodeCount).toBe(4);
 
         expect(edgeForMatrix2).toBeDefined();
         expect(yMatrix2.getNode('node1')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
-        expect(yMatrix2.edgeCount).toBe(1);
-        expect(yMatrix2.nodeCount).toBe(2);
+        expect(yMatrix2.edgeCount).toBe(4);
+        expect(yMatrix2.nodeCount).toBe(4);
     })
 
 // addEdge(m1,m2), removeNode(n) m1 == n, m2 != n
     it('add edge1-2 in one map and remove node1 in the other map', () => {
+        // Additional edge is required here to generate an initial weakly connected graph
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
+        yMatrix1.addNodeWithEdge('node2', 'node2', { x: 0, y: 0 }, 'node2', 'node1', 'edge2-1');
         sync12Concurrently();
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix2.removeNode('node1');
@@ -458,14 +457,13 @@ describe('WeaklyConnectedGraph', () => {
 // addEdge(m1,m2), removeNode(n) m1 != n, m2 == n
 // This test requires garbage collection because of dangling edges
     it('add edge1-2 in one map and remove node2 in the other map', () => {
+        // Additional edge is required here to generate an initial weakly connected graph
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
+        yMatrix1.addNodeWithEdge('node2', 'node2', { x: 0, y: 0 }, 'node2', 'node1', 'edge2-1');
         sync12Concurrently();
+
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix2.removeNode('node2');
-        sync12Concurrently();
-        // this is only because edges as flow may trigger react updates
-        yMatrix1.edgesAsFlow();
         sync12Concurrently();
 
         expect(yMatrix1.getNode('node2')).toBeUndefined();
@@ -481,6 +479,7 @@ describe('WeaklyConnectedGraph', () => {
         expect(yMatrix2.nodeCount).toBe(1);
     })
 
+// TODO
 // addEdge(m1,m2), removeNode(n) m1 == n, m2 == n
     it('add edge1-1 in one map and remove node1 in the other map', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
@@ -497,36 +496,38 @@ describe('WeaklyConnectedGraph', () => {
 
 // addEdge(m1,m2), removeNode(n) m1 != n, m2 != n
     it('add edge1-2 in one map and remove node3 in the other map', () => {
+        // Additional edges are required here to generate an initial weakly connected graph
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        yMatrix1.addNode('node2', 'node2', { x: 0, y: 10 });
-        yMatrix1.addNode('node3', 'node3', { x: 10, y: 0 });
+        yMatrix1.addNodeWithEdge('node2', 'node2', { x: 0, y: 0 }, 'node2', 'node1', 'edge2-1');
+        yMatrix1.addNodeWithEdge('node3', 'node3', { x: 0, y: 0 }, 'node3', 'node1', 'edge3-1');
         sync12Concurrently();
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix2.removeNode('node3');
         sync12Concurrently();
 
-
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.getNode('node3')).toBeUndefined();
         expect(yMatrix1.getEdge('node1', 'node2')).toBeDefined();
-        expect(yMatrix1.edgeCount).toBe(1);
+        expect(yMatrix1.edgeCount).toBe(2);
         expect(yMatrix1.nodeCount).toBe(2);
 
         expect(yMatrix2.getNode('node1')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
         expect(yMatrix2.getNode('node3')).toBeUndefined();
         expect(yMatrix2.getEdge('node1', 'node2')).toBeDefined();
-        expect(yMatrix1.edgeCount).toBe(1);
+        expect(yMatrix1.edgeCount).toBe(2);
         expect(yMatrix2.nodeCount).toBe(2);
     })
 
 // addEdge(m1,m2), removeEdge(n1,n2) m1 != n1, m2 != n2
     it('add edge1-2 in one map and remove edge3-4 in the other map', () => {
-        yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
-        yMatrix2.addNode('node3', 'node3', { x: 0, y: 10 });
-        yMatrix2.addNode('node4', 'node4', { x: 10, y: 10 });
+        // Additional edges are required here to generate an initial weakly connected graph
+        yMatrix1.addNode('node4', 'node4', { x: 10, y: 10 });
+        yMatrix1.addNodeWithEdge('node1', 'node1', { x: 0, y: 0 }, 'node4', 'node1', 'edge4-1');
+        yMatrix1.addNodeWithEdge('node2', 'node2', { x: 0, y: 0 }, 'node4', 'node2', 'edge4-2');
+        yMatrix1.addNodeWithEdge('node3', 'node3', { x: 0, y: 0 }, 'node4', 'node3', 'edge4-3');
+        yMatrix1.addEdge('node1', 'node3', 'edge1-3');
         yMatrix2.addEdge('node3', 'node4', 'edge3-4');
         sync12Concurrently();
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
@@ -539,7 +540,7 @@ describe('WeaklyConnectedGraph', () => {
         expect(yMatrix1.getNode('node4')).toBeDefined();
         expect(yMatrix1.getEdge('node1', 'node2')).toBeDefined();
         expect(yMatrix1.getEdge('node3', 'node4')).toBeUndefined();
-        expect(yMatrix1.edgeCount).toBe(1);
+        expect(yMatrix1.edgeCount).toBe(5);
         expect(yMatrix1.nodeCount).toBe(4);
 
         expect(yMatrix2.getNode('node1')).toBeDefined();
@@ -548,16 +549,17 @@ describe('WeaklyConnectedGraph', () => {
         expect(yMatrix2.getNode('node4')).toBeDefined();
         expect(yMatrix2.getEdge('node1', 'node2')).toBeDefined();
         expect(yMatrix2.getEdge('node3', 'node4')).toBeUndefined();
-        expect(yMatrix2.edgeCount).toBe(1);
+        expect(yMatrix2.edgeCount).toBe(5);
         expect(yMatrix2.nodeCount).toBe(4);
     })
 
 // addEdge(m1,m2), removeEdge(n1,n2) m1 == n1, m2 != n2
     it('add edge1-2 in one map and remove edge1-3 in the other map', () => {
-        yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
+        // Additional edges are required here to generate an initial weakly connected graph
         yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
-        yMatrix1.addEdge('node1', 'node3', 'edge1-3');
+        yMatrix1.addNodeWithEdge('node1', 'node1', { x: 0, y: 0 }, 'node1', 'node3', 'edge1-3');
+        yMatrix1.addNodeWithEdge('node2', 'node2', { x: 0, y: 0 }, 'node2', 'node3', 'edge2-3');
+        yMatrix1.addEdge('node2', 'node1', 'edge2-1');
         sync12Concurrently();
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix2.removeEdge('node1', 'node3');
@@ -569,7 +571,7 @@ describe('WeaklyConnectedGraph', () => {
         expect(yMatrix1.getEdge('node1', 'node2')).toBeDefined();
         expect(yMatrix1.getEdge('node1', 'node3')).toBeUndefined();
         expect(yMatrix1.getEdge('node1', 'node2')?.data?.label).toBe('edge1-2');
-        expect(yMatrix1.edgeCount).toBe(1);
+        expect(yMatrix1.edgeCount).toBe(3);
         expect(yMatrix1.nodeCount).toBe(3);
 
         expect(yMatrix2.getNode('node1')).toBeDefined();
@@ -578,16 +580,17 @@ describe('WeaklyConnectedGraph', () => {
         expect(yMatrix2.getEdge('node1', 'node2')).toBeDefined();
         expect(yMatrix2.getEdge('node1', 'node3')).toBeUndefined();
         expect(yMatrix2.getEdge('node1', 'node2')?.data?.label).toBe('edge1-2');
-        expect(yMatrix2.edgeCount).toBe(1);
+        expect(yMatrix2.edgeCount).toBe(3);
         expect(yMatrix2.nodeCount).toBe(3);
     })
-
+// TODO Check this in other tests 3-2
 // addEdge(m1,m2), removeEdge(n1,n2) m1 != n1, m2 == n2
     it('add edge1-2 in one map and remove edge3-2 in the other map', () => {
-        yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
+        // Additional edges are required here to generate an initial weakly connected graph
         yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
-        yMatrix1.addEdge('node3', 'node2', 'edge3-2');
+        yMatrix1.addNodeWithEdge('node1', 'node1', { x: 0, y: 0 }, 'node1', 'node3', 'edge1-3');
+        yMatrix1.addNodeWithEdge('node2', 'node2', { x: 0, y: 0 }, 'node3', 'node2', 'edge3-2');
+        yMatrix1.addEdge('node2', 'node1', 'edge2-1');
         sync12Concurrently();
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix2.removeEdge('node3', 'node2');
@@ -597,18 +600,18 @@ describe('WeaklyConnectedGraph', () => {
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.getNode('node3')).toBeDefined();
         expect(yMatrix1.getEdge('node1','node2')).toBeDefined();
-        expect(yMatrix1.getEdge('node1','node3')).toBeUndefined();
+        expect(yMatrix1.getEdge('node3','node2')).toBeUndefined();
         expect(yMatrix1.getEdge('node1','node2')?.data?.label).toBe('edge1-2');
-        expect(yMatrix1.edgeCount).toBe(1);
+        expect(yMatrix1.edgeCount).toBe(3);
         expect(yMatrix1.nodeCount).toBe(3);
 
         expect(yMatrix2.getNode('node1')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
         expect(yMatrix2.getNode('node3')).toBeDefined();
         expect(yMatrix2.getEdge('node1','node2')).toBeDefined();
-        expect(yMatrix2.getEdge('node1','node3')).toBeUndefined();
+        expect(yMatrix2.getEdge('node3','node2')).toBeUndefined();
         expect(yMatrix2.getEdge('node1','node2')?.data?.label).toBe('edge1-2');
-        expect(yMatrix2.edgeCount).toBe(1);
+        expect(yMatrix2.edgeCount).toBe(3);
         expect(yMatrix2.nodeCount).toBe(3);
     })
 
@@ -628,8 +631,9 @@ describe('WeaklyConnectedGraph', () => {
 
 // removeNode(m), removeNode(n) n != m
     it('remove node1 in one map and remove node2 in the other map', () => {
+        // Additional edge is required here to generate an initial weakly connected graph
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        yMatrix2.addNode('node2', 'node2', { x: 10, y: 0 });
+        yMatrix1.addNodeWithEdge('node2', 'node2', { x: 10, y: 0 }, 'node1', 'node2', 'edge1-2');
         sync12Concurrently();
         yMatrix1.removeNode('node1');
         yMatrix2.removeNode('node2');
@@ -644,8 +648,7 @@ describe('WeaklyConnectedGraph', () => {
 // removeNode(m), removeEdge(n1,n2) m == n1, m != n2
     it('remove node1 in one map and remove edge1-2 in the other map', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
-        yMatrix1.addEdge('node1', 'node2', 'edge1-2');
+        yMatrix1.addNodeWithEdge('node2', 'node2', { x: 10, y: 0 }, 'node1', 'node2', 'edge1-2');
         sync12Concurrently();
         yMatrix1.removeNode('node1');
         yMatrix2.removeEdge('node1', 'node2');
@@ -667,8 +670,7 @@ describe('WeaklyConnectedGraph', () => {
 // removeNode(m), removeEdge(n1,n2) m != n1, m == n2
     it('remove node2 in one map and remove edge1-2 in the other map', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
-        yMatrix1.addEdge('node1', 'node2', 'edge1-2');
+        yMatrix1.addNodeWithEdge('node2', 'node2', { x: 10, y: 0 }, 'node1', 'node2', 'edge1-2');
         sync12Concurrently();
         yMatrix1.removeEdge('node1', 'node2');
         yMatrix2.removeNode('node2');
@@ -689,10 +691,11 @@ describe('WeaklyConnectedGraph', () => {
 
 // removeNode(m), removeEdge(n1,n2) m != n1, m != n2
     it('remove node1 in one map and remove edge2-3 in the other map', () => {
-        yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        yMatrix2.addNode('node2', 'node2', { x: 10, y: 0 });
-        yMatrix2.addNode('node3', 'node3', { x: 0, y: 10 });
-        yMatrix2.addEdge('node2', 'node3', 'edge2-3');
+        yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
+        yMatrix1.addNodeWithEdge('node2', 'node2', { x: 0, y: 0 }, 'node2', 'node3', 'edge2-3');
+        yMatrix1.addNodeWithEdge('node1', 'node1', { x: 0, y: 0 }, 'node2', 'node1', 'edge2-1');
+        yMatrix1.addEdge('node3', 'node2', 'edge3-2');
+        
         sync12Concurrently();
         yMatrix1.removeNode('node1');
         yMatrix2.removeEdge('node2', 'node3');
@@ -703,14 +706,14 @@ describe('WeaklyConnectedGraph', () => {
         expect(yMatrix1.getNode('node3')).toBeDefined();
         expect(yMatrix1.getEdge('node1',  'node2')).toBeUndefined();
         expect(yMatrix1.nodeCount).toBe(2);
-        expect(yMatrix1.edgeCount).toBe(0);
+        expect(yMatrix1.edgeCount).toBe(1);
 
         expect(yMatrix2.getNode('node1')).toBeUndefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
         expect(yMatrix2.getNode('node3')).toBeDefined();
         expect(yMatrix2.getEdge('node2', 'node3')).toBeUndefined();
         expect(yMatrix2.nodeCount).toBe(2);
-        expect(yMatrix2.edgeCount).toBe(0);
+        expect(yMatrix2.edgeCount).toBe(1);
     })
 
 // removeNode(m), removeEdge(n1,n2) m == n1, m == n2
@@ -753,9 +756,12 @@ describe('WeaklyConnectedGraph', () => {
 
 // removeEdge(m1,m2), removeEdge(n1,n2) m1 != n1, m2 == n2
     it('remove edge1-2 in one map and remove edge3-2 in the other map', () => {
+        // Additional edges are required here to generate an initial weakly connected graph
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
-        yMatrix2.addEdge('node3', 'node2', 'edge3-2');
+        yMatrix1.addNodeWithEdge('node2', 'node2', { x: 10, y: 0 }, 'node2', 'node1', 'edge2-1');
+        yMatrix1.addEdge('node1', 'node2', 'edge1-2');
+        yMatrix1.addNodeWithEdge('node3', 'node3', { x: 0, y: 10 }, 'node2', 'node3', 'edge2-3');
+        yMatrix1.addEdge('node3', 'node2', 'edge3-2');
         sync12Concurrently();
         yMatrix1.removeEdge('node1', 'node2');
         yMatrix2.removeEdge('node3', 'node2');
@@ -765,52 +771,57 @@ describe('WeaklyConnectedGraph', () => {
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.getEdge('node1',  'node2')).toBeUndefined();
         expect(yMatrix1.getEdge('node3', 'node2')).toBeUndefined();
-        expect(yMatrix1.nodeCount).toBe(2);
+        expect(yMatrix1.nodeCount).toBe(3);
+        expect(yMatrix1.edgeCount).toBe(2);
 
         expect(yMatrix2.getNode('node1')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
         expect(yMatrix2.getEdge('node1', 'node2')).toBeUndefined();
         expect(yMatrix2.getEdge('node3', 'node2')).toBeUndefined();
-        expect(yMatrix2.nodeCount).toBe(2);
+        expect(yMatrix2.nodeCount).toBe(3);
+        expect(yMatrix2.edgeCount).toBe(2);
     })
 
+// TODO: Check this in other tests 2-3 to 1-3
 // removeEdge(m1,m2), removeEdge(n1,n2) m1 == n1, m2 != n2
-    it('remove edge1-2 in one map and remove edge2-3 in the other map', () => {
+    it('remove edge1-2 in one map and remove edge1-3 in the other map', () => {
+        // Additional edges are required here to generate an initial weakly connected graph
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
-        yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
+        yMatrix1.addNodeWithEdge('node2', 'node2', { x: 10, y: 0 }, 'node2', 'node1', 'edge2-1');
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
-        yMatrix1.addEdge('node2', 'node3', 'edge2-3');
+        yMatrix1.addNodeWithEdge('node3', 'node3', { x: 0, y: 10 }, 'node1', 'node3', 'edge1-3');
+        yMatrix1.addEdge('node3', 'node1', 'edge3-1');
         sync12Concurrently();
         yMatrix1.removeEdge('node1', 'node2');
-        yMatrix2.removeEdge('node2', 'node3');
+        yMatrix2.removeEdge('node1', 'node3');
         sync12Concurrently();
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.getNode('node3')).toBeDefined();
         expect(yMatrix1.getEdge('node1', 'node2')).toBeUndefined();
-        expect(yMatrix1.getEdge('node2', 'node3')).toBeUndefined();
-        expect(yMatrix1.edgeCount).toBe(0);
+        expect(yMatrix1.getEdge('node1', 'node3')).toBeUndefined();
+        expect(yMatrix1.edgeCount).toBe(2);
         expect(yMatrix1.nodeCount).toBe(3);
 
         expect(yMatrix2.getNode('node1')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
         expect(yMatrix2.getNode('node3')).toBeDefined();
         expect(yMatrix2.getEdge('node1', 'node2')).toBeUndefined();
-        expect(yMatrix2.getEdge('node2', 'node3')).toBeUndefined();
-        expect(yMatrix2.edgeCount).toBe(0);
+        expect(yMatrix2.getEdge('node1', 'node3')).toBeUndefined();
+        expect(yMatrix2.edgeCount).toBe(2);
         expect(yMatrix2.nodeCount).toBe(3);
     })
 
+// TODO duplicate edgecount
 // removeEdge(m1,m2), removeEdge(n1,n2) m1 != n1, m2 != n2
     it('remove edge1-2 in one map and remove edge3-4 in the other map', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
-        yMatrix2.addNode('node3', 'node3', { x: 0, y: 10 });
-        yMatrix2.addNode('node4', 'node4', { x: 10, y: 10 });
+        yMatrix1.addNodeWithEdge('node2', 'node2', { x: 10, y: 0 }, 'node2', 'node1', 'edge2-1');
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
-        yMatrix2.addEdge('node3', 'node4', 'edge3-4');   
+        yMatrix1.addNodeWithEdge('node3', 'node3', { x: 0, y: 10 }, 'node3', 'node1', 'edge3-1');
+        yMatrix1.addNodeWithEdge('node4', 'node4', { x: 10, y: 10 }, 'node4', 'node1', 'edge4-1');
+        yMatrix1.addEdge('node3', 'node4', 'edge3-4');   
         sync12Concurrently();
         yMatrix1.removeEdge('node1', 'node2');
         yMatrix2.removeEdge('node3', 'node4');
@@ -822,8 +833,7 @@ describe('WeaklyConnectedGraph', () => {
         expect(yMatrix1.getNode('node4')).toBeDefined();
         expect(yMatrix1.getEdge('node1', 'node2')).toBeUndefined();
         expect(yMatrix1.getEdge('node3', 'node4')).toBeUndefined();
-        expect(yMatrix1.edgeCount).toBe(0);
-        expect(yMatrix1.edgeCount).toBe(0);
+        expect(yMatrix1.edgeCount).toBe(3);
         expect(yMatrix1.nodeCount).toBe(4);
 
         expect(yMatrix2.getNode('node1')).toBeDefined();
@@ -832,18 +842,67 @@ describe('WeaklyConnectedGraph', () => {
         expect(yMatrix2.getNode('node4')).toBeDefined();
         expect(yMatrix2.getEdge('node1', 'node2')).toBeUndefined();
         expect(yMatrix2.getEdge('node3', 'node4')).toBeUndefined();
-        expect(yMatrix2.edgeCount).toBe(0);
-        expect(yMatrix2.edgeCount).toBe(0);
+        expect(yMatrix2.edgeCount).toBe(3);
         expect(yMatrix2.nodeCount).toBe(4);
     })
 
-// Testing acyclicity of the graph after synchronization of two graphs
-    it('add edge1-2 in one map and add edge2-1 in the other map', () => {
+    // Testing weakly connectedness property of the graph after synchronization of two graphs
+    // Connectedness is violated after yjs synchronization and should be fixed by makeGraphWeaklyConnected in sync12Concurrently
+
+    // Conflict should be resolved by the user
+    it('add node1 in one map and add node2 in the other map, conflict should be resolved by the user', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix2.addNode('node2', 'node2', { x: 10, y: 0 });
         sync12Concurrently();
-        yMatrix1.addEdge('node1', 'node2', 'edge1-2');
+
+        expect(yMatrix1.getNode('node1')).toBeDefined();
+        expect(yMatrix1.getNode('node2')).toBeDefined();
+        expect(yMatrix1.edgeCount).toBe(0);
+        expect(yMatrix1.nodeCount).toBe(2);
+        // Should be resolved by the user
+        expect(yMatrix1.isWeaklyConnected()).toBe(false);
+
+        expect(yMatrix2.getNode('node1')).toBeDefined();
+        expect(yMatrix2.getNode('node2')).toBeDefined();
+        expect(yMatrix2.edgeCount).toBe(0);
+        expect(yMatrix2.nodeCount).toBe(2);
+        expect(yMatrix2.isWeaklyConnected()).toBe(false);
+    })
+
+    it('add same edges and remove same edges in both maps, connectedness is not violated', () => {
+        yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
+        yMatrix1.addNodeWithEdge('node2', 'node2', { x: 10, y: 0 }, 'node1', 'node2', 'edge1-2');
+        sync12Concurrently();
+        yMatrix1.addEdge('node2', 'node1', 'edge2-1');
         yMatrix2.addEdge('node2', 'node1', 'edge2-1');
+        yMatrix1.removeEdge('node1', 'node2');
+        yMatrix2.removeEdge('node1', 'node2');
+        sync12Concurrently();
+
+        expect(yMatrix1.getNode('node1')).toBeDefined();
+        expect(yMatrix1.getNode('node2')).toBeDefined();
+        expect(yMatrix1.getEdge('node1', 'node2')).toBeUndefined();
+        expect(yMatrix1.getEdge('node2', 'node1')).toBeDefined();
+        expect(yMatrix1.edgeCount).toBe(1);
+        expect(yMatrix1.nodeCount).toBe(2);
+        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+
+        expect(yMatrix2.getNode('node1')).toBeDefined();
+        expect(yMatrix2.getNode('node2')).toBeDefined();
+        expect(yMatrix2.getEdge('node1', 'node2')).toBeUndefined();
+        expect(yMatrix2.getEdge('node2', 'node1')).toBeDefined();
+        expect(yMatrix2.edgeCount).toBe(1);
+        expect(yMatrix2.nodeCount).toBe(2);
+        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+    })
+
+    it('remove different edges in both maps, connectedness is violated afer yjs sync', () => {
+        yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
+        yMatrix1.addNodeWithEdge('node2', 'node2', { x: 10, y: 0 }, 'node1', 'node2', 'edge1-2');
+        yMatrix1.addEdge('node2', 'node1', 'edge2-1');
+        sync12Concurrently();
+        yMatrix1.removeEdge('node1', 'node2');
+        yMatrix2.removeEdge('node2', 'node1');
         sync12Concurrently();
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
@@ -857,1038 +916,180 @@ describe('WeaklyConnectedGraph', () => {
         expect(yMatrix2.edgeCount).toBe(1);
         expect(yMatrix2.nodeCount).toBe(2);
         expect(yMatrix2.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix1.getYEdgesAsJson() === yMatrix2.getYEdgesAsJson()).toBe(true);
     })
 
-    it('add edge1-2 and edge 2-3 in one map and add edge3-1 in the other map', () => {
+    it('remove different nodes in both maps, connectedness is violated after yjs sync', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
-        yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
+        yMatrix1.addNodeWithEdge('node2', 'node2', { x: 10, y: 0 }, 'node1', 'node2', 'edge1-2');
+        yMatrix1.addNodeWithEdge('node3', 'node3', { x: 0, y: 10 }, 'node1', 'node3', 'edge1-3');
+        yMatrix1.addNodeWithEdge('node4', 'node4', { x: 10, y: 10 }, 'node3', 'node4', 'edge3-4');
+        yMatrix1.addEdge('node2', 'node4', 'edge2-4');
         sync12Concurrently();
-        yMatrix1.addEdge('node1', 'node2', 'edge1-2');
-        yMatrix1.addEdge('node2', 'node3', 'edge2-3');
-        yMatrix2.addEdge('node3', 'node1', 'edge3-1');
+        console.log('first sync');
+        yMatrix1.removeNode('node2');
+        yMatrix2.removeNode('node3');
+        console.log('after remove');
+        sync12Concurrently();
+        console.log('after second sync');
+        console.log('mat1',yMatrix1.nodesAsFlow());
+        console.log('mat2',yMatrix2.nodesAsFlow());
+        console.log('mat1 edges',yMatrix1.getEdgesAsJson());
+        console.log('mat2 edges',yMatrix2.getEdgesAsJson());
+        console.log('mat1 incoming',yMatrix1.getIncomingNodesAsJson());
+        console.log('mat2 incoming',yMatrix2.getIncomingNodesAsJson());
+
+        expect(yMatrix1.getNode('node1')).toBeDefined();
+        expect(yMatrix1.getNode('node4')).toBeDefined();
+        expect(yMatrix1.nodeCount).toBe(3);
+        expect(yMatrix1.edgeCount).toBe(2);
+        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+
+        expect(yMatrix2.getNode('node1')).toBeDefined();
+        expect(yMatrix2.getNode('node4')).toBeDefined();
+        expect(yMatrix2.nodeCount).toBe(3);
+        expect(yMatrix2.edgeCount).toBe(2);
+        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+    })
+
+    it('remove edge1-3 in one map and remove node2 in the other map, connectedness is violated after yjs sync', () => {
+        yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
+        yMatrix1.addNodeWithEdge('node2', 'node2', { x: 10, y: 0 }, 'node1', 'node2', 'edge1-2');
+        yMatrix1.addNodeWithEdge('node3', 'node3', { x: 0, y: 10 }, 'node1', 'node3', 'edge1-3');
+        yMatrix1.addNodeWithEdge('node4', 'node4', { x: 10, y: 10 }, 'node3', 'node4', 'edge3-4');
+        yMatrix1.addEdge('node2', 'node4', 'edge2-4');
+        sync12Concurrently();
+        yMatrix1.removeEdge('node1', 'node3');
+        yMatrix2.removeNode('node2');
+        sync12Concurrently();
+
+        expect(yMatrix1.getNode('node1')).toBeDefined();
+        expect(yMatrix1.getNode('node3')).toBeDefined();
+        expect(yMatrix1.getNode('node4')).toBeDefined();
+        expect(yMatrix1.nodeCount).toBeGreaterThanOrEqual(3);
+        expect(yMatrix1.edgeCount).toBeGreaterThanOrEqual(2);
+        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+
+        expect(yMatrix2.getNode('node1')).toBeDefined();
+        expect(yMatrix2.getNode('node3')).toBeDefined();
+        expect(yMatrix2.getNode('node4')).toBeDefined();
+        expect(yMatrix2.nodeCount).toBeGreaterThanOrEqual(3);
+        expect(yMatrix2.edgeCount).toBeGreaterThanOrEqual(2);
+        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+
+        expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
+    })
+
+    it('remove edges in both maps, also edges that are not use to make graph connected again, connectedness is violated after yjs sync', () => {
+        yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
+        yMatrix1.addNodeWithEdge('node2', 'node2', { x: 10, y: 0 }, 'node1', 'node2', 'edge1-2');
+        yMatrix1.addEdge('node2', 'node1', 'edge2-1');
+        yMatrix1.addEdge('node1', 'node1', 'edge1-1');
+        yMatrix1.addEdge('node2', 'node2', 'edge2-2');
+        sync12Concurrently();
+        yMatrix1.removeEdge('node1', 'node2');
+        yMatrix1.removeEdge('node2', 'node2');
+        yMatrix2.removeEdge('node2', 'node1');
+        yMatrix2.removeEdge('node1', 'node1');
         sync12Concurrently();
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
-        expect(yMatrix1.getNode('node3')).toBeDefined();
-        expect(yMatrix1.edgeCount).toBe(2);
-        expect(yMatrix1.nodeCount).toBe(3);
+        expect(yMatrix1.edgeCount).toBe(1);
+        expect(yMatrix1.nodeCount).toBe(2);
         expect(yMatrix1.isWeaklyConnected()).toBe(true);
 
         expect(yMatrix2.getNode('node1')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
-        expect(yMatrix2.getNode('node3')).toBeDefined();
-        expect(yMatrix2.edgeCount).toBe(2);
-        expect(yMatrix2.nodeCount).toBe(3);
+        expect(yMatrix2.edgeCount).toBe(1);
+        expect(yMatrix2.nodeCount).toBe(2);
         expect(yMatrix2.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix1.getYEdgesAsJson() === yMatrix2.getYEdgesAsJson()).toBe(true);
     })
 
-    it('should not create a double cycle after synchroniation of two graphs', () => {
+    // Conflict should be resolved by the user
+    it('both graphs are completely out of sync, connectedness is violated after yjs sync, conflict should be resolved by the user', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
-        yMatrix1.addNode('node3', 'node3', { x: 20, y: 0 });
-        yMatrix1.addNode('node4', 'node4', { x: 20, y: 0 });
-        sync12Concurrently();
-        yMatrix1.addEdge('node1', 'node2', 'edge12');
-        yMatrix1.addEdge('node2', 'node3', 'edge23');
-        yMatrix1.addEdge('node1', 'node3', 'edge13');
-        yMatrix1.addEdge('node3', 'node4', 'edge34');
-        yMatrix2.addEdge('node4', 'node1', 'edge41');
+        yMatrix1.addNodeWithEdge('node2', 'node2', { x: 10, y: 0 }, 'node1', 'node2', 'edge1-2');
+        yMatrix2.addNode('node3', 'node3', { x: 0, y: 10 });
+        yMatrix2.addNodeWithEdge('node4', 'node4', { x: 10, y: 10 }, 'node3', 'node4', 'edge3-4');
         sync12Concurrently();
 
-        expect(yMatrix1.edgeCount).toBe(4);
         expect(yMatrix1.nodeCount).toBe(4);
-        expect(yMatrix1.getEdge('node1', 'node2')).toBeDefined();
-        expect(yMatrix1.getEdge('node2', 'node3')).toBeDefined();
-        expect(yMatrix1.getEdge('node1', 'node3')).toBeDefined();
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
-        // expect(yMatrix1.yEdgeCount).toBe(4);
+        expect(yMatrix1.edgeCount).toBe(2);
+        expect(yMatrix1.isWeaklyConnected()).toBe(false);
 
-        expect(yMatrix2.edgeCount).toBe(4);
         expect(yMatrix2.nodeCount).toBe(4);
-        expect(yMatrix2.getEdge('node1', 'node2')).toBeDefined();
-        expect(yMatrix2.getEdge('node2', 'node3')).toBeDefined();
-        expect(yMatrix2.getEdge('node1', 'node3')).toBeDefined();
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
-        // expect(yMatrix2.yEdgeCount).toBe(4);
-
-        expect(yMatrix1.getYEdgesAsJson() === yMatrix2.getYEdgesAsJson()).toBe(true);
-    })
-    // Syncing two graphs concurrently
-    it('add three edges forming a cycle after sync', () => {
-        yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
-        yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
-        syncThreeConcurrently();
-        yMatrix1.addEdge('node1', 'node2', 'edge1-2');
-        yMatrix2.addEdge('node2', 'node3', 'edge2-3');
-        yMatrix3.addEdge('node3', 'node1', 'edge3-1');
-        syncThreeConcurrently();
-
-        expect(yMatrix1.getNode('node1')).toBeDefined();
-        expect(yMatrix1.getNode('node2')).toBeDefined();
-        expect(yMatrix1.getNode('node3')).toBeDefined();
-        expect(yMatrix1.edgeCount).toBe(2);
-        expect(yMatrix1.nodeCount).toBe(3);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix2.getNode('node1')).toBeDefined();
-        expect(yMatrix2.getNode('node2')).toBeDefined();
-        expect(yMatrix2.getNode('node3')).toBeDefined();
         expect(yMatrix2.edgeCount).toBe(2);
-        expect(yMatrix2.nodeCount).toBe(3);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix3.getNode('node1')).toBeDefined();
-        expect(yMatrix3.getNode('node2')).toBeDefined();
-        expect(yMatrix3.getNode('node3')).toBeDefined();
-        expect(yMatrix3.edgeCount).toBe(2);
-        expect(yMatrix3.nodeCount).toBe(3);
-        expect(yMatrix3.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix1.getYEdgesAsJson()).toEqual(yMatrix2.getYEdgesAsJson());
-        expect(yMatrix1.getYEdgesAsJson()).toEqual(yMatrix3.getYEdgesAsJson());
-        expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
-        expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix3.getEdgesAsJson());
+        expect(yMatrix2.isWeaklyConnected()).toBe(false);
     })
 
-    // Syncing two graphs concurrently
-    // graph1: 1->2, 2->3 
-    // graph2: 2->3, 3->1
-    // graph3: 3->1, 2->1
-    it('add six edges forming a cycle after sync', () => {
-        yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
-        yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
-        syncThreeConcurrently();
-        yMatrix1.addEdge('node1', 'node2', 'edge1-2');
-        yMatrix1.addEdge('node2', 'node3', 'edge2-3');
-        yMatrix2.addEdge('node2', 'node3', 'edge2-3');
-        yMatrix2.addEdge('node3', 'node1', 'edge3-1');
-        yMatrix3.addEdge('node3', 'node1', 'edge3-1');
-        yMatrix3.addEdge('node1', 'node2', 'edge1-2');
-        syncThreeConcurrently();
+    it('test yarray', () => {
+        const doc1 = new Y.Doc();
+        const yArray1 = doc1.getArray('array');
+        const doc2 = new Y.Doc();
+        const yArray2 = doc2.getArray('array');
 
-        expect(yMatrix1.getNode('node1')).toBeDefined();
-        expect(yMatrix1.getNode('node2')).toBeDefined();
-        expect(yMatrix1.getNode('node3')).toBeDefined();
-        expect(yMatrix1.edgeCount).toBe(2);
-        expect(yMatrix1.nodeCount).toBe(3);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        // The content of a client seems to be always connected and ordered in the resulting array
+        // It means for the connectedness, that it first tries to solve the connectedness problem 
+        // by adding removed elements from one client and then from the other client
+        yArray1.push(['a']);
+        yArray2.push(['d']);
+        yArray2.push(['e']);
 
-        expect(yMatrix2.getNode('node1')).toBeDefined();
-        expect(yMatrix2.getNode('node2')).toBeDefined();
-        expect(yMatrix2.getNode('node3')).toBeDefined();
-        expect(yMatrix2.edgeCount).toBe(2);
-        expect(yMatrix2.nodeCount).toBe(3);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        yArray1.push(['b']);
+        yArray1.push(['c']);
+        yArray2.push(['f']);
 
-        expect(yMatrix3.getNode('node1')).toBeDefined();
-        expect(yMatrix3.getNode('node2')).toBeDefined();
-        expect(yMatrix3.getNode('node3')).toBeDefined();
-        expect(yMatrix3.edgeCount).toBe(2);
-        expect(yMatrix3.nodeCount).toBe(3);
-        expect(yMatrix3.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix1.getYEdgesAsJson() === yMatrix2.getYEdgesAsJson()).toBe(true);
-        expect(yMatrix1.getYEdgesAsJson() === yMatrix3.getYEdgesAsJson()).toBe(true);
+        let updates1to2 = Y.encodeStateAsUpdate(doc1, Y.encodeStateVector(doc2))
+        let updates2to1 = Y.encodeStateAsUpdate(doc2, Y.encodeStateVector(doc1))
+        Y.applyUpdate(doc1, updates2to1)
+        Y.applyUpdate(doc2, updates1to2)
+        console.log(yArray1.toJSON());
+        console.log(yArray2.toJSON());
     })
 
-    // Syncing two graphs concurrently
-    // graph1: 1->2, 2->3, 3->1 
-    // graph2: 2->3, 3->1, 1->2
-    // graph3: 3->1, 2->1, 1->3
-    it('add nine edges forming a cycle after sync', () => {
-        yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
-        yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
-        syncThreeConcurrently();
-        yMatrix1.addEdge('node1', 'node2', 'edge1-2');
-        yMatrix1.addEdge('node2', 'node3', 'edge2-3');
-        yMatrix1.addEdge('node3', 'node1', 'edge3-1');
+    it('test yarray deletion', () => {
+        const doc1 = new Y.Doc();
+        const yArray1 = doc1.getArray('array');
+        const doc2 = new Y.Doc();
+        const yArray2 = doc2.getArray('array');
+        const doc3 = new Y.Doc();
+        const yArray3 = doc3.getArray('array');
 
-        yMatrix2.addEdge('node2', 'node3', 'edge2-3');
-        yMatrix2.addEdge('node3', 'node1', 'edge3-1');
-        yMatrix2.addEdge('node1', 'node2', 'edge1-2');
+        // The content of a client seems to be always connected and ordered in the resulting array
+        // It means for the connectedness, that it first tries to solve the connectedness problem 
+        // by adding removed elements from one client and then from the other client
+        yArray1.push(['a']);
+        yArray2.push(['d']);
+        yArray2.push(['e']);
 
-        yMatrix3.addEdge('node3', 'node1', 'edge3-1');
-        yMatrix3.addEdge('node1', 'node2', 'edge1-2');
-        yMatrix3.addEdge('node2', 'node1', 'edge2-3');
-        syncThreeConcurrently();
+        yArray1.push(['b']);
+        yArray1.push(['c']);
+        yArray2.push(['f']);
 
-        expect(yMatrix1.getNode('node1')).toBeDefined();
-        expect(yMatrix1.getNode('node2')).toBeDefined();
-        expect(yMatrix1.getNode('node3')).toBeDefined();
-        expect(yMatrix1.edgeCount).toBe(2);
-        expect(yMatrix1.nodeCount).toBe(3);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        let updates1to2 = Y.encodeStateAsUpdate(doc1, Y.encodeStateVector(doc2))
+        let updates2to1 = Y.encodeStateAsUpdate(doc2, Y.encodeStateVector(doc1))
+        Y.applyUpdate(doc1, updates2to1)
+        Y.applyUpdate(doc2, updates1to2)
+        console.log(yArray1.toJSON());
+        console.log(yArray2.toJSON());
 
-        expect(yMatrix2.getNode('node1')).toBeDefined();
-        expect(yMatrix2.getNode('node2')).toBeDefined();
-        expect(yMatrix2.getNode('node3')).toBeDefined();
-        expect(yMatrix2.edgeCount).toBe(2);
-        expect(yMatrix2.nodeCount).toBe(3);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        yArray1.delete(1);
 
-        expect(yMatrix3.getNode('node1')).toBeDefined();
-        expect(yMatrix3.getNode('node2')).toBeDefined();
-        expect(yMatrix3.getNode('node3')).toBeDefined();
-        expect(yMatrix3.edgeCount).toBe(2);
-        expect(yMatrix3.nodeCount).toBe(3);
-        expect(yMatrix3.isWeaklyConnected()).toBe(true);
+        updates1to2 = Y.encodeStateAsUpdate(doc1, Y.encodeStateVector(doc3))
+        updates2to1 = Y.encodeStateAsUpdate(doc3, Y.encodeStateVector(doc1))
+        Y.applyUpdate(doc1, updates2to1)
+        Y.applyUpdate(doc3, updates1to2)
+        console.log('arr1',yArray1.toJSON());
+        console.log('arr2',yArray2.toJSON());
+        console.log('arr3', yArray3.toJSON());
 
-        expect(yMatrix1.getYEdgesAsJson()).toEqual(yMatrix2.getYEdgesAsJson());
-        expect(yMatrix1.getYEdgesAsJson()).toEqual(yMatrix3.getYEdgesAsJson());
-        expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
-        expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix3.getEdgesAsJson());
+        yArray2.insert(1, ['g']);
+        updates1to2 = Y.encodeStateAsUpdate(doc1, Y.encodeStateVector(doc2))
+        updates2to1 = Y.encodeStateAsUpdate(doc2, Y.encodeStateVector(doc1))
+        Y.applyUpdate(doc1, updates2to1)
+        Y.applyUpdate(doc2, updates1to2)
+        console.log('arr1',yArray1.toJSON());
+        console.log('arr2',yArray2.toJSON());
+        console.log('arr3', yArray3.toJSON());
     })
-    
-    // graph1: 1->2, 2->3, 3->1 
-    // graph2: 1->2, 2->3, 3->1
-    // graph3: 1->2, 2->3, 3->1
-    it('add three edges in same order forming a cycle in every graph', () => {
-        yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
-        yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
-        syncThreeConcurrently();
-        yMatrix1.addEdge('node1', 'node2', 'edge1-2');
-        yMatrix1.addEdge('node2', 'node3', 'edge2-3');
-        yMatrix1.addEdge('node3', 'node1', 'edge3-1');
-
-        yMatrix2.addEdge('node1', 'node2', 'edge1-2');
-        yMatrix2.addEdge('node2', 'node3', 'edge2-3');
-        yMatrix2.addEdge('node3', 'node1', 'edge3-1');
-
-        yMatrix3.addEdge('node1', 'node2', 'edge1-2');
-        yMatrix3.addEdge('node2', 'node3', 'edge2-3');
-        yMatrix3.addEdge('node3', 'node1', 'edge3-1');
-        syncThreeConcurrently();
-
-        expect(yMatrix1.getNode('node1')).toBeDefined();
-        expect(yMatrix1.getNode('node2')).toBeDefined();
-        expect(yMatrix1.getNode('node3')).toBeDefined();
-        expect(yMatrix1.edgeCount).toBe(2);
-        expect(yMatrix1.nodeCount).toBe(3);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix2.getNode('node1')).toBeDefined();
-        expect(yMatrix2.getNode('node2')).toBeDefined();
-        expect(yMatrix2.getNode('node3')).toBeDefined();
-        expect(yMatrix2.edgeCount).toBe(2);
-        expect(yMatrix2.nodeCount).toBe(3);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix3.getNode('node1')).toBeDefined();
-        expect(yMatrix3.getNode('node2')).toBeDefined();
-        expect(yMatrix3.getNode('node3')).toBeDefined();
-        expect(yMatrix3.edgeCount).toBe(2);
-        expect(yMatrix3.nodeCount).toBe(3);
-        expect(yMatrix3.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix1.getYEdgesAsJson()).toEqual(yMatrix2.getYEdgesAsJson());
-        expect(yMatrix1.getYEdgesAsJson()).toEqual(yMatrix3.getYEdgesAsJson());
-        expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
-        expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix3.getEdgesAsJson());
-    })
-
-    // Three cycles after sync
-    // graph1: 1->2, 2->3
-    // graph2: 2->1, 3->2
-    // graph3: 3->1
-    it('graph1: 1->2, 2->3, graph2: 2->1, 3->2, graph3: 3->1', () => {
-        yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
-        yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
-        syncThreeConcurrently();
-        yMatrix1.addEdge('node1', 'node2', 'edge1-2');
-        yMatrix1.addEdge('node2', 'node3', 'edge2-3');
-
-        yMatrix2.addEdge('node2', 'node1', 'edge2-1');
-        yMatrix2.addEdge('node3', 'node2', 'edge3-2');
-
-        yMatrix3.addEdge('node3', 'node1', 'edge3-1');
-        syncThreeConcurrently();
-
-        expect(yMatrix1.getNode('node1')).toBeDefined();
-        expect(yMatrix1.getNode('node2')).toBeDefined();
-        expect(yMatrix1.getNode('node3')).toBeDefined();
-        expect(yMatrix1.edgeCount).toBeGreaterThanOrEqual(2);
-        expect(yMatrix1.nodeCount).toBe(3);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix2.getNode('node1')).toBeDefined();
-        expect(yMatrix2.getNode('node2')).toBeDefined();
-        expect(yMatrix2.getNode('node3')).toBeDefined();
-        expect(yMatrix2.edgeCount).toBeGreaterThanOrEqual(2);
-        expect(yMatrix2.nodeCount).toBe(3);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix3.getNode('node1')).toBeDefined();
-        expect(yMatrix3.getNode('node2')).toBeDefined();
-        expect(yMatrix3.getNode('node3')).toBeDefined();
-        expect(yMatrix3.edgeCount).toBeGreaterThanOrEqual(2);
-        expect(yMatrix3.nodeCount).toBe(3);
-        expect(yMatrix3.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix1.edgeCount).toEqual(yMatrix2.edgeCount);
-        expect(yMatrix1.edgeCount).toEqual(yMatrix3.edgeCount);
-        expect(yMatrix1.getYEdgesAsJson()).toEqual(yMatrix2.getYEdgesAsJson());
-        expect(yMatrix1.getYEdgesAsJson()).toEqual(yMatrix3.getYEdgesAsJson());
-        expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
-        expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix3.getEdgesAsJson());
-
-    })
-
-    // Three cycles after sync
-    // graph1: 1->2, 2->3
-    // graph2: 2->1, 3->2
-    // graph3: 1->3
-    it('graph1: 1->2, 2->3, graph2: 2->1, 3->2, graph3: 1->3', () => {
-        yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
-        yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
-        syncThreeConcurrently();
-        yMatrix1.addEdge('node1', 'node2', 'edge1-2');
-        yMatrix1.addEdge('node2', 'node3', 'edge2-3');
-
-        yMatrix2.addEdge('node2', 'node1', 'edge2-1');
-        yMatrix2.addEdge('node3', 'node2', 'edge3-2');
-
-        yMatrix3.addEdge('node1', 'node3', 'edge1-3');
-        syncThreeConcurrently();
-
-        expect(yMatrix1.getNode('node1')).toBeDefined();
-        expect(yMatrix1.getNode('node2')).toBeDefined();
-        expect(yMatrix1.getNode('node3')).toBeDefined();
-        expect(yMatrix1.edgeCount).toBeGreaterThanOrEqual(2);
-        expect(yMatrix1.nodeCount).toBe(3);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix2.getNode('node1')).toBeDefined();
-        expect(yMatrix2.getNode('node2')).toBeDefined();
-        expect(yMatrix2.getNode('node3')).toBeDefined();
-        expect(yMatrix2.edgeCount).toBeGreaterThanOrEqual(2);
-        expect(yMatrix2.nodeCount).toBe(3);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix3.getNode('node1')).toBeDefined();
-        expect(yMatrix3.getNode('node2')).toBeDefined();
-        expect(yMatrix3.getNode('node3')).toBeDefined();
-        expect(yMatrix3.edgeCount).toBeGreaterThanOrEqual(2);
-        expect(yMatrix3.nodeCount).toBe(3);
-        expect(yMatrix3.isWeaklyConnected()).toBe(true);
-        
-        expect(yMatrix1.edgeCount).toEqual(yMatrix2.edgeCount);
-        expect(yMatrix1.edgeCount).toEqual(yMatrix3.edgeCount);
-        expect(yMatrix1.getYEdgesAsJson()).toEqual(yMatrix2.getYEdgesAsJson());
-        expect(yMatrix1.getYEdgesAsJson()).toEqual(yMatrix3.getYEdgesAsJson());
-        expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
-        expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix3.getEdgesAsJson());
-
-    })
-
-    // Six cycles after sync
-    // graph1: 1->2, 2->3
-    // graph2: 1->3
-    // graph3: 2->1, 2->3, 3->1
-    it('graph1: 1->2, 2->3, graph2: 1->3, graph3: 2->1, 2->3, 3->1', () => {
-        yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
-        yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
-        syncThreeConcurrently();
-        yMatrix1.addEdge('node1', 'node2', 'edge1-2');
-        yMatrix1.addEdge('node2', 'node3', 'edge2-3');
-
-        yMatrix2.addEdge('node1', 'node3', 'edge1-3');
-
-        yMatrix3.addEdge('node2', 'node1', 'edge2-1');
-        yMatrix3.addEdge('node2', 'node3', 'edge2-3');
-        yMatrix3.addEdge('node3', 'node1', 'edge3-1');
-        syncThreeConcurrently();
-
-        expect(yMatrix1.getNode('node1')).toBeDefined();
-        expect(yMatrix1.getNode('node2')).toBeDefined();
-        expect(yMatrix1.getNode('node3')).toBeDefined();
-        expect(yMatrix1.edgeCount).toBeGreaterThanOrEqual(2);
-        expect(yMatrix1.nodeCount).toBe(3);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix2.getNode('node1')).toBeDefined();
-        expect(yMatrix2.getNode('node2')).toBeDefined();
-        expect(yMatrix2.getNode('node3')).toBeDefined();
-        expect(yMatrix2.edgeCount).toBeGreaterThanOrEqual(2);
-        expect(yMatrix2.nodeCount).toBe(3);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix3.getNode('node1')).toBeDefined();
-        expect(yMatrix3.getNode('node2')).toBeDefined();
-        expect(yMatrix3.getNode('node3')).toBeDefined();
-        expect(yMatrix3.edgeCount).toBeGreaterThanOrEqual(2);
-        expect(yMatrix3.nodeCount).toBe(3);
-        expect(yMatrix3.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix1.edgeCount).toEqual(yMatrix2.edgeCount);
-        expect(yMatrix1.edgeCount).toEqual(yMatrix3.edgeCount);
-        expect(yMatrix1.getYEdgesAsJson()).toEqual(yMatrix2.getYEdgesAsJson());
-        expect(yMatrix1.getYEdgesAsJson()).toEqual(yMatrix3.getYEdgesAsJson());
-        expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
-        expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix3.getEdgesAsJson());
-    })
-
-    // Scenario: Two graphs sync, and sync later deleted edges
-
-    // graph1: 1->2, 2->3
-    // graph2: 2->3
-    it('Scenario: Two graphs sync, and sync later deleted edges', () => {
-        yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
-        yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
-        sync12Concurrently();
-        yMatrix1.addEdge('node1', 'node2', 'edge1-2');
-        yMatrix1.addEdge('node2', 'node3', 'edge2-33');
-        yMatrix2.addEdge('node2', 'node3', 'edge2-3');
-        sync12Concurrently();
-
-        yMatrix1.addEdge('node1', 'node3', 'edge1-3');
-        sync12Concurrently();
-
-        yMatrix2.removeEdge('node2', 'node3');
-        sync12Concurrently();
-
-        expect(yMatrix1.getNode('node1')).toBeDefined();
-        expect(yMatrix1.getNode('node2')).toBeDefined();
-        expect(yMatrix1.getNode('node3')).toBeDefined();
-        expect(yMatrix1.edgeCount).toBe(2);
-        expect(yMatrix1.nodeCount).toBe(3);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix2.getNode('node1')).toBeDefined();
-        expect(yMatrix2.getNode('node2')).toBeDefined();
-        expect(yMatrix2.getNode('node3')).toBeDefined();
-        expect(yMatrix2.edgeCount).toBe(2);
-        expect(yMatrix2.nodeCount).toBe(3);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix1.getYEdgesAsJson()).toEqual(yMatrix2.getYEdgesAsJson());
-        expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
-    })
-
-
-    // Scenario: Two graphs sync, third graph is offline and syncs later
-
-    // graph1: 1->2, 2->3
-    // graph2: 3->2
-    // graph3: 3->2
-    it('Scenario third graph syncs later: graph1: 1->2, 2->3, graph2: 3->2, graph3: 3->2', () => {
-        yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
-        yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
-        sync12Concurrently();
-        yMatrix1.addEdge('node1', 'node2', 'edge1-2');
-        yMatrix1.addEdge('node2', 'node3', 'edge2-3');
-
-        yMatrix2.addEdge('node3', 'node2', 'edge3-2');
-        sync12Concurrently();
-
-        yMatrix3.addEdge('node3', 'node2', 'edge3-2');
-        syncThreeConcurrently();
-    
-        expect(yMatrix1.getNode('node1')).toBeDefined();
-        expect(yMatrix1.getNode('node2')).toBeDefined();
-        expect(yMatrix1.getNode('node3')).toBeDefined();
-        expect(yMatrix1.edgeCount).toBe(2);
-        expect(yMatrix1.nodeCount).toBe(3);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix2.getNode('node1')).toBeDefined();
-        expect(yMatrix2.getNode('node2')).toBeDefined();
-        expect(yMatrix2.getNode('node3')).toBeDefined();
-        expect(yMatrix2.edgeCount).toBe(2);
-        expect(yMatrix2.nodeCount).toBe(3);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix3.getNode('node1')).toBeDefined();
-        expect(yMatrix3.getNode('node2')).toBeDefined();
-        expect(yMatrix3.getNode('node3')).toBeDefined();
-        expect(yMatrix3.edgeCount).toBe(2);
-        expect(yMatrix3.nodeCount).toBe(3);
-        expect(yMatrix3.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix1.getYEdgesAsJson()).toEqual(yMatrix2.getYEdgesAsJson());
-        expect(yMatrix1.getYEdgesAsJson()).toEqual(yMatrix3.getYEdgesAsJson());
-        expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
-        expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix3.getEdgesAsJson());
-    })
-
-    // graph1: 1->2 
-    // graph2: 2->3
-    // graph3: 3->1
-    it('Scenario third graph syncs later: graph1: 1->2, graph2: 2->3, graph3: 3->1', () => {
-        yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
-        yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
-        syncThreeConcurrently();
-
-        yMatrix1.addEdge('node1', 'node2', 'edge1-2');
-        yMatrix2.addEdge('node2', 'node3', 'edge2-3');
-        sync12Concurrently();
-
-        yMatrix3.addEdge('node3', 'node1', 'edge3-1');
-        syncThreeConcurrently();
-
-        expect(yMatrix1.getNode('node1')).toBeDefined();
-        expect(yMatrix1.getNode('node2')).toBeDefined();
-        expect(yMatrix1.edgeCount).toBe(2);
-        expect(yMatrix1.nodeCount).toBe(3);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix2.getNode('node2')).toBeDefined();
-        expect(yMatrix2.getNode('node3')).toBeDefined();
-        expect(yMatrix2.edgeCount).toBe(2);
-        expect(yMatrix2.nodeCount).toBe(3);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix3.getNode('node1')).toBeDefined();
-        expect(yMatrix3.getNode('node3')).toBeDefined();
-        expect(yMatrix3.edgeCount).toBe(2);
-        expect(yMatrix3.nodeCount).toBe(3);
-        expect(yMatrix3.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix1.getYEdgesAsJson()).toEqual(yMatrix2.getYEdgesAsJson());
-        expect(yMatrix1.getYEdgesAsJson()).toEqual(yMatrix3.getYEdgesAsJson());
-        expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
-        expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix3.getEdgesAsJson());
-    })
-
-    // graph1: 1->2, 2->3
-    // graph2: 2->3, 3->1
-    // graph3: 3->1, 1->2
-    it('Scenario third graph syncs later: graph1: 1->2, 2->3 graph2: 2->3, 3->1 graph3: 3->1, 1->2', () => {
-        yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
-        yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
-        syncThreeConcurrently();
-
-        yMatrix1.addEdge('node1', 'node2', 'edge1-2');
-        yMatrix1.addEdge('node2', 'node3', 'edge2-3');
-        yMatrix2.addEdge('node2', 'node3', 'edge2-3');
-        yMatrix2.addEdge('node3', 'node1', 'edge3-1');
-        sync12Concurrently();
-
-        yMatrix3.addEdge('node3', 'node1', 'edge3-1');
-        yMatrix3.addEdge('node1', 'node2', 'edge1-2');
-        syncThreeConcurrently();
-
-        expect(yMatrix1.getNode('node1')).toBeDefined();
-        expect(yMatrix1.getNode('node2')).toBeDefined();
-        expect(yMatrix1.edgeCount).toBe(2);
-        expect(yMatrix1.nodeCount).toBe(3);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix2.getNode('node2')).toBeDefined();
-        expect(yMatrix2.getNode('node3')).toBeDefined();
-        expect(yMatrix2.edgeCount).toBe(2);
-        expect(yMatrix2.nodeCount).toBe(3);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix3.getNode('node1')).toBeDefined();
-        expect(yMatrix3.getNode('node3')).toBeDefined();
-        expect(yMatrix3.edgeCount).toBe(2);
-        expect(yMatrix3.nodeCount).toBe(3);
-        expect(yMatrix3.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix1.getYEdgesAsJson()).toEqual(yMatrix2.getYEdgesAsJson());
-        expect(yMatrix1.getYEdgesAsJson()).toEqual(yMatrix3.getYEdgesAsJson());
-        expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
-        expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix3.getEdgesAsJson());
-    })
-
-    // graph1: 1->2, 2->3, 3->1 
-    // graph2: 2->3, 3->1, 1->2
-    // graph3: 3->1, 2->1, 1->3
-    it('Scenario third graph syncs later: graph1: 1->2, 2->3, 3->1 graph2: 2->3, 3->1, 1->2 graph3: 3->1, 2->1, 1->3', () => {
-        yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
-        yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
-        syncThreeConcurrently();
-
-        yMatrix1.addEdge('node1', 'node2', 'edge1-2');
-        yMatrix1.addEdge('node2', 'node3', 'edge2-3');
-        yMatrix1.addEdge('node3', 'node1', 'edge3-1');
-
-        yMatrix2.addEdge('node2', 'node3', 'edge2-3');
-        yMatrix2.addEdge('node3', 'node1', 'edge3-1');
-        yMatrix2.addEdge('node1', 'node2', 'edge1-2');
-        sync12Concurrently();
-
-        yMatrix3.addEdge('node3', 'node1', 'edge3-1');
-        yMatrix3.addEdge('node2', 'node1', 'edge2-1');
-        yMatrix3.addEdge('node1', 'node3', 'edge1-3');
-        syncThreeConcurrently();
-
-        expect(yMatrix1.getNode('node1')).toBeDefined();
-        expect(yMatrix1.getNode('node2')).toBeDefined();
-        expect(yMatrix1.edgeCount).toBe(2);
-        expect(yMatrix1.nodeCount).toBe(3);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix2.getNode('node2')).toBeDefined();
-        expect(yMatrix2.getNode('node3')).toBeDefined();
-        expect(yMatrix2.edgeCount).toBe(2);
-        expect(yMatrix2.nodeCount).toBe(3);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix3.getNode('node1')).toBeDefined();
-        expect(yMatrix3.getNode('node2')).toBeDefined();
-        expect(yMatrix3.edgeCount).toBe(2);
-        expect(yMatrix3.nodeCount).toBe(3);
-        expect(yMatrix3.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix1.getYEdgesAsJson()).toEqual(yMatrix2.getYEdgesAsJson());
-        expect(yMatrix1.getYEdgesAsJson()).toEqual(yMatrix3.getYEdgesAsJson());
-        expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
-        expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix3.getEdgesAsJson());
-    })
-
-    // graph1: 1->2, 2->3, 3->1 
-    // graph2: 1->2, 2->3, 3->1
-    // graph3: 1->2, 2->3, 3->1
-    it('Scenario third graph syncs later: graph1: 1->2, 2->3, 3->1 graph2: 1->2, 2->3, 3->1 graph3: 1->2, 2->3, 3->1', () => {
-        yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
-        yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
-        syncThreeConcurrently();
-
-        yMatrix1.addEdge('node1', 'node2', 'edge1-2');
-        yMatrix1.addEdge('node2', 'node3', 'edge2-3');
-        yMatrix1.addEdge('node3', 'node1', 'edge3-1');
-
-        yMatrix2.addEdge('node1', 'node2', 'edge1-2');
-        yMatrix2.addEdge('node2', 'node3', 'edge2-3');
-        yMatrix2.addEdge('node3', 'node1', 'edge3-1');
-        sync12Concurrently();
-
-        yMatrix3.addEdge('node1', 'node2', 'edge1-2');
-        yMatrix3.addEdge('node2', 'node3', 'edge2-3');
-        yMatrix3.addEdge('node3', 'node1', 'edge3-1');
-        syncThreeConcurrently();
-
-        expect(yMatrix1.getNode('node1')).toBeDefined();
-        expect(yMatrix1.getNode('node2')).toBeDefined();
-        expect(yMatrix1.getNode('node3')).toBeDefined();
-        expect(yMatrix1.edgeCount).toBe(2);
-        expect(yMatrix1.nodeCount).toBe(3);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix2.getNode('node1')).toBeDefined();
-        expect(yMatrix2.getNode('node2')).toBeDefined();
-        expect(yMatrix2.getNode('node3')).toBeDefined();
-        expect(yMatrix2.edgeCount).toBe(2);
-        expect(yMatrix2.nodeCount).toBe(3);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix3.getNode('node1')).toBeDefined();
-        expect(yMatrix3.getNode('node2')).toBeDefined();
-        expect(yMatrix3.getNode('node3')).toBeDefined();
-        expect(yMatrix3.edgeCount).toBe(2);
-        expect(yMatrix3.nodeCount).toBe(3);
-        expect(yMatrix3.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix1.getYEdgesAsJson()).toEqual(yMatrix2.getYEdgesAsJson());
-        expect(yMatrix1.getYEdgesAsJson()).toEqual(yMatrix3.getYEdgesAsJson());
-        expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
-        expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix3.getEdgesAsJson());
-    })
-
-    // graph1: 1->2, 2->3
-    // graph2: 2->1, 3->2
-    // graph3: 3->1
-    // possible outcomes after sync: 
-    // 1->2, 2->3, 3->1 => cycle | 3->2, 2->1, 3->1 | 1->2, 3->2, 3->1 | 2->1, 2->3, 3->1
-    // if a cycle exists, the resulting graph has two edges, otherwise three edges
-    it('Scenario third graph syncs later: graph1: 1->2, 2->3 graph2: 2->1, 3->2 graph3: 3->1', () => {
-        yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
-        yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
-        syncThreeConcurrently();
-
-        yMatrix1.addEdge('node1', 'node2', 'edge1-2');
-        yMatrix1.addEdge('node2', 'node3', 'edge2-3');
-
-        yMatrix2.addEdge('node2', 'node1', 'edge2-1');
-        yMatrix2.addEdge('node3', 'node2', 'edge3-2');
-        sync12Concurrently();
-
-        yMatrix3.addEdge('node3', 'node1', 'edge3-1');
-        syncThreeConcurrently();
-
-        expect(yMatrix1.getNode('node1')).toBeDefined();
-        expect(yMatrix1.getNode('node2')).toBeDefined();
-        expect(yMatrix1.getNode('node3')).toBeDefined();
-        expect(yMatrix1.edgeCount).toBeGreaterThanOrEqual(2);
-        expect(yMatrix1.nodeCount).toBe(3);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix2.getNode('node1')).toBeDefined();
-        expect(yMatrix2.getNode('node2')).toBeDefined();
-        expect(yMatrix2.getNode('node3')).toBeDefined();
-        expect(yMatrix2.edgeCount).toBeGreaterThanOrEqual(2);
-        expect(yMatrix2.nodeCount).toBe(3);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix3.getNode('node1')).toBeDefined();
-        expect(yMatrix3.getNode('node2')).toBeDefined();
-        expect(yMatrix3.getNode('node3')).toBeDefined();
-        expect(yMatrix3.edgeCount).toBeGreaterThanOrEqual(2);
-        expect(yMatrix3.nodeCount).toBe(3);
-        expect(yMatrix3.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix1.getYEdgesAsJson()).toEqual(yMatrix2.getYEdgesAsJson());
-        expect(yMatrix1.getYEdgesAsJson()).toEqual(yMatrix3.getYEdgesAsJson());
-        expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
-        expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix3.getEdgesAsJson());
-    })
-
-    // graph1: 1->2, 2->3
-    // graph2: 2->1, 3->2
-    // graph3: 1->3
-    // possible outcomes after sync: 
-    // 1->2, 2->3, 1->3  | 3->2, 2->1, 1->3 => cycle | 1->2, 3->2, 1->3 | 2->1, 2->3, 1->3
-    // if a cycle exists, the resulting graph has two edges, otherwise three edges
-    it('Scenario third graph syncs later: graph1: 1->2, 2->3 graph2: 2->1, 3->2 graph3: 1->3', () => {
-        yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
-        yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
-        syncThreeConcurrently();
-
-        yMatrix1.addEdge('node1', 'node2', 'edge1-2');
-        yMatrix1.addEdge('node2', 'node3', 'edge2-3');
-
-        yMatrix2.addEdge('node2', 'node1', 'edge2-1');
-        yMatrix2.addEdge('node3', 'node2', 'edge3-2');
-        sync12Concurrently();
-
-        yMatrix3.addEdge('node1', 'node3', 'edge1-3');
-        syncThreeConcurrently();
-
-        expect(yMatrix1.getNode('node1')).toBeDefined();
-        expect(yMatrix1.getNode('node2')).toBeDefined();
-        expect(yMatrix1.getNode('node3')).toBeDefined();
-        expect(yMatrix1.edgeCount).toBeGreaterThanOrEqual(2);
-        expect(yMatrix1.nodeCount).toBe(3);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix2.getNode('node1')).toBeDefined();
-        expect(yMatrix2.getNode('node2')).toBeDefined();
-        expect(yMatrix2.getNode('node3')).toBeDefined();
-        expect(yMatrix2.edgeCount).toBeGreaterThanOrEqual(2);
-        expect(yMatrix2.nodeCount).toBe(3);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix3.getNode('node1')).toBeDefined();
-        expect(yMatrix3.getNode('node2')).toBeDefined();
-        expect(yMatrix3.getNode('node3')).toBeDefined();
-        expect(yMatrix3.edgeCount).toBeGreaterThanOrEqual(2);
-        expect(yMatrix3.nodeCount).toBe(3);
-        expect(yMatrix3.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix1.getYEdgesAsJson()).toEqual(yMatrix2.getYEdgesAsJson());
-        expect(yMatrix1.getYEdgesAsJson()).toEqual(yMatrix3.getYEdgesAsJson());
-        expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
-        expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix3.getEdgesAsJson());
-    })
-
-    // graph1: 1->2, 2->3, 1->3
-    // graph2: 2->1, 3->2, 3->1
-    // graph3: 1->3
-    it('Scenario third graph syncs later: graph1: 1->2, 2->3, 1->3 graph2: 2->1, 3->2, 3->1 graph3: 1->3', () => {
-        yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
-        yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
-        syncThreeConcurrently();
-
-        yMatrix1.addEdge('node1', 'node2', 'edge1-2');
-        yMatrix1.addEdge('node2', 'node3', 'edge2-3');
-        yMatrix1.addEdge('node1', 'node3', 'edge1-3');
-
-        yMatrix2.addEdge('node2', 'node1', 'edge2-1');
-        yMatrix2.addEdge('node3', 'node2', 'edge3-2');
-        yMatrix2.addEdge('node3', 'node1', 'edge3-1');
-        sync12Concurrently();
-
-        yMatrix3.addEdge('node1', 'node3', 'edge1-3');
-        syncThreeConcurrently();
-
-        expect(yMatrix1.getNode('node1')).toBeDefined();
-        expect(yMatrix1.getNode('node2')).toBeDefined();
-        expect(yMatrix1.getNode('node3')).toBeDefined();
-        expect(yMatrix1.edgeCount).toBe(3);
-        expect(yMatrix1.nodeCount).toBe(3);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix2.getNode('node1')).toBeDefined();
-        expect(yMatrix2.getNode('node2')).toBeDefined();
-        expect(yMatrix2.getNode('node3')).toBeDefined();
-        expect(yMatrix2.edgeCount).toBe(3);
-        expect(yMatrix2.nodeCount).toBe(3);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix3.getNode('node1')).toBeDefined();
-        expect(yMatrix3.getNode('node3')).toBeDefined();
-        expect(yMatrix3.edgeCount).toBe(3);
-        expect(yMatrix3.nodeCount).toBe(3);
-        expect(yMatrix3.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix1.getYEdgesAsJson()).toEqual(yMatrix2.getYEdgesAsJson());
-        expect(yMatrix1.getYEdgesAsJson()).toEqual(yMatrix3.getYEdgesAsJson());
-        expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
-        expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix3.getEdgesAsJson());
-    })
-
-    // Third graph creates two cycles after sync
-    // graph1: 1->2
-    // graph2: 2->3
-    // graph3: 2->1, 3->2
-    it('Scenario third graph syncs later: graph1: 1->2 graph2: 2->3 graph3: 2->1, 3->2', () => {
-        yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
-        yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
-        syncThreeConcurrently();
-
-        yMatrix1.addEdge('node1', 'node2', 'edge1-2');
-        yMatrix2.addEdge('node2', 'node3', 'edge2-3');
-        sync12Concurrently();
-
-        yMatrix3.addEdge('node2', 'node1', 'edge2-1');
-        yMatrix3.addEdge('node3', 'node2', 'edge3-2');
-        syncThreeConcurrently();
-
-        expect(yMatrix1.getNode('node1')).toBeDefined();
-        expect(yMatrix1.getNode('node2')).toBeDefined();
-        expect(yMatrix1.getNode('node3')).toBeDefined();
-        expect(yMatrix1.edgeCount).toBe(2);
-        expect(yMatrix1.nodeCount).toBe(3);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix2.getNode('node1')).toBeDefined();
-        expect(yMatrix2.getNode('node2')).toBeDefined();
-        expect(yMatrix2.getNode('node3')).toBeDefined();
-        expect(yMatrix2.edgeCount).toBe(2);
-        expect(yMatrix2.nodeCount).toBe(3);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix3.getNode('node1')).toBeDefined();
-        expect(yMatrix3.getNode('node2')).toBeDefined();
-        expect(yMatrix3.getNode('node3')).toBeDefined();
-        expect(yMatrix3.edgeCount).toBe(2);
-        expect(yMatrix3.nodeCount).toBe(3);
-        expect(yMatrix3.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix1.getYEdgesAsJson()).toEqual(yMatrix2.getYEdgesAsJson());
-        expect(yMatrix1.getYEdgesAsJson()).toEqual(yMatrix3.getYEdgesAsJson());
-        expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
-        expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix3.getEdgesAsJson());
-    })
-
-    // Third graph creates six cycles after sync
-    // graph1: 1->2
-    // graph2: 3->2, 1->3
-    // graph3: 2->1, 2->3, 3->1
-    it('Scenario third graph syncs later: graph1: 1->2 graph2: 3->2, 1->3 graph3: 2->1, 2->3, 3->1', () => {
-        yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
-        yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
-        syncThreeConcurrently();
-
-        yMatrix1.addEdge('node1', 'node2', 'edge1-2');
-        yMatrix2.addEdge('node3', 'node2', 'edge3-2');
-        yMatrix2.addEdge('node1', 'node3', 'edge1-3');
-        sync12Concurrently();
-
-        yMatrix3.addEdge('node2', 'node1', 'edge2-1');
-        yMatrix3.addEdge('node2', 'node3', 'edge2-3');
-        yMatrix3.addEdge('node3', 'node1', 'edge3-1');
-        syncThreeConcurrently();
-
-        expect(yMatrix1.getNode('node1')).toBeDefined();
-        expect(yMatrix1.getNode('node2')).toBeDefined();
-        expect(yMatrix1.getNode('node3')).toBeDefined();
-        expect(yMatrix1.edgeCount).toBeGreaterThanOrEqual(2);
-        expect(yMatrix1.nodeCount).toBe(3);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix2.getNode('node1')).toBeDefined();
-        expect(yMatrix2.getNode('node2')).toBeDefined();
-        expect(yMatrix2.getNode('node3')).toBeDefined();
-        expect(yMatrix2.edgeCount).toBeGreaterThanOrEqual(2);
-        expect(yMatrix2.nodeCount).toBe(3);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix3.getNode('node1')).toBeDefined();
-        expect(yMatrix3.getNode('node2')).toBeDefined();
-        expect(yMatrix3.getNode('node3')).toBeDefined();
-        expect(yMatrix3.edgeCount).toBeGreaterThanOrEqual(2);
-        expect(yMatrix3.nodeCount).toBe(3);
-        expect(yMatrix3.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix1.getYEdgesAsJson()).toEqual(yMatrix2.getYEdgesAsJson());
-        expect(yMatrix1.getYEdgesAsJson()).toEqual(yMatrix3.getYEdgesAsJson());
-        expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
-        expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix3.getEdgesAsJson());
-    })
-
-    // Scenario: Two graphs sync, third graph is offline and syncs later but a synced edge is deleted
-
-    // graph1: 1->2
-    // graph2: 2->3
-    // graph3: 3->1
-    it('Scenario third graph syncs later but a synced edge is deleted: graph1: 1->2 graph2: 2->3 graph3: 3->1', () => {
-        yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
-        yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
-        syncThreeConcurrently();
-
-        yMatrix1.addEdge('node1', 'node2', 'edge1-2');
-        yMatrix2.addEdge('node2', 'node3', 'edge2-3');
-        sync12Concurrently();
-
-        yMatrix2.removeEdge('node2', 'node3');
-        yMatrix3.addEdge('node3', 'node1', 'edge3-1');
-        syncThreeConcurrently();
-
-        expect(yMatrix1.getNode('node1')).toBeDefined();
-        expect(yMatrix1.getNode('node2')).toBeDefined();
-        expect(yMatrix1.getNode('node3')).toBeDefined();
-        expect(yMatrix1.edgeCount).toBe(2);
-        expect(yMatrix1.nodeCount).toBe(3);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix2.getNode('node1')).toBeDefined();
-        expect(yMatrix2.getNode('node2')).toBeDefined();
-        expect(yMatrix2.getNode('node3')).toBeDefined();
-        expect(yMatrix2.edgeCount).toBe(2);
-        expect(yMatrix2.nodeCount).toBe(3);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix3.getNode('node1')).toBeDefined();
-        expect(yMatrix3.getNode('node2')).toBeDefined();
-        expect(yMatrix3.getNode('node3')).toBeDefined();
-        expect(yMatrix3.edgeCount).toBe(2);
-        expect(yMatrix3.nodeCount).toBe(3);
-        expect(yMatrix3.isWeaklyConnected()).toBe(true);
-
-        expect(yMatrix1.getYEdgesAsJson()).toEqual(yMatrix2.getYEdgesAsJson());
-        expect(yMatrix1.getYEdgesAsJson()).toEqual(yMatrix3.getYEdgesAsJson());
-        expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
-        expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix3.getEdgesAsJson());
-    })
-
-
-
-/*     it('select node', () => {
-        yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
-        yMatrix1.addEdge('node1', 'node2', 'edge1-2');
-        yMatrix1.changeNodeSelection('node1', true);
-        syncConcurrently();
-
-        expect(yMatrix1.isNodeSelected('node1')).toBe(true);
-        expect(yMatrix2.isNodeSelected('node1')).toBe(false);
-    })
-
-    it('deselect node', () => {
-        yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
-        yMatrix1.addEdge('node1', 'node2', 'edge1-2');
-        yMatrix1.changeNodeSelection('node1', true);
-        yMatrix1.changeNodeSelection('node1', false);
-        syncConcurrently();
-
-        expect(yMatrix1.isNodeSelected('node1')).toBe(false);
-        expect(yMatrix2.isNodeSelected('node1')).toBe(false);
-    })
-
-    it('select edge', () => { 
-        yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
-        yMatrix1.addEdge('node1', 'node2', 'edge1-2');
-        yMatrix1.changeEdgeSelection('node1+node2', true);
-        syncConcurrently();
-
-        expect(yMatrix1.isEdgeSelected('node1', 'node2')).toBe(true);
-        expect(yMatrix2.isEdgeSelected('node1', 'node2')).toBe(false);
-    })
-
-    it('deselect edge', () => { 
-        yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
-        yMatrix1.addEdge('node1', 'node2', 'edge1-2');
-        yMatrix1.changeEdgeSelection('node1+node2', true);
-        yMatrix1.changeEdgeSelection('node1+node2', false);
-        syncConcurrently();
-
-        expect(yMatrix1.isEdgeSelected('node1', 'node2')).toBe(false);
-        expect(yMatrix2.isEdgeSelected('node1', 'node2')).toBe(false);
-    })
-
-    it('select nodes and edges', () => {
-        yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        yMatrix1.addNode('node2', 'node2', { x: 0, y: 10 });
-        yMatrix1.addNode('node3', 'node3', { x: 10, y: 0 });
-        yMatrix1.addNode('node4', 'node4', { x: 10, y: 10 });
-        yMatrix1.addEdge('node1', 'node2', 'edge1-2');
-        yMatrix1.addEdge('node1', 'node2', 'edge3-4');
-        yMatrix1.changeNodeSelection('node1', true);
-        yMatrix1.changeNodeSelection('node2', true);
-        yMatrix1.changeNodeSelection('node3', true);
-        yMatrix1.changeEdgeSelection('node1+node2', true);
-        yMatrix1.changeEdgeSelection('node3+node4', true);
-        syncConcurrently();
-
-        expect(yMatrix1.isNodeSelected('node1')).toBe(true);
-        expect(yMatrix1.isNodeSelected('node2')).toBe(true);
-        expect(yMatrix1.isNodeSelected('node3')).toBe(true);
-        expect(yMatrix1.isNodeSelected('node4')).toBe(false);
-        expect(yMatrix1.isEdgeSelected('node1', 'node2')).toBe(true);
-        expect(yMatrix1.isEdgeSelected('node3', 'node4')).toBe(true);
-        expect(yMatrix1.selectedEdgesCount).toBe(2);
-        expect(yMatrix1.selectedNodesCount).toBe(3);
-
-        expect(yMatrix2.selectedEdgesCount).toBe(0);
-        expect(yMatrix2.selectedNodesCount).toBe(0);
-    })
-
-    it('select and deselect nodes and edges', () => {
-        yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        yMatrix1.addNode('node2', 'node2', { x: 0, y: 10 });
-        yMatrix1.addNode('node3', 'node3', { x: 10, y: 0 });
-        yMatrix1.addNode('node4', 'node4', { x: 10, y: 10 });
-        yMatrix1.addEdge('node1', 'node2', 'edge1-2');
-        yMatrix1.addEdge('node1', 'node2', 'edge3-4');
-        yMatrix1.changeNodeSelection('node1', true);
-        yMatrix1.changeNodeSelection('node2', true);
-        yMatrix1.changeNodeSelection('node3', true);
-        yMatrix1.changeEdgeSelection('node1+node2', true);
-        yMatrix1.changeEdgeSelection('node3+node4', true);
-        yMatrix1.changeNodeSelection('node1', false);
-        yMatrix1.changeEdgeSelection('node1+node2', false);
-        syncConcurrently();
-
-        expect(yMatrix1.isNodeSelected('node1')).toBe(false);
-        expect(yMatrix1.isNodeSelected('node2')).toBe(true);
-        expect(yMatrix1.isNodeSelected('node3')).toBe(true);
-        expect(yMatrix1.isNodeSelected('node4')).toBe(false);
-        expect(yMatrix1.isEdgeSelected('node1', 'node2')).toBe(false);
-        expect(yMatrix1.isEdgeSelected('node3', 'node4')).toBe(true);
-        expect(yMatrix1.selectedEdgesCount).toBe(1);
-        expect(yMatrix1.selectedNodesCount).toBe(2);
-
-        expect(yMatrix2.selectedEdgesCount).toBe(0);
-        expect(yMatrix2.selectedNodesCount).toBe(0);
-    })  */ 
 })

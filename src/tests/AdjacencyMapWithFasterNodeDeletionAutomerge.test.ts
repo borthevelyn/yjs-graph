@@ -1,4 +1,3 @@
-import './provideGlobalObjects'
 import * as automerge from '@automerge/automerge'
 import { AdjacencyMapWithFasterNodeDeletionAutomerge, AdjacencyMapWithFasterNodeDeletionAutomergeGraph } from '../graphs/AdjacencyMapWithFasterNodeDeletionAutomerge'
 
@@ -9,7 +8,7 @@ Assumptions:
 as edge ids are generated from node ids connected by the edge
 */
 
-describe('useAdjacencyMapWithFasterNodeDeletion', () => {
+describe('AdjacencyMapWithFasterNodeDeletion', () => {
     let graph1: AdjacencyMapWithFasterNodeDeletionAutomerge
     let graph2: AdjacencyMapWithFasterNodeDeletionAutomerge
 

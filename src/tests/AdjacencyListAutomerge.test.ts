@@ -1,4 +1,3 @@
-import './provideGlobalObjects'
 import { AdjacencyListAutomerge, AdjacencyListAutomergeGraph } from '../graphs/AdjacencyListAutomerge'
 import * as automerge from '@automerge/automerge'
 
