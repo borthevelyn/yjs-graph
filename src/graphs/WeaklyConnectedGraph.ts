@@ -214,7 +214,7 @@ export class WeaklyConnectedGraph implements Graph {
         return connectedComponents;
     }
     private getGraphElementIdxAndMergedComponents(connectedComponents: Set<Set<id>>): [number, Set<Set<id>>] | undefined {
-        for (const [reversedGraphElementIndex, graphElement] of this.yRemovedGraphElements.toArray().reverse().entries()) {  
+        for (const [reversedGraphElementIndex, graphElement] of this.yRemovedGraphElements.toArray().toReversed().entries()) {  
             for (const component of connectedComponents) {
                 for (const otherConnectedComponent of connectedComponents) {
                     if (component === otherConnectedComponent)
@@ -256,7 +256,138 @@ export class WeaklyConnectedGraph implements Graph {
         return undefined;
     }
 
+    private computeAllPathsFromANodeInRemovedNodes(node: NodeInformationForRemovedNodes, NodeExcludeSet: ReadonlySet<id> = new Set()): Set<Array<NodeInformationForRemovedNodes>> {
+        let paths = new Set<Array<NodeInformationForRemovedNodes>>();
+        const outgoingNodes = node.edgeInformation.map(x => splitEdgeId(x.edgeId)[1]).filter(x => !NodeExcludeSet.has(x));
+        const incomingNodes = node.incomingNodes.map(x => splitEdgeId(x.edgeId)[0]).filter(x => !NodeExcludeSet.has(x));
+        const nextNodes = this.yRemovedGraphElements.toArray()
+            .filter((x): x is { type: 'node', item: NodeInformationForRemovedNodes } => x.type === 'node' && (outgoingNodes.includes(x.item.nodeId) || incomingNodes.includes(x.item.nodeId)))
+            .map(x => x.item);
+
+        for(const nextNode of nextNodes) {
+            paths.add([node, nextNode]);
+            const nextSubPaths = this.computeAllPathsFromANodeInRemovedNodes(nextNode, NodeExcludeSet.union(new Set([node.nodeId])));
+            for (const nextSubPath of nextSubPaths) {
+                paths.add([node, ...nextSubPath]);
+            }
+        }
+        return paths;
+    }   
+
+    private computePathsInRemovedNodes(nodes: Array<NodeInformationForRemovedNodes>): Set<Array<NodeInformationForRemovedNodes>> {
+        let paths = new Set<Array<NodeInformationForRemovedNodes>>();
+
+        function getPathsWithoutDuplicates(allPaths: Set<Array<NodeInformationForRemovedNodes>>): Set<Array<NodeInformationForRemovedNodes>> {
+            const uniquePaths = new Set<Array<NodeInformationForRemovedNodes>>();
+
+            for (const path of allPaths) {
+                const reversedPath = path.toReversed();
+                const isDuplicate = [...uniquePaths].some(
+                    (uniquePath) => JSON.stringify(uniquePath) === JSON.stringify(reversedPath)
+                );
+        
+                if (!isDuplicate) {
+                    uniquePaths.add(path);
+                }
+            }
+        
+            return uniquePaths;
+        }
+        for (const node of nodes) {
+            const allPathsFromCurrentNode = this.computeAllPathsFromANodeInRemovedNodes(node);
+            const filteredPaths = new Set([...allPathsFromCurrentNode].filter(x => x.length > 1));
+            paths = paths.union(filteredPaths);
+        }
+        console.log('paths without duplicates', getPathsWithoutDuplicates(paths));
+        return getPathsWithoutDuplicates(paths);
+    }
+    private createPathBetweenComponents(path: Array<NodeInformationForRemovedNodes>): Array<NodeInformationForRemovedNodes> | undefined{
+        /**
+        * This method creates a path between two components by only using necessary edges for connection. 
+        * The first and last node have only edges to a neighbour node in the path or to existing nodes in the graph. 
+        * Nodes in the middle of a path have only edges to their neighbours in the path.
+        * All other edges are not used because they are not necessary for the connection of the two components or 
+        * would be invalid edges, as the corresponding nodes are not in the graph anymore.
+        */
+
+        const firstNode = {
+            ...path[0],
+            edgeInformation: path[0].edgeInformation.filter(x => (this.yMatrix.get(splitEdgeId(x.edgeId)[1]) !== undefined) || (splitEdgeId(x.edgeId)[1]) === path[1].nodeId),
+            incomingNodes: path[0].incomingNodes.filter(x => (this.yMatrix.get(splitEdgeId(x.edgeId)[0]) !== undefined) || (splitEdgeId(x.edgeId)[0]) === path[1].nodeId)
+        };
+        const lastNode = {
+            ...path[path.length - 1],
+            edgeInformation: path[path.length - 1].edgeInformation.filter(x => (this.yMatrix.get(splitEdgeId(x.edgeId)[1]) !== undefined) || (splitEdgeId(x.edgeId)[1]) === path[path.length - 2].nodeId),
+            incomingNodes:  path[path.length - 1].incomingNodes.filter(x => (this.yMatrix.get(splitEdgeId(x.edgeId)[0]) !== undefined) || (splitEdgeId(x.edgeId)[0]) === path[path.length - 2].nodeId)
+        };
+        const res = [firstNode];
+        for (let i = 1; i < path.length - 1; i++) {
+            const nextEdgeInfo = path[i].edgeInformation.filter(x => (x.edgeId === `${path[i].nodeId}+${path[i + 1].nodeId}`) || (x.edgeId === `${path[i].nodeId}+${path[i - 1].nodeId}`));
+            const nextIncomingInfo = path[i].incomingNodes.filter(x => (x.edgeId === `${path[i + 1].nodeId}+${path[i].nodeId}`) || (x.edgeId === `${path[i - 1].nodeId}+${path[i].nodeId}`));
+
+            const nextNode = {
+                ...path[i],
+                edgeInformation: nextEdgeInfo,
+                incomingNodes: nextIncomingInfo
+            };
+            res.push(nextNode);
+        }
+        return [...res, lastNode];
+    }
+    private getPathAndMergedComponents(connectedComponents: Set<Set<id>>): [Array<NodeInformationForRemovedNodes>, Set<Set<id>>] | undefined {
+        const nodes = this.yRemovedGraphElements.toArray().filter(x => x.type === 'node').map(x => x.item);
+        const allPaths = this.computePathsInRemovedNodes(nodes);
+        const pathCost = (path: Array<NodeInformationForRemovedNodes>): BigInt => {
+            let cost = 0n;
+            for (let i = 0; i < path.length; i++) {
+                const indexReversed = this.yRemovedGraphElements.toArray().toReversed().findIndex(x => (x.type === 'node') && (x.item.nodeId === path[i].nodeId));
+                if (indexReversed === -1) {
+                    console.warn('Node does not exist in the removed nodes list (getPathAndMergedComponents)', path[i].nodeId);
+                }
+                cost = cost + (1n << BigInt(indexReversed));
+            }
+            return cost;
+        }
+        const allPathsWithCost = Array.from(allPaths).map<[NodeInformationForRemovedNodes[], BigInt]>(x => [x, pathCost(x)]).sort((a, b) => a[1] < b[1] ? -1 : 1);
+        console.log('all paths with cost sorted', allPathsWithCost.map(x => [x[0]?.map(y => y.nodeId), x[1]]));
+        for (const [path, ] of allPathsWithCost) {
+            for (const component of connectedComponents) {
+                for (const otherComponent of connectedComponents) {
+                    if (component === otherComponent)
+                        continue;
+                    const incomingSourceNodesOfFirstNodeInPath = new Set(
+                        path[0].incomingNodes.map(x => splitEdgeId(x.edgeId)[0])
+                        .concat(path[0].edgeInformation
+                        .map(x => splitEdgeId(x.edgeId)[1]))
+                    );
+                    const targetNodesOfLastNodeInPath = new Set (path[path.length - 1].edgeInformation.map(x => splitEdgeId(x.edgeId)[1]).concat(path[path.length - 1].incomingNodes.map(x => splitEdgeId(x.edgeId)[0])));
+                    const compAndSourceNodesIntersetion = component.intersection(incomingSourceNodesOfFirstNodeInPath).size > 0;
+                    const compAndTargetNodesIntersetion = component.intersection(targetNodesOfLastNodeInPath).size > 0;
+                    const otherCompAndSourceNodesIntersetion = otherComponent.intersection(incomingSourceNodesOfFirstNodeInPath).size > 0;
+                    const otherCompAndTargetNodesIntersetion = otherComponent.intersection(targetNodesOfLastNodeInPath).size > 0;
+
+                    if ((compAndSourceNodesIntersetion && otherCompAndSourceNodesIntersetion) || 
+                        (compAndSourceNodesIntersetion && otherCompAndTargetNodesIntersetion) || 
+                        (compAndTargetNodesIntersetion && otherCompAndSourceNodesIntersetion) || 
+                        (compAndTargetNodesIntersetion && otherCompAndTargetNodesIntersetion)) 
+                    {
+                        // This path has only necessary nodes and edges to connect two components
+                        const pathBetweenComponents = this.createPathBetweenComponents(path);
+                        if (pathBetweenComponents === undefined) {
+                            console.warn('Invalid path between components');
+                            return undefined;
+                        }
+                        const mergedComponents = this.mergeComponents(connectedComponents, component, otherComponent);
+                        console.log('path between components', pathBetweenComponents);
+                        return [pathBetweenComponents, mergedComponents];
+                    }
+                }
+            }
+        }
+        return undefined;
+    }
     private addYRemovedNodeWithEdges(node: NodeInformationForRemovedNodes): void {
+        console.log('addYRemovedNodeWithEdges', node);
         this.yMatrix.doc!.transact(() => {
             const innerMap = this.makeNodeInformation({ 
                 id: node.nodeId, 
@@ -270,19 +401,77 @@ export class WeaklyConnectedGraph implements Graph {
             this.yMatrix.set(node.nodeId, innerMap);
             for (const edge of node.edgeInformation) {
                 const [source, target] = splitEdgeId(edge.edgeId);
+                if (this.yMatrix.get(source) === undefined || this.yMatrix.get(target) === undefined) {
+                    console.warn('Edge cannot be added (addYRemovedNodeWithEdges)', source, this.yMatrix.get(source), target, this.yMatrix.get(target));
+                    continue;
+                }
                 this.addEdge(source, target, edge.edgeLabel);
             }
             for (const edge of node.incomingNodes) {
                 const [source, target] = splitEdgeId(edge.edgeId);
+                if (this.yMatrix.get(source) === undefined || this.yMatrix.get(target) === undefined) {
+                    console.warn('Incoming edge cannot be added (addYRemovedNodeWithEdges), source, target', source, this.yMatrix.get(source), target, this.yMatrix.get(target));
+                    continue;
+                }
                 this.addEdge(source, target, edge.edgeLabel);
             }
             this.removeYNode(node.nodeId);
         });
     }
-    // This method ensures that the number of nodes in the yRemovedGraphElements is at most 20.
-    // It means that at most 20 removed nodes can be used to make the graph weakly connected.
-    // This is required to prevent yRemovedGraphElements from growing indefinitely as removed nodes 
-    // are never deleted from there.
+    private addYRemovedPath(path: Array<NodeInformationForRemovedNodes>): void {
+        this.yMatrix.doc!.transact(() => {
+            for (const pathNode of path) {
+                this.yMatrix.set(pathNode.nodeId, this.makeNodeInformation({
+                    id: pathNode.nodeId,
+                    data: {label: pathNode.label},
+                    position: pathNode.position,
+                    deletable: true,
+                }, new Y.Map<EdgeInformation>(), new Y.Map<EdgeInformation>()));
+                this.removeYNode(pathNode.nodeId);
+            }
+            console.log('path nodes added to repair connectedness', path);
+
+            for (const pathNode of path) {
+                for (const edge of pathNode.edgeInformation) {
+                    const [source, target] = splitEdgeId(edge.edgeId);
+                    if (this.yMatrix.get(source) === undefined || this.yMatrix.get(target) === undefined) {
+                        if (pathNode.nodeId !== path[0].nodeId && pathNode.nodeId !== path[path.length - 1].nodeId) {
+                            // These edges connect nodes added in the previous loop. So, they should always be addable.
+                            console.warn('(Should not happen, destroys connectedness property) Edge is important for connectedness, but cannot be added', source,this.yMatrix.get(source) === undefined, target, this.yMatrix.get(target) === undefined);
+                            continue;
+                        } else {
+                            console.log('Edge of first or last node in path has no connection to a node in the graph, it can be omitted', source, target);
+                            continue;
+                        }
+                    }
+                    if ((this.yMatrix.get(source)?.get('edgeInformation').get(target) !== undefined) && (this.yMatrix.get(target)?.get('incomingNodes').get(source) !== undefined)) 
+                        continue;
+                    this.addEdge(source, target, edge.edgeLabel);
+                }
+                for (const edge of pathNode.incomingNodes) {
+                    const [source, target] = splitEdgeId(edge.edgeId);
+                    if (this.yMatrix.get(source) === undefined || this.yMatrix.get(target) === undefined){
+                        if (pathNode.nodeId !== path[0].nodeId || pathNode.nodeId !== path[path.length - 1].nodeId) {
+                            // These edges connect nodes added in the previous loop. So, they should always be addable.
+                            console.warn('(Should not happen, destroys connectedness property) Edge is important for connectedness, but cannot be added', source, target);
+                            continue;
+                        } else {
+                            console.log('Edge of first or last node in path has no connection to a node in the graph, it can be omitted', source, target);
+                            continue;
+                        }
+                    }
+                    if ((this.yMatrix.get(target)?.get('incomingNodes').get(source) !== undefined) && (this.yMatrix.get(source)?.get('edgeInformation').get(target) !== undefined)) 
+                        continue;
+                    this.addEdge(source, target, edge.edgeLabel);
+                }
+            }
+        });   
+    }
+    /**
+     * This method ensures that the graph is weakly connected. It does so by adding nodes and edges from the removed nodes and edge list.
+     * It means that at most 20 removed nodes can be used to make the graph weakly connected.
+     * This is required to prevent yRemovedGraphElements from growing indefinitely as removed nodes are never deleted from there.
+     */
     private makeYNodeCountAtMost20InYRemovedGraphElements() {
         this.yRemovedGraphElements.doc!.transact(() => {
             const yNodeCount = this.yRemovedGraphElements.toArray().filter(x => x.type === 'node').length;
@@ -296,6 +485,7 @@ export class WeaklyConnectedGraph implements Graph {
             }
         });
     }
+
     public makeGraphWeaklyConnected(): void {
         this.yRemovedGraphElements.doc!.transact(() => {
             this.removeDanglingEdges();
@@ -304,32 +494,46 @@ export class WeaklyConnectedGraph implements Graph {
             console.log('connected components', connectedComponents, connectedComponents.size);
 
             while (connectedComponents.size > 1) {
-                const tryToConnectComponents = this.getGraphElementIdxAndMergedComponents(connectedComponents);
-                if (tryToConnectComponents === undefined) {
-                    console.warn('Could not connect components, should be resolved by the user');
+                const tryToConnectComponentsWithGraphElement = this.getGraphElementIdxAndMergedComponents(connectedComponents);
+                if (tryToConnectComponentsWithGraphElement !== undefined) {
+                    const [graphElementIdxConnectingTwoComponents, mergedComponents] = tryToConnectComponentsWithGraphElement;
+
+                    const graphElementConnectingTwoComponents = this.yRemovedGraphElements.get(graphElementIdxConnectingTwoComponents);
+    
+                    switch (graphElementConnectingTwoComponents.type) {
+                        case 'node': {
+                            const nodeConnectingTwoComponents = graphElementConnectingTwoComponents.item;
+                            // Added node is removed from the removed nodes list in addYRemovedNodeWithEdges
+                            this.addYRemovedNodeWithEdges(nodeConnectingTwoComponents);
+                            break;
+                        }
+                        case 'edge': {
+                            const edgeConnectingTwoComponents = graphElementConnectingTwoComponents.item;
+                            const [source, target] = splitEdgeId(edgeConnectingTwoComponents.edgeId);
+                            const edgeLabel = edgeConnectingTwoComponents.edgeLabel;
+                            // Added edge is removed from the removed edges list in addEdge
+                            this.addEdge(source, target, edgeLabel);
+                            break;
+                        }
+                    }
+                    
+                    connectedComponents = mergedComponents;
+                    break;
+                }
+
+                const tryToConnectComponentsWithPath = this.getPathAndMergedComponents(connectedComponents);
+                if (tryToConnectComponentsWithPath !== undefined) {
+                    const [path, mergedComponents] = tryToConnectComponentsWithPath;
+                    this.addYRemovedPath(path);
+                    connectedComponents = mergedComponents;
+                    break;
+                }
+
+                if (tryToConnectComponentsWithGraphElement === undefined && tryToConnectComponentsWithPath === undefined) {
+                    console.warn('Could not connect components');
                     return;
                 }
-                
-                const [graphElementIdxConnectingTwoComponents, mergedComponents] = tryToConnectComponents;
-                const graphElementConnectingTwoComponents = this.yRemovedGraphElements.get(graphElementIdxConnectingTwoComponents);
 
-                switch (graphElementConnectingTwoComponents.type) {
-                    case 'node': {
-                        const nodeConnectingTwoComponents = graphElementConnectingTwoComponents.item;
-                        // Added node is removed from the removed nodes list in addYRemovedNodeWithEdges
-                        this.addYRemovedNodeWithEdges(nodeConnectingTwoComponents);
-                        break;
-                    }
-                    case 'edge': {
-                        const edgeConnectingTwoComponents = graphElementConnectingTwoComponents.item;
-                        const [source, target] = splitEdgeId(edgeConnectingTwoComponents.edgeId);
-                        const edgeLabel = edgeConnectingTwoComponents.edgeLabel;
-                        // Added edge is removed from the removed edges list in addEdge
-                        this.addEdge(source, target, edgeLabel);
-                        break;
-                    }
-                }
-                connectedComponents = mergedComponents;
             }
         });
     }
@@ -407,7 +611,7 @@ export class WeaklyConnectedGraph implements Graph {
     removeNode(nodeId: id): void {
         const nodeInfo = this.yMatrix.get(nodeId);
         if (nodeInfo === undefined) {
-            console.log('Node does not exist (removeNode)')
+            console.log('Node does not exist (removeNode)', nodeId);
             return 
         }
 
@@ -415,14 +619,44 @@ export class WeaklyConnectedGraph implements Graph {
             console.warn('Removing this node would disconnect the graph');
             return
         }
-  
+        // Edge information also includes edges that are not in the graph anymore, but are stored in yRemovedGraphElements
+        const edgeInformation: EdgeInformationForRemovedEdges[] = 
+            Array.from(nodeInfo.get('edgeInformation').entries())
+            .map<EdgeInformationForRemovedEdges>(([target, {label}]) => ({ edgeId: `${nodeId}+${target}`, edgeLabel: label}))
+            .concat(this.yRemovedGraphElements
+                .toArray()
+                .filter(x => (x.type === 'edge'))
+                .filter(x => splitEdgeId(x.item.edgeId)[0] === nodeId)
+                .map(x => x.item)
+            )
+        // Incoming nodes also includes edges that are not in the graph anymore, but are stored in yRemovedGraphElements
+        const incomingNodes: EdgeInformationForRemovedEdges[] = 
+            Array.from(nodeInfo.get('incomingNodes').entries())
+            .map<EdgeInformationForRemovedEdges>(([source, {label}]) => ({ edgeId: `${source}+${nodeId}`, edgeLabel: label}))
+            .concat(this.yRemovedGraphElements
+                .toArray()
+                .filter(x => (x.type === 'edge'))
+                .filter(x => splitEdgeId(x.item.edgeId)[1] === nodeId)
+                .map(x => x.item)
+            )
+        const nodeAsRemovedGraphElement: RemovedGraphElement = { 
+            type: 'node', 
+            item: {
+                nodeId, 
+                label: nodeInfo.get('flowNode').data.label, 
+                position: nodeInfo.get('flowNode').position, 
+                edgeInformation: edgeInformation,
+                incomingNodes: incomingNodes
+        }};
+        console.log('node as removed graph element', nodeAsRemovedGraphElement);
+
         this.yMatrix.doc!.transact(() => {   
             const incomingNodes = nodeInfo.get('incomingNodes')
             
             for (const incomingNode of incomingNodes.keys()) {
                 const incomingNodeInfo = this.yMatrix.get(incomingNode)
                 if (incomingNodeInfo === undefined) {
-                    console.warn('Node does not exist. It should have an edge to the removed node(removeNode)')
+                    console.warn('Node does not exist. It should have an edge to the removed node(removeNode)', incomingNode, nodeId);
                     return 
                 }
                 // 1. Remove the edge from the incoming node to the node being removed
@@ -437,15 +671,16 @@ export class WeaklyConnectedGraph implements Graph {
                 this.yRemovedGraphElements.push([edgeAsRemovedGraphElement]);
                 this.selectedEdges.delete(edgeId);
             }
-            const nodeAsRemovedGraphElement: RemovedGraphElement = { 
-                type: 'node', 
-                item: {
-                    nodeId, 
-                    label: nodeInfo.get('flowNode').data.label, 
-                    position: nodeInfo.get('flowNode').position, 
-                    edgeInformation: Array.from(nodeInfo.get('edgeInformation').entries()).map(([target, {label}]) => ({ edgeId: `${nodeId}+${target}`, edgeLabel: label})),
-                    incomingNodes: Array.from(nodeInfo.get('incomingNodes').entries()).map(([source, {label}])  => ({ edgeId: `${source}+${nodeId}`, edgeLabel: label}))
-            }};
+
+            for (const target of nodeInfo.get('edgeInformation').keys()) {
+                const targetNodeInfo = this.yMatrix.get(target);
+                if (targetNodeInfo === undefined) {
+                    /// This can happen, if a dangling edge is removed
+                    return 
+                }
+                targetNodeInfo.get('incomingNodes').delete(nodeId);
+            }
+
 
             this.yRemovedGraphElements.push([nodeAsRemovedGraphElement]);
             // Remove the node itself

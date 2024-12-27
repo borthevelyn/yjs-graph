@@ -1021,6 +1021,135 @@ describe('WeaklyConnectedGraph', () => {
         expect(yMatrix2.edgeCount).toBe(2);
         expect(yMatrix2.isWeaklyConnected()).toBe(false);
     })
+    it('graph connection is repaired by adding a path', () => {
+        yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
+        yMatrix1.addNodeWithEdge('node2', 'node2', { x: 10, y: 0 }, 'node1', 'node2', 'edge1-2');
+        yMatrix1.addNodeWithEdge('node3', 'node3', { x: 0, y: 10 }, 'node2', 'node3', 'edge2-3');
+        yMatrix1.addNodeWithEdge('node4', 'node4', { x: 10, y: 10 }, 'node3', 'node4', 'edge3-4');
+        yMatrix1.addNodeWithEdge('node5', 'node5', { x: 0, y: 20 }, 'node1', 'node5', 'edge1-5');
+        yMatrix1.addNodeWithEdge('node6', 'node6', { x: 10, y: 20 }, 'node5', 'node6', 'edge5-6');
+        yMatrix1.addEdge('node6', 'node4', 'edge6-4');
+        sync12Concurrently();
+        yMatrix1.removeNode('node5');
+        yMatrix1.removeNode('node6');
+        yMatrix2.removeNode('node2');
+        yMatrix2.removeNode('node3');
+        sync12Concurrently();
+
+        expect(yMatrix1.getNode('node1')).toBeDefined();
+        expect(yMatrix1.getNode('node4')).toBeDefined();
+        expect(yMatrix1.nodeCount).toBe(4);
+        expect(yMatrix1.edgeCount).toBe(3);
+        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+
+        expect(yMatrix2.getNode('node1')).toBeDefined();
+        expect(yMatrix2.getNode('node4')).toBeDefined();
+        expect(yMatrix2.nodeCount).toBe(4);
+        expect(yMatrix2.edgeCount).toBe(3);
+        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+    })
+
+    it('graph connection is repaired by adding the shortest path of length one (add a node)', () => {
+        yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
+        yMatrix1.addNodeWithEdge('node2', 'node2', { x: 10, y: 0 }, 'node1', 'node2', 'edge1-2');
+        yMatrix1.addNodeWithEdge('node3', 'node3', { x: 0, y: 10 }, 'node2', 'node3', 'edge2-3');
+        yMatrix1.addNodeWithEdge('node4', 'node4', { x: 10, y: 10 }, 'node3', 'node4', 'edge3-4');
+        yMatrix1.addNodeWithEdge('node5', 'node5', { x: 0, y: 20 }, 'node1', 'node5', 'edge1-5');
+        yMatrix1.addNodeWithEdge('node6', 'node6', { x: 10, y: 20 }, 'node5', 'node6', 'edge5-6');
+        yMatrix1.addEdge('node6', 'node4', 'edge6-4');
+        yMatrix1.addEdge('node2', 'node4', 'edge2-4');
+        yMatrix1.addEdge('node5', 'node4', 'edge5-4');
+        sync12Concurrently();
+        console.log('mat1 nodes',yMatrix1.nodesAsFlow());
+        console.log('mat1 edges',yMatrix1.edgesAsFlow());
+        yMatrix1.removeNode('node5');
+        yMatrix1.removeNode('node6');
+        yMatrix2.removeNode('node2');
+        yMatrix2.removeNode('node3');
+        sync12Concurrently();
+
+        console.log('mat1',yMatrix1.nodesAsFlow());
+        console.log('mat1',yMatrix1.edgesAsFlow());
+        expect(yMatrix1.getNode('node1')).toBeDefined();
+        expect(yMatrix1.getNode('node4')).toBeDefined();
+        expect(yMatrix1.nodeCount).toBe(3);
+        expect(yMatrix1.edgeCount).toBe(2);
+        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+
+        expect(yMatrix2.getNode('node1')).toBeDefined();
+        expect(yMatrix2.getNode('node4')).toBeDefined();
+        expect(yMatrix2.nodeCount).toBe(3);
+        expect(yMatrix2.edgeCount).toBe(2);
+        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+    })
+
+    it('graph connection is repaired by adding a path of length three (add a node and an edge)', () => {
+        yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
+        yMatrix1.addNodeWithEdge('node2', 'node2', { x: 10, y: 0 }, 'node1', 'node2', 'edge1-2');
+        yMatrix1.addNodeWithEdge('node3', 'node3', { x: 0, y: 10 }, 'node2', 'node3', 'edge2-3');
+        yMatrix1.addNodeWithEdge('node4', 'node4', { x: 10, y: 10 }, 'node3', 'node4', 'edge3-4');
+        yMatrix1.addNodeWithEdge('node5', 'node5', { x: 0, y: 20 }, 'node4', 'node5', 'edge4-5');
+        yMatrix1.addNodeWithEdge('node6', 'node6', { x: 10, y: 20 }, 'node1', 'node6', 'edge1-6');
+        yMatrix1.addNodeWithEdge('node7', 'node7', { x: 0, y: 30 }, 'node6', 'node7', 'edge6-7');
+        yMatrix1.addNodeWithEdge('node8', 'node8', { x: 10, y: 30 }, 'node7', 'node8', 'edge7-8');
+        yMatrix1.addEdge('node8', 'node5', 'edge8-5');
+        sync12Concurrently();
+        yMatrix1.removeNode('node2');
+        yMatrix1.removeNode('node3');
+        yMatrix1.removeNode('node4');
+        yMatrix2.removeNode('node6');
+        yMatrix2.removeNode('node7');
+        yMatrix2.removeNode('node8');
+        sync12Concurrently();
+
+        expect(yMatrix1.getNode('node1')).toBeDefined();
+        expect(yMatrix1.getNode('node5')).toBeDefined();
+        expect(yMatrix1.nodeCount).toBe(5);
+        expect(yMatrix1.edgeCount).toBe(4);
+        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+
+        expect(yMatrix2.getNode('node1')).toBeDefined();
+        expect(yMatrix2.getNode('node5')).toBeDefined();
+        expect(yMatrix2.nodeCount).toBe(5);
+        expect(yMatrix2.edgeCount).toBe(4);
+        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+    })
+
+    it('graph connection is repaired by adding the path with lowest cost (add a node and an edge)', () => {
+        yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
+        yMatrix1.addNodeWithEdge('node2', 'node2', { x: 10, y: 0 }, 'node1', 'node2', 'edge1-2');
+        yMatrix1.addNodeWithEdge('node3', 'node3', { x: 0, y: 10 }, 'node2', 'node3', 'edge2-3');
+        yMatrix1.addNodeWithEdge('node4', 'node4', { x: 10, y: 10 }, 'node3', 'node4', 'edge3-4');
+        yMatrix1.addNodeWithEdge('node5', 'node5', { x: 0, y: 20 }, 'node4', 'node5', 'edge4-5');
+        yMatrix1.addNodeWithEdge('node6', 'node6', { x: 10, y: 20 }, 'node1', 'node6', 'edge1-6');
+        yMatrix1.addNodeWithEdge('node7', 'node7', { x: 0, y: 30 }, 'node6', 'node7', 'edge6-7');
+        yMatrix1.addNodeWithEdge('node8', 'node8', { x: 10, y: 30 }, 'node7', 'node8', 'edge7-8');
+        yMatrix1.addEdge('node8', 'node5', 'edge8-5');
+        yMatrix1.addEdge('node3', 'node5', 'edge3-5');
+        yMatrix1.addEdge('node7', 'node5', 'edge7-5');
+        sync12Concurrently();
+        yMatrix1.removeNode('node2');
+        yMatrix1.removeNode('node3');
+        yMatrix1.removeNode('node4');
+
+        yMatrix2.removeNode('node7');
+        yMatrix2.removeNode('node8');
+        yMatrix2.removeNode('node6');
+
+        sync12Concurrently();
+
+        expect(yMatrix1.getNode('node1')).toBeDefined();
+        expect(yMatrix1.getNode('node5')).toBeDefined();
+        expect(yMatrix1.nodeCount).toBe(4);
+        expect(yMatrix1.edgeCount).toBe(3);
+        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+
+        expect(yMatrix2.getNode('node1')).toBeDefined();
+        expect(yMatrix2.getNode('node5')).toBeDefined();
+        expect(yMatrix2.nodeCount).toBe(4);
+        expect(yMatrix2.edgeCount).toBe(3);
+        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+    })
 
     it('test yarray', () => {
         const doc1 = new Y.Doc();
