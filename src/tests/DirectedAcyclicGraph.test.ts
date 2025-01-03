@@ -1801,6 +1801,43 @@ describe('DirectedAcyclicGraph', () => {
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix3.getEdgesAsJson());
     })
 
+    // Test case from the paper
+    it('Scenario after sync two cycles occur, remove edge contributing to the most cycles', () => {
+        yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
+        yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
+        yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
+        sync12Concurrently();
+        yMatrix1.addEdge('node2', 'node1', 'edge2-1');
+        yMatrix1.addEdge('node3', 'node1', 'edge3-1');
+        yMatrix1.addEdge('node2', 'node3', 'edge2-3');
+        yMatrix2.addEdge('node1', 'node2', 'edge1-2');
+        sync12Concurrently();
+
+        expect(yMatrix1.getNode('node1')).toBeDefined();
+        expect(yMatrix1.getNode('node2')).toBeDefined();
+        expect(yMatrix1.getNode('node3')).toBeDefined();
+        expect(yMatrix1.getEdge('node1', 'node2')).toBeUndefined();
+        expect(yMatrix1.getEdge('node2', 'node1')).toBeDefined();
+        expect(yMatrix1.getEdge('node3', 'node1')).toBeDefined();
+        expect(yMatrix1.getEdge('node2', 'node3')).toBeDefined();
+        expect(yMatrix1.edgeCount).toBe(3);
+        expect(yMatrix1.nodeCount).toBe(3);
+        expect(yMatrix1.isAcyclic()).toBe(true);
+
+        expect(yMatrix2.getNode('node1')).toBeDefined();
+        expect(yMatrix2.getNode('node2')).toBeDefined();
+        expect(yMatrix2.getNode('node3')).toBeDefined();
+        expect(yMatrix2.getEdge('node1', 'node2')).toBeUndefined();
+        expect(yMatrix2.getEdge('node2', 'node1')).toBeDefined();
+        expect(yMatrix2.getEdge('node3', 'node1')).toBeDefined();
+        expect(yMatrix2.getEdge('node2', 'node3')).toBeDefined();
+        expect(yMatrix2.edgeCount).toBe(3);
+        expect(yMatrix2.nodeCount).toBe(3);
+        expect(yMatrix2.isAcyclic()).toBe(true);
+
+        expect(yMatrix1.getYEdgesAsJson()).toEqual(yMatrix2.getYEdgesAsJson());
+    })
+
 
 
 /*     it('select node', () => {

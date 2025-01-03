@@ -12,6 +12,13 @@ type NodeInformation = ObjectYMap<{
     // Reading from this map should always takes this into account
     edgeInformation: Y.Map<EdgeInformation>
 }>
+type clock = {
+    [client: string]: number | undefined
+}
+type yEdgeInformation = {
+    edgeId: EdgeId
+    clock: clock
+}
 
 export type AdjacencyMapGraph = Y.Map<NodeInformation>
 
@@ -24,13 +31,13 @@ function unionWithSets<T>(set1: ReadonlySet<T>, set2: ReadonlySet<T>): ReadonlyS
 
 export class DirectedAcyclicGraph implements Graph {
     private yMatrix: AdjacencyMapGraph;
-    private yEdges: Y.Array<EdgeId>;
+    private yEdges: Y.Array<yEdgeInformation>;
 
     private selectedNodes: Set<id>;
     private selectedEdges: Set<EdgeId>;
     private eventEmitter: EventEmitter | undefined;
 
-    constructor(yMatrix: AdjacencyMapGraph, yEdges: Y.Array<EdgeId>, eventEmitter?: EventEmitter) {
+    constructor(yMatrix: AdjacencyMapGraph, yEdges: Y.Array<yEdgeInformation>, eventEmitter?: EventEmitter) {
         this.yMatrix = yMatrix;
         this.yEdges = yEdges;
         this.selectedNodes = new Set();
@@ -56,7 +63,7 @@ export class DirectedAcyclicGraph implements Graph {
                     this.selectedEdges.delete(`${source.get('flowNode').id}+${target}`);
                 }
             }
-        });
+        });   
     }
 
     private makeNodeInformation(node: FlowNode, edges: Y.Map<EdgeInformation>) {
@@ -180,30 +187,61 @@ export class DirectedAcyclicGraph implements Graph {
         )
     }
     // Returns a set of all edgeIds that contribute to cycles
-    public findAllEdgesContributingToCycles(): ReadonlySet<EdgeId> {
+    public findAllEdgesContributingToCycles(): ReadonlySet<yEdgeInformation> {
         return new Set(
             Array.from(this.findAllCycles())
             .flatMap(x => this.nodeListToEdgeList(x))
+            .map(x => this.yEdges.toArray().find(y => y.edgeId === x)!)
         )
     }
 
-    private findEdgeIndex(edgesContributingToCycles: ReadonlySet<EdgeId>): number {
-        const reverseIdx = this.yEdges.toArray().reverse().findIndex((edge: EdgeId) => edgesContributingToCycles.has(edge));
+    private findEdgeIndex(edgeId: EdgeId): number {
+        const reverseIdx = this.yEdges.toArray().toReversed().findIndex(x => x.edgeId === edgeId);
         return this.yEdges.length - 1 - reverseIdx
+    }
+
+    private clockLeq(clock1: clock , clock2: clock): boolean {
+        for (const [key, value] of Object.entries(clock1) as [string, number][]) {
+            console.log('clock2', clock2)
+            if (value > (clock2[key] ?? 0))
+                return false
+        }
+        return true
+    }
+    private computeNuberOfCycles(edgeId: EdgeId): number {
+        return this.findAllCyclesFromEdge(edgeId).size
     }
 
     public removeCycles(): void {
         this.yEdges.doc!.transact(() => {
             this.removeDanglingEdges();
             let edgesContributingToCycles = this.findAllEdgesContributingToCycles(); 
+            
             while (edgesContributingToCycles.size > 0) {
+                // Sort first by vector clock to ensure that only the newest changes are reverted.
+                // Then sort by number of cycles to ensure that as many cycles as possible are removed.
+                // In case of a tie, to ensure the same execution order for all clients, sort by yjs index.
+                const edgesContributingToCyclesSorted = 
+                    [...edgesContributingToCycles]
+                    .sort((a, b) => 
+                        this.clockLeq(a.clock, b.clock) 
+                        ? -1  
+                            :this.clockLeq(b.clock, a.clock) 
+                            ? 1 
+                                // We know that a and b are concurrently divergent
+                                :this.computeNuberOfCycles(a.edgeId) < this.computeNuberOfCycles(b.edgeId) 
+                                ? -1 
+                                : this.computeNuberOfCycles(b.edgeId) < this.computeNuberOfCycles(a.edgeId) 
+                                    ? 1 
+                                    : this.findEdgeIndex(a.edgeId) < this.findEdgeIndex(b.edgeId) ? -1 : 1)
                 console.log('Current edges with cycle', edgesContributingToCycles)
-                const edgeIndex = this.findEdgeIndex(edgesContributingToCycles);
+                const maxEdge = edgesContributingToCyclesSorted[edgesContributingToCyclesSorted.length - 1];
+                const edgeIndex = this.findEdgeIndex(maxEdge.edgeId);
                 if (edgeIndex < 0) {
                     console.warn('Edge not found in yEdges, but is part of a cycle.')
                     return
                 }
-                const edgeToBeRemoved = splitEdgeId(this.yEdges.get(edgeIndex));
+                const edgeToBeRemoved = splitEdgeId(this.yEdges.get(edgeIndex).edgeId);
                 this.removeEdge(edgeToBeRemoved[0], edgeToBeRemoved[1])
                 edgesContributingToCycles = this.findAllEdgesContributingToCycles()
             }
@@ -240,7 +278,8 @@ export class DirectedAcyclicGraph implements Graph {
             }
             nodeInfo1.get('edgeInformation').set(target, {label});
             console.log('added edge with label, edges', label, nodeInfo1.get('edgeInformation'));
-            this.yEdges.push([edgeId]);
+            console.log('clock', Y.decodeStateVector(Y.encodeStateVector(this.yMatrix.doc!)))
+            this.yEdges.push([{edgeId, clock: Object.fromEntries(Y.decodeStateVector(Y.encodeStateVector(this.yMatrix.doc!)))}]);
         });
     }
     removeNode(nodeId: id): void {
@@ -257,7 +296,7 @@ export class DirectedAcyclicGraph implements Graph {
 
                 let edgeIndex;
                 do {
-                    edgeIndex = this.yEdges.toArray().findIndex(x => x === edgeId);  
+                    edgeIndex = this.yEdges.toArray().findIndex(x => x.edgeId === edgeId);  
                     if (edgeIndex !== -1)
                         this.yEdges.delete(edgeIndex);   
                 } while(edgeIndex >= 0)
@@ -280,7 +319,7 @@ export class DirectedAcyclicGraph implements Graph {
             const edgeId: EdgeId = `${source}+${target}`;
             let edgeIndex;
             do {
-                edgeIndex = this.yEdges.toArray().findIndex(x => x === edgeId);  
+                edgeIndex = this.yEdges.toArray().findIndex(x => x.edgeId === edgeId);  
                 if (edgeIndex !== -1)
                     this.yEdges.delete(edgeIndex);   
             } while(edgeIndex >= 0)  
