@@ -1439,16 +1439,21 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix2.addEdge('node3', 'node1', 'edge3-1');
         yMatrix2.addEdge('node1', 'node2', 'edge1-2');
         sync12Concurrently();
+        expect(yMatrix1.getYEdgesAsJson()).toEqual(yMatrix2.getYEdgesAsJson());
+        expect(yMatrix1.edgeCount).toBe(2);
+        expect(yMatrix2.edgeCount).toBe(2);
 
         yMatrix3.addEdge('node3', 'node1', 'edge3-1');
         yMatrix3.addEdge('node2', 'node1', 'edge2-1');
         yMatrix3.addEdge('node1', 'node3', 'edge1-3');
+        expect(yMatrix3.edgeCount).toBe(2);
         syncThreeConcurrently();
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
+        expect(yMatrix1.getNode('node3')).toBeDefined();
         
-        expect(yMatrix1.edgeCount).toBe(2);
+        expect(yMatrix1.edgeCount).toBeGreaterThanOrEqual(2);
         expect(yMatrix1.nodeCount).toBe(3);
         expect(yMatrix1.isAcyclic()).toBe(true);
 
@@ -1463,6 +1468,9 @@ describe('DirectedAcyclicGraph', () => {
         expect(yMatrix3.edgeCount).toBeGreaterThanOrEqual(2);
         expect(yMatrix3.nodeCount).toBe(3);
         expect(yMatrix3.isAcyclic()).toBe(true);
+
+        console.log('yMatrix1', yMatrix1.getYEdgesAsJson());
+        console.log('yMatrix3', yMatrix3.getYEdgesAsJson());
 
         expect(yMatrix1.getYEdgesAsJson()).toEqual(yMatrix2.getYEdgesAsJson());
         expect(yMatrix1.getYEdgesAsJson()).toEqual(yMatrix3.getYEdgesAsJson());

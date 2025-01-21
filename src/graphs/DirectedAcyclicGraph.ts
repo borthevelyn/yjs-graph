@@ -23,20 +23,13 @@ type yEdgeInformation = {
 
 export type AdjacencyMapGraph = Y.Map<NodeInformation>
 
-function addToSet<T>(set: ReadonlySet<T>, item: T): ReadonlySet<T> {
-    return new Set([item, ...set.values()])
-}
-function unionWithSets<T>(set1: ReadonlySet<T>, set2: ReadonlySet<T>): ReadonlySet<T> {
-    return new Set([...set1.values(), ...set2.values()])
-}
-
 export function nodeListToEdgeList(nodeList: ReadonlyArray<id>): ReadonlyArray<EdgeId> {
     if (nodeList.length < 2)
         return []
 
     return Array.from(
-        new Array(nodeList.length).keys())
-        .map<EdgeId>(i => `${nodeList[i]}+${nodeList[(i + 1) % nodeList.length]}`)
+        new Array(nodeList.length - 1).keys())
+        .map<EdgeId>(i => `${nodeList[i]}+${nodeList[i + 1]}`)
 }
 
 export class DirectedAcyclicGraph implements Graph {
@@ -62,6 +55,10 @@ export class DirectedAcyclicGraph implements Graph {
         this.eventEmitter?.addListener(lambda)
     }
 
+    private removeInvalidEdges() {
+        this.removeDuplicateEdges()
+        this.removeDanglingEdges()
+    }
     private removeDanglingEdges() {
         this.yMatrix.doc!.transact(() => {
             for (const source of this.yMatrix.values()) {
@@ -75,7 +72,17 @@ export class DirectedAcyclicGraph implements Graph {
             }
         });   
     }
-
+    private removeDuplicateEdges() {
+        const visitedEdges = new Map<EdgeId, number>();
+        const duplicateEdgeIdx = new Array<number>();
+        this.yEdges.forEach((item, i) => {
+            if (visitedEdges.has(item.edgeId)) {
+                duplicateEdgeIdx.push(visitedEdges.get(item.edgeId)!);
+            } 
+            visitedEdges.set(item.edgeId, i);
+        })
+        duplicateEdgeIdx.toReversed().forEach(x => this.yEdges.delete(x))
+    }
     private makeNodeInformation(node: FlowNode, edges: Y.Map<EdgeInformation>) {
         const res = new Y.Map() as NodeInformation;
         res.set('flowNode', node);
@@ -83,152 +90,320 @@ export class DirectedAcyclicGraph implements Graph {
         return res
     }
 
+    // Complexity: O(V + E)
+    // If either source or target does not exist, the function will return an empty array
+    private findPath(source: id, target: id): ReadonlyArray<id> {
+        if(this.yMatrix.get(source) === undefined || this.yMatrix.get(target) === undefined)
+            return []
 
-    // Complexity: O(V! * log(V)) (worst case)
-    private findAllPaths(source: id, target: id, excludeSet?: ReadonlySet<id>): ReadonlySet<ReadonlyArray<id>> {
-        const sourceNode = this.yMatrix.get(source)
-        
-        if (sourceNode === undefined || excludeSet?.has(source) || excludeSet?.has(target))
-            return new Set()
-        
-        const oneEdgePaths: Set<ReadonlyArray<id>> = 
-            sourceNode.get('edgeInformation').has(target) ?
-            new Set([[source, target]]) : new Set()
+        const visited = new Set<id>();
+        const path: id[] = [];
 
-        const newExclude = 
-            excludeSet === undefined ? new Set([source]) :
-            addToSet(excludeSet, source)
+        const dfs = (node: id): boolean => {
+            assert(!visited.has(node), 'graph is cyclic, but should not be (findPath)')
 
-        const multiEdgePaths =
-            new Set(
-                Array.from(sourceNode.get('edgeInformation').keys())
-                .filter(x => !newExclude.has(x))
-                .flatMap(x =>[...this.findAllPaths(x, target, newExclude)])
-                .filter(x => x.length !== 0)
-                .map(path => [source, ...path])
-            )
-            
-        return unionWithSets(multiEdgePaths, oneEdgePaths)
-    }
+            visited.add(node);
+            path.push(node);
 
-    // Returns a set of all paths described by an edge list
-    private findAllCyclesFromEdge(edgeId: EdgeId): ReadonlySet<ReadonlyArray<id>> {
-        const [source, target] = splitEdgeId(edgeId);
-        const paths = this.findAllPaths(target, source);
-        return new Set(Array.from(paths.values()).map(nodeListToEdgeList))
-    }
-    private willAddEdgeCreateCycle(edgeId: EdgeId): boolean {
-        const [source, target] = splitEdgeId(edgeId);
-        return this.findAllPaths(target, source).size !== 0;
-    }
-    private sameNodeCycle(nodeList1: ReadonlyArray<id>, nodeList2: ReadonlyArray<id>): boolean {
-        if (nodeList1.length !== nodeList2.length)
+            if (node === target)
+                return true
+
+            const nodeInfo = this.yMatrix.get(node);
+            for (const [successorNode,] of nodeInfo!.get('edgeInformation')) {
+                if (dfs(successorNode))
+                    return true
+            }
+            path.pop();
             return false
+        }
+        return dfs(source) ? path : []
+    }
 
-        const startIn2 = nodeList2.indexOf(nodeList1[0])
-        if (startIn2 < 0)
+    // Complexity: O(V + E)
+    private createsEdgeCycle(source: id, target: id): boolean {
+        return this.findPath(target, source).length > 0
+    }
+
+    // Complexity: O(V + E)
+    // Works only for directed graphs without dangling edges
+    // Reference implementation: https://www.geeksforgeeks.org/detect-cycle-in-a-graph/
+    private isCyclic(): boolean {
+        let visited = new Set<id>();
+        let recStack = new Set<id>();
+
+        const isCyclicUtil = (node: id): boolean => {
+            if (!visited.has(node)) {
+                visited.add(node);
+                recStack.add(node);
+
+                const nodeInfo = this.yMatrix.get(node);
+                assert(nodeInfo !== undefined, 'Node does not exist (isCyclic)')
+
+                for (const [successorNode,] of nodeInfo.get('edgeInformation')) {
+                    if (!visited.has(successorNode) && isCyclicUtil(successorNode)) {
+                        return true
+                    } else if (recStack.has(successorNode)) {
+                        return true
+                    }
+                }
+            }
+
+            recStack.delete(node);
             return false
+        }
 
-        for (let i = 0; i < nodeList1.length; i++)
-            if (nodeList1[i] !== nodeList2[(i + startIn2) % nodeList2.length])
-                return false
-
-        return true
-    }
-    // Returns a set of all cycles from a node
-    // Complexity: O(V!)
-    private findAllCyclesFromNode(nodeId: id): ReadonlySet<ReadonlyArray<id>> {
-        const node = this.yMatrix.get(nodeId);
-        if (node === undefined)
-            return new Set()
-
-        const successorNodes = Array.from(node.get('edgeInformation').keys())
-        return successorNodes
-            .filter(x => x !== nodeId)
-            .map(x => this.findAllPaths(x, nodeId))
-            .reduce(unionWithSets, new Set())
-    }
-    // Returns a set of all cycles in the graph. Cycles are represented as arrays of node ids.
-    // Complexity: O(V!)
-    private findAllCycles(): ReadonlySet<ReadonlyArray<id>> {
-        const allNodes = Array.from(this.yMatrix.keys())
-        const duplicatedCycles = 
-            allNodes.map(node => this.findAllCyclesFromNode(node))
-            .flatMap(x => Array.from(x.values()))
-
-        // this is just an elaborate .distinctBy(this.sameNodeCycle)
-        return new Set(
-            duplicatedCycles
-            .filter((val, i) => 
-                duplicatedCycles.findIndex(
-                    otherVal => this.sameNodeCycle(val, otherVal)) 
-                !== i)
-        )
-    }
-    // Returns a set of all edgeIds that contribute to cycles
-    // Complexity: O(V!)
-    public findAllEdgesContributingToCycles(): ReadonlySet<yEdgeInformation> {
-        return new Set(
-            Array.from(this.findAllCycles())
-            .flatMap(x => nodeListToEdgeList(x))
-            .map(x => this.yEdges.toArray().find(y => y.edgeId === x)!)
-        )
+        for (const node of this.yMatrix.keys()) {
+            if (!visited.has(node) && isCyclicUtil(node))
+                return true
+        }
+        return false
     }
 
-    private findEdgeIndex(edgeId: EdgeId): number {
-        const reverseIdx = this.yEdges.toArray().toReversed().findIndex(x => x.edgeId === edgeId);
-        return this.yEdges.length - 1 - reverseIdx
+    // Complexity: O((V + E) * (C + 1))
+    // Johnson Algorithm: https://www.cs.tufts.edu/comp/150GA/homeworks/hw1/Johnson%2075.PDF
+    // Reference implementation in Java: https://github.com/mission-peace/interview/blob/master/src/com/interview/graph/AllCyclesInDirectedGraphJohnson.java
+    private getAllCyclesInDAG(): Set<ReadonlyArray<id>> {
+        let blockedSet = new Set<number>();
+        let blockedMap = new Map<number, Set<number>>();
+        let stack = new Array<number>();
+        let allCycles = new Set<ReadonlyArray<id>>();
+
+        const nodeIdToNumberMap = new Map([...this.yMatrix.keys()].map((node, i) => [node, i+1])); 
+        const nodeNumberMapToNodeIdMap = new Map([...this.yMatrix.keys()].map((nodeId) => [nodeIdToNumberMap.get(nodeId)!, nodeId]));
+
+        const createGraphWithNumberIds = (): Map<number, Set<number>> => {
+            const graphWithNumberIds = new Map(
+                [...this.yMatrix.keys()]
+                .map((node) => 
+                    [nodeIdToNumberMap.get(node)!, new Set<number>( [...this.yMatrix.get(node)!.get('edgeInformation').keys()]
+                    .map(x => nodeIdToNumberMap.get(x)!))]));
+            return graphWithNumberIds
+        }
+        const createSubGraph = (startIndex: number, graph: Map<number, Set<number>>) => {
+            return new Map(
+                [...graph]
+                .filter(([node,]) => node >= startIndex)
+                .map(([node, successors]) => [node, new Set([...successors].filter(x => x >= startIndex))]))
+        }
+        // Complexity: O(V + E)
+        // Reference implementation: https://youcademy.org/tarjans-scc-algorithm/#implementation
+        const computeStronglyConnectedComponentsTarajan = (graph: Map<number, Set<number>>): Array<Set<number>> => {
+            // Stores discovery index of visited nodes
+            const discoveryIndex = new Map<number, number>();
+            // Stores the lowest discovery index reachable from the node
+            const lowLink = new Map<number, number>();
+            // All nodes that are not part of a strongly connected component are in the stack
+            const stack = new Array<number>();
+            const onStack = new Set<number>();
+            // Counter for discovery index of nodes
+            let counter = 0;
+            const sccs = new Array<Set<number>>();
+
+            const dfs = (currentNode: number) => {
+                discoveryIndex.set(currentNode, counter);
+                lowLink.set(currentNode, counter);
+                counter++;
+                stack.push(currentNode);
+                onStack.add(currentNode);
+
+                for (const successorNode of graph.get(currentNode)!) {
+                    // If the successor has not been discovered yet, discover it
+                    if (!discoveryIndex.has(successorNode)) {
+                        dfs(successorNode);
+                        lowLink.set(currentNode, Math.min(lowLink.get(currentNode)!, lowLink.get(successorNode)!));
+                    } else if (onStack.has(successorNode)) {
+                        lowLink.set(currentNode, Math.min(lowLink.get(currentNode)!, discoveryIndex.get(successorNode)!));
+                    }
+                }
+
+                if (lowLink.get(currentNode) === discoveryIndex.get(currentNode)) {
+                    const scc = new Set<number>();
+
+                    while(stack.length > 0) {
+                        const top = stack.pop()!;
+                        onStack.delete(top);
+                        scc.add(top);
+                        if (top === currentNode)
+                            break;
+                    }
+                    sccs.push(scc);
+                }
+            }
+
+            for (const node of graph.keys()) {
+                if (!discoveryIndex.has(node))
+                    dfs(node);
+            }
+            return sccs
+        }
+        const leastIndexSCC = (sccs: Array<Set<number>>, subGraph: Map<number, Set<number>>): [number, Map<number, Set<number>>] | undefined => {
+            let leastIndex = Number.MAX_VALUE;
+            let minSCC = new Set<number>();
+            for (const scc of sccs) {
+                if (scc.size === 1)
+                    continue;
+                for (const vertex of scc) {
+                    if (vertex < leastIndex) {
+                        leastIndex = vertex;
+                        minSCC = scc;
+                    }
+                }
+            }
+            if (leastIndex === Number.MAX_VALUE)
+                return undefined
+
+            let graphSCC = new Map<number, Set<number>> ();
+            for (const [node, edges] of subGraph.entries()) {
+                if (!minSCC.has(node))
+                    continue;
+                graphSCC.set(node, edges.intersection(minSCC))
+            }
+            return [leastIndex, graphSCC];
+        }
+
+        // removes the current node from the blocked set and all nodes that depend on the current node
+        const unblock = (uNode: number) => {
+            blockedSet.delete(uNode);
+            if (blockedMap.has(uNode)) {
+                for (const vNode of blockedMap.get(uNode)!) {
+                    if (blockedSet.has(vNode)) {
+                        unblock(vNode);
+                    }
+                }
+                blockedMap.delete(uNode);
+            }
+        }
+        const findCyclesInSCG = (startNode: number, currentNode: number, scc: Map<number, Set<number>>): boolean => {
+            let foundCycle = false;
+            stack.push(currentNode);
+            blockedSet.add(currentNode);
+
+            for (const successor of scc.get(currentNode)!) {
+                // If the successor is the start node, we have found a cycle
+                if (startNode === successor) {
+                    let cycle: ReadonlyArray<id> = [];
+                    stack.push(startNode);
+                    let stackWithNodeIDs = stack.map(x => nodeNumberMapToNodeIdMap.get(x)!);
+                    cycle = cycle.concat(stackWithNodeIDs);
+                    stack.pop();
+                    allCycles.add(cycle);
+                    foundCycle = true;
+                } else if (!blockedSet.has(successor)) {
+                    let gotCycle = findCyclesInSCG(startNode, successor, scc);
+                    foundCycle = foundCycle || gotCycle;
+                }
+            }
+
+            if (foundCycle) {
+                unblock(currentNode);
+            } else {
+                for (const successor of scc.get(currentNode)!) {
+                    blockedMap.set(successor, blockedMap.get(successor)?.add(currentNode) ?? new Set([currentNode]));
+                }
+            }
+
+            stack.pop();
+            return foundCycle;
+        }
+
+        const graph = createGraphWithNumberIds();
+        let allNodes = Array.from(graph.keys());
+        let currentIndex = 1;
+        
+        while(currentIndex <= allNodes.length) {
+            const subGraph = createSubGraph(currentIndex, graph);
+            let sccs = computeStronglyConnectedComponentsTarajan(subGraph);
+            let sccResult = leastIndexSCC(sccs, graph);
+
+            if (sccResult !== undefined) {
+                blockedSet.clear();
+                blockedMap.clear();
+                const [leastIndex, scc] = sccResult;
+                findCyclesInSCG(leastIndex, leastIndex, scc);
+                currentIndex = leastIndex + 1;
+            } else {
+                break;
+            }
+        }
+        return allCycles;
+
     }
 
-    private clockLeq(clock1: clock , clock2: clock): boolean {
+    private clockLess(clock1: clock , clock2: clock): boolean {
+        let strictlyLess = false;
         for (const [key, value] of Object.entries(clock1) as [string, number][]) {
-            console.log('clock2', clock2)
             if (value > (clock2[key] ?? 0))
                 return false
+            if (value < (clock2[key] ?? 0))
+                strictlyLess = true
         }
-        return true
-    }
-    private computeNuberOfCycles(edgeId: EdgeId): number {
-        return this.findAllCyclesFromEdge(edgeId).size
+        return strictlyLess
     }
 
     public removeCycles(): void {
         this.yEdges.doc!.transact(() => {
-            this.removeDanglingEdges();
-            let edgesContributingToCycles = this.findAllEdgesContributingToCycles(); 
+            this.removeInvalidEdges();
+            if (!this.isCyclic()) 
+                return
             
-            while (edgesContributingToCycles.size > 0) {
-                // Sort first by vector clock to ensure that only the newest changes are reverted.
-                // Then sort by number of cycles to ensure that as many cycles as possible are removed.
-                // In case of a tie, to ensure the same execution order for all clients, sort by yjs index.
+            const cycles = this.getAllCyclesInDAG();
+
+            const cycleEdgeRepresentation = (cycles: Set<ReadonlyArray<id>>): Set<Array<yEdgeInformation>> => {
+                return new Set(
+                    Array.from(cycles)
+                    .map(cycle => nodeListToEdgeList(cycle).flatMap(x => this.yEdges.toArray().find(y => y.edgeId === x)!)) 
+                )
+            }
+
+            let remainingCycles = cycleEdgeRepresentation(cycles);
+            let edgesContributingToCycles = new Set([...remainingCycles].flat());
+
+            while (remainingCycles.size > 0) {
+                const edgeIdxInYEdges = new Map(
+                    Array.from(this.yEdges).map((x, i) => [x.edgeId, i])
+                );
+
+                const renamedRemainingCycles = remainingCycles
+                const edgeContributesToCyclesMap = new Map<EdgeId, Set<yEdgeInformation[]>>(
+                    [...edgesContributingToCycles].map((e) => [e.edgeId, new Set([...renamedRemainingCycles].filter(edges => edges.find(x => x === e) !== undefined))])
+                )
+
+                const clockCompareFn = (a: yEdgeInformation, b: yEdgeInformation) => {
+                    return this.clockLess(a.clock, b.clock) ? -1 : this.clockLess(b.clock, a.clock) ? 1 : 0
+                }
+                const cycleCountCompareFn = (a: yEdgeInformation, b: yEdgeInformation) => {
+                    return edgeContributesToCyclesMap.get(a.edgeId)!.size < edgeContributesToCyclesMap.get(b.edgeId)!.size 
+                            ? -1 
+                                : edgeContributesToCyclesMap.get(b.edgeId)!.size < edgeContributesToCyclesMap.get(a.edgeId)!.size 
+                                ? 1 
+                                : 0
+                }
+                const yIndexCompareFn = (a: yEdgeInformation, b: yEdgeInformation) => {
+                    return edgeIdxInYEdges.get(a.edgeId)! < edgeIdxInYEdges.get(b.edgeId)! 
+                            ? -1 
+                                : edgeIdxInYEdges.get(b.edgeId)! < edgeIdxInYEdges.get(a.edgeId)! 
+                                ? 1 
+                                : 0
+                }
+
                 const edgesContributingToCyclesSorted = 
-                    [...edgesContributingToCycles]
-                    .sort((a, b) => 
-                        this.clockLeq(a.clock, b.clock) 
-                        ? -1  
-                            :this.clockLeq(b.clock, a.clock) 
-                            ? 1 
-                                // We know that a and b are concurrently divergent
-                                :this.computeNuberOfCycles(a.edgeId) < this.computeNuberOfCycles(b.edgeId) 
-                                ? -1 
-                                : this.computeNuberOfCycles(b.edgeId) < this.computeNuberOfCycles(a.edgeId) 
-                                    ? 1 
-                                    : this.findEdgeIndex(a.edgeId) < this.findEdgeIndex(b.edgeId) ? -1 : 1)
-                console.log('Current edges with cycle', edgesContributingToCycles)
+                    [...edgesContributingToCycles].sort(yIndexCompareFn).sort(cycleCountCompareFn).sort(clockCompareFn)
+
                 const maxEdge = edgesContributingToCyclesSorted[edgesContributingToCyclesSorted.length - 1];
-                const edgeIndex = this.findEdgeIndex(maxEdge.edgeId);
-                assert(edgeIndex >= 0, 'Edge not found in yEdges, but is part of a cycle.')
-/*                 if (edgeIndex < 0) {
-                    console.warn('Edge not found in yEdges, but is part of a cycle.')
-                    return
-                } */
-                const edgeToBeRemoved = splitEdgeId(this.yEdges.get(edgeIndex).edgeId);
+                const edgeIndex = edgeIdxInYEdges.get(maxEdge.edgeId);
+                assert(edgeIndex !== undefined, 'Edge not found in yEdges, but is part of a cycle.')
+
+                const edgeToBeRemoved = splitEdgeId(maxEdge.edgeId);
                 this.removeEdge(edgeToBeRemoved[0], edgeToBeRemoved[1]);
-                edgesContributingToCycles = this.findAllEdgesContributingToCycles();
+
+                const resolvedCycles = edgeContributesToCyclesMap.get(maxEdge.edgeId)!;
+                remainingCycles = remainingCycles.difference(resolvedCycles);
+                edgesContributingToCycles = new Set(Array.from(remainingCycles).flat()); 
+
             }
         })
     }
-    // Complexity: O(log(H))
+    // Complexity: O(1)
     addNode(nodeId: id, label: string, position: XYPosition): void {
         const innerMap = this.makeNodeInformation({ 
             id: nodeId, 
@@ -248,7 +423,7 @@ export class DirectedAcyclicGraph implements Graph {
             return
         }
 
-        if (this.willAddEdgeCreateCycle(edgeId)) {
+        if (this.createsEdgeCycle(source, target)) {
             console.warn('Cycle detected. Edge not added.');
             return
         }
@@ -261,21 +436,19 @@ export class DirectedAcyclicGraph implements Graph {
             }
             nodeInfo1.get('edgeInformation').set(target, {label});
             console.log('added edge with label, edges', label, nodeInfo1.get('edgeInformation'));
-            console.log('clock', Y.decodeStateVector(Y.encodeStateVector(this.yMatrix.doc!)))
             this.yEdges.push([{edgeId, clock: Object.fromEntries(Y.decodeStateVector(Y.encodeStateVector(this.yMatrix.doc!)))}]);
         });
     }
-    // Complexity: O(V * E)
+    // Complexity: O(V + E)
     removeNode(nodeId: id): void {
         const nodeInfo = this.yMatrix.get(nodeId);
         assert(nodeInfo !== undefined, 'Node does not exist (removeNode)')
-/*         if (nodeInfo === undefined) {
-            console.log('Node does not exist (removeNode)')
-            return 
-        } */
         this.yMatrix.doc!.transact(() => {   
             this.yMatrix.delete(nodeId)
             for (const nodeInformation of this.yMatrix.values()) {
+                if (!nodeInformation.get('edgeInformation').has(nodeId))
+                    continue;
+                
                 nodeInformation.get('edgeInformation').delete(nodeId);
                 const edgeId: EdgeId = `${nodeInformation.get('flowNode').id}+${nodeId}`;
 
@@ -326,11 +499,9 @@ export class DirectedAcyclicGraph implements Graph {
         throw new Error("Method not implemented.");
     }
     nodesAsFlow(): FlowNode[] {
-        console.log('yMat', this.yMatrix);
         assert(this.yMatrix !== undefined, 'yMatrix is undefined')
         return Array.from(this.yMatrix.values()).map(x => {
             const flowNode = x.get('flowNode');
-            console.log('node is selected', this.selectedNodes.has(flowNode.id), this.selectedNodes);
             return {
                 ...flowNode,
                 selected: this.selectedNodes.has(flowNode.id)
@@ -338,9 +509,7 @@ export class DirectedAcyclicGraph implements Graph {
         })
     }
     edgesAsFlow(): FlowEdge[] {
-        console.log('before remove', this.yMatrix.get('node1')?.get('edgeInformation'));
         this.removeDanglingEdges();
-        console.log('after remove', this.yMatrix.get('node1')?.get('edgeInformation'));
 
         const nestedEdges = 
             Array.from(this.yMatrix.entries()).map(([sourceNode, nodeInfo]) =>
@@ -385,7 +554,7 @@ export class DirectedAcyclicGraph implements Graph {
         }
     }
     isAcyclic(): boolean {
-        return this.findAllCycles().size === 0;
+        return !this.isCyclic();
     }
     isNodeSelected(nodeId: id): boolean {
         return this.selectedNodes.has(nodeId);
