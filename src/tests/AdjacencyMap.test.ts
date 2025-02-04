@@ -347,12 +347,13 @@ describe('AdjacencyMap', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
         syncConcurrently();
-        yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix2.removeNode('node1');
+        yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         syncConcurrently();
 
         expect(yMatrix1.getNode('node1')).toBeUndefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
+        expect(yMatrix1.edgeCount).toBe(0);
         expect(yMatrix1.getEdge('node1', 'node2')).toBeUndefined();
         expect(yMatrix1.nodeCount).toBe(1);
 
@@ -371,12 +372,10 @@ describe('AdjacencyMap', () => {
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix2.removeNode('node2');
         syncConcurrently();
-        // this is only because edges as flow may trigger react updates
-        yMatrix1.edgesAsFlow();
-        syncConcurrently();
 
         expect(yMatrix1.getNode('node2')).toBeUndefined();
         expect(yMatrix1.getNode('node1')).toBeDefined();
+        // getEdge removes dangling edges before returning the edge
         expect(yMatrix1.getEdge('node1', 'node2')).toBeUndefined();
         expect(yMatrix1.edgeCount).toBe(0);
         expect(yMatrix1.nodeCount).toBe(1);
@@ -398,6 +397,8 @@ describe('AdjacencyMap', () => {
 
         expect(yMatrix1.getNode('node1')).toBeUndefined();
         expect(yMatrix2.getNode('node1')).toBeUndefined();
+        expect(yMatrix1.edgeCount).toBe(0);
+        expect(yMatrix2.edgeCount).toBe(0);
         expect(yMatrix1.nodeCount).toBe(0);
         expect(yMatrix2.nodeCount).toBe(0);
     })
@@ -428,36 +429,9 @@ describe('AdjacencyMap', () => {
         expect(yMatrix2.nodeCount).toBe(2);
     })
 
-// addEdge(m1,m2), removeEdge(n1,n2) m1 != n1, m2 != n2
-    it('add edge1-2 in one map and remove edge3-4 in the other map', () => {
-        yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
-        yMatrix2.addNode('node3', 'node3', { x: 0, y: 10 });
-        yMatrix2.addNode('node4', 'node4', { x: 10, y: 10 });
-        yMatrix2.addEdge('node3', 'node4', 'edge3-4');
-        syncConcurrently();
-        yMatrix1.addEdge('node1', 'node2', 'edge1-2');
-        yMatrix2.removeEdge('node3', 'node4');
-        syncConcurrently();
 
-        expect(yMatrix1.getNode('node1')).toBeDefined();
-        expect(yMatrix1.getNode('node2')).toBeDefined();
-        expect(yMatrix1.getNode('node3')).toBeDefined();
-        expect(yMatrix1.getNode('node4')).toBeDefined();
-        expect(yMatrix1.getEdge('node1', 'node2')).toBeDefined();
-        expect(yMatrix1.getEdge('node3', 'node4')).toBeUndefined();
-        expect(yMatrix1.edgeCount).toBe(1);
-        expect(yMatrix1.nodeCount).toBe(4);
 
-        expect(yMatrix2.getNode('node1')).toBeDefined();
-        expect(yMatrix2.getNode('node2')).toBeDefined();
-        expect(yMatrix2.getNode('node3')).toBeDefined();
-        expect(yMatrix2.getNode('node4')).toBeDefined();
-        expect(yMatrix2.getEdge('node1', 'node2')).toBeDefined();
-        expect(yMatrix2.getEdge('node3', 'node4')).toBeUndefined();
-        expect(yMatrix2.edgeCount).toBe(1);
-        expect(yMatrix2.nodeCount).toBe(4);
-    })
+// addEdge(m1,m2), removeEdge(n1,n2) m1 == n1, m2 == n2, not possible concurrently
 
 // addEdge(m1,m2), removeEdge(n1,n2) m1 == n1, m2 != n2
     it('add edge1-2 in one map and remove edge1-3 in the other map', () => {

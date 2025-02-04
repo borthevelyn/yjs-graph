@@ -99,11 +99,17 @@ export class WeaklyConnectedGraph implements Graph {
                     this.selectedEdges.delete(edgeId);
                 }
                 // Removes dangling incoming nodes
-                for (const incomingNode of source.get('incomingNodes').keys()) {
+                for (const [incomingNode, edgeInformation] of source.get('incomingNodes').entries()) {
                     if (this.yMatrix.get(incomingNode) !== undefined)
                         continue
     
                     source.get('incomingNodes').delete(incomingNode);
+                    this.yRemovedGraphElements.push([
+                        { type: 'edge', 
+                            item: { 
+                                edgeId: `${incomingNode}+${source.get('flowNode').id}`, 
+                                edgeLabel: edgeInformation.label } 
+                        }]);
                 }
             }
         });
@@ -560,6 +566,11 @@ export class WeaklyConnectedGraph implements Graph {
         if (this.yMatrix.size === 0 && edgeTarget !== edgeSource) {
             console.warn('Cannot add a single node with an edge to a non-existing node');
             return; 
+        }
+
+        if (edgeSource === edgeTarget) {
+            console.warn('Cannot add an edge with the same source and target (addNodeWithEdge)');
+            return;
         }
 
         if (!(edgeSource === nodeId || edgeTarget === nodeId)) {

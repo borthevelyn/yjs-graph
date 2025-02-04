@@ -244,18 +244,18 @@ describe('WeaklyConnectedGraph', () => {
     it('add node1 in one map and then node2 with edge1-2 in the other map', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         sync12Concurrently();
-        yMatrix2.addNodeWithEdge('node2', 'node2', { x: 10, y: 0 }, 'node1', 'node2', 'edge1-2');
+        yMatrix2.addNodeWithEdge('node2', 'node2', { x: 10, y: 0 }, 'node2', 'node1', 'edge2-1');
         sync12Concurrently();
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
-        expect(yMatrix1.getEdge('node1', 'node2')).toBeDefined();
-        expect(yMatrix1.getEdge('node1', 'node2')?.data?.label).toBe('edge1-2');
+        expect(yMatrix1.getEdge('node2', 'node1')).toBeDefined();
+        expect(yMatrix1.getEdge('node2', 'node1')?.data?.label).toBe('edge2-1');
 
         expect(yMatrix2.getNode('node1')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
-        expect(yMatrix2.getEdge('node1', 'node2')).toBeDefined();
-        expect(yMatrix2.getEdge('node1', 'node2')?.data?.label).toBe('edge1-2');
+        expect(yMatrix2.getEdge('node2', 'node1')).toBeDefined();
+        expect(yMatrix2.getEdge('node2', 'node1')?.data?.label).toBe('edge2-1');
     })
 
 // addNode(m), removeNode(n), m == n, combination does not exist
@@ -904,6 +904,7 @@ describe('WeaklyConnectedGraph', () => {
         yMatrix1.removeEdge('node1', 'node2');
         yMatrix2.removeEdge('node2', 'node1');
         sync12Concurrently();
+
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();

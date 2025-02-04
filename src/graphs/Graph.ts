@@ -1,5 +1,5 @@
 import { XYPosition } from '@xyflow/react';
-import { EdgeId, FlowEdge, FlowNode, id} from '../Types';
+import { EdgeId, FlowEdge, FlowNode, id, EdgeDirection} from '../Types';
 
 export interface Graph {
     addNode(nodeId: id, label: string, position: XYPosition): void; 
@@ -21,6 +21,10 @@ export interface Graph {
     get edgeCount(): number;
     get selectedNodesCount(): number;
     get selectedEdgesCount(): number;
+}
+
+export interface WeaklyConnectedGraphWithFixedRoot extends Omit<Graph, 'addNode' | 'removeNode'> {
+    addNodeWithEdge(nodeId: id, edgeDirection: EdgeDirection, otherNodeId: id, nodeLabel: string, nodePosition: XYPosition, edgeLabel: string): void; 
 }
 
 export interface IncomingNodesGraph<NodeSet> {

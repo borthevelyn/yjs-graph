@@ -16,6 +16,7 @@ export interface ObjectYMap<TypeMap extends object> extends Omit<Y.Map<TypeMap[k
 
 export type id = string;
 export type EdgeId = `${id}+${id}`
+export type EdgeDirection = '->' | '<-'
 export function splitEdgeId(e: EdgeId): [id, id] {
     return e.split('+') as [id, id]
 }
