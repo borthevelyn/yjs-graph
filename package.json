@@ -15,6 +15,7 @@
     "@xyflow/react": "^12.3.2",
     "craco": "^0.0.3",
     "craco-wasm": "^0.0.1",
+    "csv-writer": "^1.6.0",
     "jest": "^29.7.0",
     "react": "^18.0.0",
     "react-dom": "^18.3.1",
@@ -55,8 +56,11 @@
     ]
   },
   "devDependencies": {
+    "@fast-check/jest": "^2.0.3",
     "@types/assert": "^1.5.11",
     "@types/node": "^22.10.5",
-    "jest-environment-jsdom": "^29.7.0"
+    "fast-check": "^3.23.2",
+    "jest-environment-jsdom": "^29.7.0",
+    "vitest": "^3.0.5"
   }
 }

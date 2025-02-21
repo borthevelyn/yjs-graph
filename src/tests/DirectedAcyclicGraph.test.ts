@@ -934,6 +934,29 @@ describe('DirectedAcyclicGraph', () => {
         expect(yMatrix1.getYEdgesAsJson() === yMatrix2.getYEdgesAsJson()).toBe(true);
     })
     // Syncing two graphs concurrently
+    it('add two edges forming a cycle after sync', () => {
+        yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
+        yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
+        sync12Concurrently();
+        yMatrix1.addEdge('node1', 'node2', 'edge1-2');
+        yMatrix2.addEdge('node2', 'node1', 'edge2-1');
+        sync12Concurrently();
+
+        expect(yMatrix1.getNode('node1')).toBeDefined();
+        expect(yMatrix1.getNode('node2')).toBeDefined();
+        expect(yMatrix1.edgeCount).toBe(1);
+        expect(yMatrix1.nodeCount).toBe(2);
+        expect(yMatrix1.isAcyclic()).toBe(true);
+
+        expect(yMatrix2.getNode('node1')).toBeDefined();
+        expect(yMatrix2.getNode('node2')).toBeDefined();
+        expect(yMatrix2.edgeCount).toBe(1);
+        expect(yMatrix2.nodeCount).toBe(2);
+        expect(yMatrix2.isAcyclic()).toBe(true);
+
+        expect(yMatrix1.getYEdgesAsJson()).toEqual(yMatrix2.getYEdgesAsJson());
+        expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
+    })
     it('add three edges forming a cycle after sync', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
