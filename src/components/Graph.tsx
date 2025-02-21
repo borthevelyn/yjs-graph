@@ -1,5 +1,5 @@
 import { Background, Connection, ControlButton, Controls, EdgeChange, NodeChange, ReactFlow } from '@xyflow/react'
-import { FlowEdge, FlowNode } from '../Types'
+import { EdgeId, FlowEdge, FlowNode } from '../Types'
 import { useCallback } from 'react'
 import EditLabelNode from './EditLabelNode'
 import { type Graph as GraphApi } from '../graphs/Graph'
@@ -54,7 +54,8 @@ export default function Graph({
         (changes: EdgeChange<any>[]) => changes.forEach((change) => {
         console.log('edge change', change);
         if (change.type === 'select') {
-            changeEdgeSelection(change.id, change.selected);
+            const changeId = change.id as EdgeId;
+            changeEdgeSelection(changeId, change.selected);
         }
         else
             console.warn('unhandled change!', change);

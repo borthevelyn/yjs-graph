@@ -113,6 +113,7 @@ export class DirectedAcyclicGraph implements Graph {
                 if (dfs(successorNode))
                     return true
             }
+            visited.delete(node);
             path.pop();
             return false
         }
@@ -442,7 +443,9 @@ export class DirectedAcyclicGraph implements Graph {
     // Complexity: O(V + E)
     removeNode(nodeId: id): void {
         const nodeInfo = this.yMatrix.get(nodeId);
-        assert(nodeInfo !== undefined, 'Node does not exist (removeNode)')
+        if (nodeInfo === undefined)
+            return
+
         this.yMatrix.doc!.transact(() => {   
             this.yMatrix.delete(nodeId)
             for (const nodeInformation of this.yMatrix.values()) {
@@ -561,6 +564,9 @@ export class DirectedAcyclicGraph implements Graph {
     }
     isEdgeSelected(source: id, target: id): boolean {
         return this.selectedEdges.has(`${source}+${target}`);
+    }
+    getNodesAsJson(): string {
+        return JSON.stringify(Array.from(this.yMatrix.keys()).sort());
     }
     getYEdgesAsJson(): string {
         return JSON.stringify(this.yEdges.toArray());

@@ -34,7 +34,7 @@ export class AdjacencyMap implements Graph {
         this.eventEmitter?.addListener(lambda)
     }
 
-    private removeDanglingEdges() {
+    public removeDanglingEdges() {
         for (const source of this.yMatrix.values()) {
             for (const target of source.get('edgeInformation').keys()) {
                 if (this.yMatrix.get(target) !== undefined)
@@ -44,6 +44,16 @@ export class AdjacencyMap implements Graph {
                 this.selectedEdges.delete(`${source.get('flowNode').id}+${target}`);
             }
         }
+    }
+
+    public hasNoDanglingEdges() {
+        for (const source of this.yMatrix.values()) {
+            for (const target of source.get('edgeInformation').keys()) {
+                if (this.yMatrix.get(target) === undefined)
+                    return false
+            }
+        }
+        return true
     }
 
     private setLabel(nodeId: id, label: string) {
@@ -241,6 +251,15 @@ export class AdjacencyMap implements Graph {
                 data: {label: edge.label }, 
                 selected: this.selectedEdges.has(edgeId), 
         }
+    }
+
+    getNodesAsJson(): string {
+        return JSON.stringify(Array.from(this.yMatrix.keys()).sort());
+    }
+
+    getEdgesAsJson(): string {
+        return JSON.stringify(Array.from(this.yMatrix.entries()).map(([source, nodeInfo]) => 
+            Array.from(nodeInfo.get('edgeInformation').keys()).map(target => `${source}+${target}`)).flat().sort());
     }
 
     isNodeSelected(nodeId: id) {

@@ -32,6 +32,21 @@ export class AdjacencyList implements Graph {
         this.eventEmitter?.addListener(lambda)
     }
 
+    public hasNoDanglingEdges() {
+        for (const source of this.yMatrix.values()) {
+            source.get('edgeInformation').forEach((target) => {
+                if (this.yMatrix.get(target.get('id')) === undefined)
+                    return false
+            })
+        }
+        return true
+    }
+
+    public removeInvalidEdges() {
+        this.removeDanglingEdges();
+        this.removeDuplicateEdges();
+    }
+
     private removeDanglingEdges() {
         for (const source of this.yMatrix.values()) {
             source.get('edgeInformation').forEach((target, index) => {
@@ -225,8 +240,7 @@ export class AdjacencyList implements Graph {
     }
 
     edgesAsFlow(): FlowEdge[] {
-        this.removeDanglingEdges();
-        this.removeDuplicateEdges(); 
+        this.removeInvalidEdges();
         const nestedEdges = 
             Array.from(this.yMatrix.entries()).map(([sourceNode, nodeInfo]) =>
                 Array.from(nodeInfo.get('edgeInformation')).map<FlowEdge>((edge) => {
@@ -252,8 +266,7 @@ export class AdjacencyList implements Graph {
     }
 
     getEdge(source: string, target: id): FlowEdge | undefined {
-        this.removeDanglingEdges();
-        this.removeDuplicateEdges();
+        this.removeInvalidEdges();
         let edge = this.yMatrix.get(source)?.get('edgeInformation').toArray().find((edgeInfo) => edgeInfo.get('id') === target);
         if (edge === undefined)
             return undefined
@@ -269,6 +282,18 @@ export class AdjacencyList implements Graph {
         }
     }
 
+    getNodesAsJson(): string {
+        return JSON.stringify(Array.from(this.yMatrix.keys()).sort());
+    }
+
+    getEdgesAsJson(): string {
+        return JSON.stringify(
+            Array.from(this.yMatrix.entries()).map(([sourceNode, nodeInfo]) =>
+                Array.from(nodeInfo.get('edgeInformation')).map((edge) => `${sourceNode}+${edge.get('id')}`)
+            ).flat().sort()
+        );
+    }
+
     isNodeSelected(nodeId: string): boolean {
         return this.selectedNodes.has(nodeId);
     }
@@ -282,8 +307,7 @@ export class AdjacencyList implements Graph {
     }
 
     get edgeCount(): number {
-        this.removeDanglingEdges();
-        this.removeDuplicateEdges();
+        this.removeInvalidEdges();
         return Array.from(this.yMatrix.values()).reduce((acc, nodeInfo) => acc + nodeInfo.get('edgeInformation').length, 0);
     }
 

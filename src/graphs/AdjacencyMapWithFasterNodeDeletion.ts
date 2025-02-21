@@ -38,7 +38,21 @@ export class AdjacencyMapWithFasterNodeDeletion implements Graph, IncomingNodesG
         this.eventEmitter?.addListener(lambda)
     }
 
-    private removeDanglingEdges() {
+    public hasNoDanglingEdges() {
+        for (const source of this.yMatrix.values()) {
+            for (const target of source.get('edgeInformation').keys()) {
+                if (this.yMatrix.get(target) === undefined)
+                    return false
+            }
+            for (const incomingNode of source.get('incomingNodes').keys()) {
+                if (this.yMatrix.get(incomingNode) === undefined)
+                    return false
+            }
+        }
+        return true
+    }
+
+    public removeDanglingEdges() {
         for (const source of this.yMatrix.values()) {
             for (const target of source.get('edgeInformation').keys()) {
                 if (this.yMatrix.get(target) !== undefined)
@@ -263,6 +277,15 @@ export class AdjacencyMapWithFasterNodeDeletion implements Graph, IncomingNodesG
                 data: { label: edge.label}, 
                 selected: this.selectedEdges.has(edgeId), 
         }
+    }
+
+    getNodesAsJson(): string {
+        return JSON.stringify(Array.from(this.yMatrix.keys()).sort());
+    }
+
+    getEdgesAsJson(): string {
+        return JSON.stringify(Array.from(this.yMatrix.entries()).map(([source, nodeInfo]) => 
+            Array.from(nodeInfo.get('edgeInformation').keys()).map(target => `${source}+${target}`)).flat().sort());
     }
 
     isNodeSelected(nodeId: string): boolean {
