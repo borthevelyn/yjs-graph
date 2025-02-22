@@ -8,6 +8,15 @@ function xor(a: boolean, b: boolean): boolean {
     return (a && !b) || (!a && b);
 }
 
+type BenchmarkData = {
+    danglingEdges: number,
+    connectedComponents: number,
+    paths: number,
+    restoredNodesWithEdges: number,
+    restoredEdges: number,
+    restoredPaths: number,
+}
+
 // encodes a path as an ordered collection of nodes and edges like (edge - node)* - edge
 type Path<NodePayload, EdgePayload> = {
     // (edge - node)*
@@ -145,28 +154,38 @@ function findAllPathsInGraphElements(graphElements: Array<RemovedGraphElement>):
     return new Set(
         result
         .flat()
-        .map<RestorablePath>(path => {
-            return {
-                finalEdge: path.finalEdge,
-                edges: path.edges.map(edge => {
-                    const node = graphElements.find((x): x is { type: 'edgeWithNode', item: EdgeInformationForRemovedEdgesWithNode } => 
-                        x.type === 'edgeWithNode' && x.item.nodeId === edge.nodeId)!
+        .map<RestorablePath | undefined>(path => {
+            const mappedEdges = path.edges.map(edge => {
+                const node = graphElements.find((x): x is { type: 'edgeWithNode', item: EdgeInformationForRemovedEdgesWithNode } => 
+                    x.type === 'edgeWithNode' && x.item.nodeId === edge.nodeId)
 
-                    return {
-                        edgeId: edge.edgeId,
-                        nodeId: edge.nodeId,
-                        edgePayload: {
-                            usedRemovedElements: edge.edgePayload.usedRemovedElements.union(new Set([node])),
-                            label: edge.edgePayload.label
-                        },
-                        nodePayload: {
-                            label: node.item.nodeLabel,
-                            position: node.item.nodePosition
-                        }
+                if (node === undefined)
+                    return undefined
+
+                return {
+                    edgeId: edge.edgeId,
+                    nodeId: edge.nodeId,
+                    edgePayload: {
+                        usedRemovedElements: edge.edgePayload.usedRemovedElements.union(new Set([node])),
+                        label: edge.edgePayload.label
+                    },
+                    nodePayload: {
+                        label: node.item.nodeLabel,
+                        position: node.item.nodePosition
                     }
-                })
-            }
+                }
+            })
+
+            const cleaned = mappedEdges.filter(x => x !== undefined)
+            if (cleaned.length < mappedEdges.length)
+                return undefined
+            else
+                return {
+                    finalEdge: path.finalEdge,
+                    edges: cleaned
+                }
         })
+        .filter(x => x !== undefined)
     )
 }
 /**
@@ -185,7 +204,7 @@ function mergeComponents(connectedComponents: Set<Set<id>>, componentsToBeMerged
         mergedComponents = mergedComponents.union(componentToBeMerged);
     }
 
-    return componentsSet.union(new Set([mergedComponents])).union(new Set([connectingNodes]));
+    return componentsSet.union(new Set([mergedComponents.union(connectingNodes)]));
 }
 
 type EdgeInformation = {
@@ -209,6 +228,7 @@ type EdgeInformationForRemovedEdgesWithNode = {
     nodePosition: XYPosition
     edgeInformation: Array<EdgeInformationForRemovedEdges>
     incomingNodes: Array<EdgeInformationForRemovedEdges>
+    oldYMap: NodeInformation
 } & EdgeInformationForRemovedEdges
 
 
@@ -254,6 +274,15 @@ export class FixedRootWeaklyConnectedGraph implements WeaklyConnectedGraphWithFi
 
     observe(lambda: () => void) {
         this.eventEmitter?.addListener(lambda)
+    }
+
+    public benchmarkData: BenchmarkData = {
+        danglingEdges: 0,
+        connectedComponents: 0,
+        paths: 0,
+        restoredNodesWithEdges: 0,
+        restoredEdges: 0,
+        restoredPaths: 0,
     }
 
     private makeNodeInformation(node: FlowNode, edges: Y.Map<EdgeInformation>, incomingNodes: Y.Map<EdgeInformation>) {
@@ -339,7 +368,7 @@ export class FixedRootWeaklyConnectedGraph implements WeaklyConnectedGraphWithFi
                 const [source, target] = splitEdgeId(danglingEdge.item.edgeId);
 
                 // Check if edge is not dangling anymore
-                assert(this.yMatrix.get(source) !== undefined && this.yMatrix.get(target) !== undefined, 'edge is not dangling, should not happen here');
+                assert(!(this.yMatrix.get(source) !== undefined && this.yMatrix.get(target) !== undefined), 'edge is not dangling, should not happen here');
 
                 // Delete the dangling edge
                 if (this.yMatrix.get(source)?.get('edgeInformation').has(target)) {
@@ -611,7 +640,20 @@ export class FixedRootWeaklyConnectedGraph implements WeaklyConnectedGraphWithFi
             }, 
             danglingEdgesToNode,
             danglingIncomingNodesToNode);
-            this.yMatrix.set(edgeWithNode.nodeId, innerMap);
+
+            const recycledMap = this.yMatrix.doc!.getMap(`dangling_generated_${edgeWithNode.nodeId}`) as NodeInformation
+            this.yMatrix.set(edgeWithNode.nodeId, recycledMap);
+            recycledMap.set('edgeInformation', danglingEdgesToNode)
+            recycledMap.set('incomingNodes', danglingIncomingNodesToNode)
+            recycledMap.set('flowNode', { 
+                id: edgeWithNode.nodeId, 
+                data : { label: edgeWithNode.nodeLabel }, 
+                position: edgeWithNode.nodePosition, 
+                deletable: false, 
+                // type: 'editNodeLabel',
+            })
+
+
             for (const edge of edgeWithNode.edgeInformation) {
                 const [source, target] = splitEdgeId(edge.edgeId);
                 if (this.yMatrix.get(source) === undefined || this.yMatrix.get(target) === undefined) {
@@ -660,11 +702,26 @@ export class FixedRootWeaklyConnectedGraph implements WeaklyConnectedGraphWithFi
             }
         });
     }
+
+
+
     public makeGraphWeaklyConnected(): void {
         this.yRemovedGraphElements.doc!.transact(() => {
+
+        this.benchmarkData = {
+            danglingEdges: 0,
+            connectedComponents: 0,
+            paths: 0,
+            restoredNodesWithEdges: 0,
+            restoredEdges: 0,
+            restoredPaths: 0,
+        }
+
         let danglingEdges = new Set(this.getDanglingEdges());
+        this.benchmarkData.danglingEdges = danglingEdges.size;
         console.log('danglingEdges', danglingEdges);
         let connectedComponents = this.getConnectedComponents();
+        this.benchmarkData.connectedComponents = connectedComponents.size;
         console.log('connected components', connectedComponents, connectedComponents.size);
         while (connectedComponents.size > 1) {
             const tryToConnectComponentsWithGraphElement = this.getGraphElementIdxAndMergedComponents(connectedComponents, danglingEdges);
@@ -679,6 +736,7 @@ export class FixedRootWeaklyConnectedGraph implements WeaklyConnectedGraphWithFi
                     const nodeConnectingTwoComponents = graphElementConnectingTwoComponents.item;
                     this.addYRemovedEdgeWithNode(nodeConnectingTwoComponents, danglingEdgesToRepair);
                     danglingEdges = danglingEdges.difference(danglingEdgesToRepair);
+                    this.benchmarkData.restoredNodesWithEdges++;
                     break;
                 }
                 case 'edge': {
@@ -687,6 +745,7 @@ export class FixedRootWeaklyConnectedGraph implements WeaklyConnectedGraphWithFi
                     const edgeLabel = edgeConnectingTwoComponents.edgeLabel;
                     // Added edge is removed from the removed edges list in addEdge
                     this.addEdge(source, target, edgeLabel);
+                    this.benchmarkData.restoredEdges++;
                     break;
                 }
             }
@@ -718,6 +777,8 @@ export class FixedRootWeaklyConnectedGraph implements WeaklyConnectedGraphWithFi
                     .map(x => [x, pathCost(x)])
             )
             : new Set();
+        
+        this.benchmarkData.paths = allPathsWithCostInGraph.size;
 
         while (connectedComponents.size > 1) {
             console.log('try to connect components with path')
@@ -730,7 +791,7 @@ export class FixedRootWeaklyConnectedGraph implements WeaklyConnectedGraphWithFi
                 connectedComponents = mergedComponents;
                 danglingEdges = danglingEdges.difference(danglingEdgesInPath);
                 allPathsWithCostInGraph = allPathsWithCostInGraph.difference(pathsContainedInConnectedComponents)
-
+                this.benchmarkData.restoredPaths++;
             }
             
             assert(tryToConnectComponentsWithPath !== undefined, 'Could not connect components');
@@ -886,6 +947,7 @@ export class FixedRootWeaklyConnectedGraph implements WeaklyConnectedGraphWithFi
                     nodeId: nodeRemovedWithEdge.get('flowNode').id,
                     nodeLabel: nodeRemovedWithEdge.get('flowNode').data.label,
                     nodePosition: nodeRemovedWithEdge.get('flowNode').position,
+                    oldYMap: nodeRemovedWithEdge,
                     edgeInformation: 
                         Array.from(nodeRemovedWithEdge.get('edgeInformation').entries())
                         .map<EdgeInformationForRemovedEdges>(([target, {label}]) => ({ edgeId: `${nodeRemovedWithEdge.get('flowNode').id}+${target}`, edgeLabel: label}))
@@ -1010,8 +1072,8 @@ export class FixedRootWeaklyConnectedGraph implements WeaklyConnectedGraphWithFi
         let edges = 
             Array.from(this.yMatrix.entries()).map(([sourceNode, nodeInfo]) =>
                 Array.from(nodeInfo.get('edgeInformation')).map(([targetNode,]) => {
-                    if (this.yMatrix.get(targetNode) === undefined)
-                        throw new Error('target node still dangling and contained');
+/*                     if (this.yMatrix.get(targetNode) === undefined)
+                        throw new Error('target node still dangling and contained'); */
                     return [sourceNode + '+' + targetNode]
                 })).flat()
         return JSON.stringify(edges.sort());
@@ -1020,8 +1082,8 @@ export class FixedRootWeaklyConnectedGraph implements WeaklyConnectedGraphWithFi
         let edges = 
             Array.from(this.yMatrix.entries()).map(([sourceNode, nodeInfo]) =>
                 Array.from(nodeInfo.get('incomingNodes')).map(([targetNode,]) => {
-                    if (this.yMatrix.get(targetNode) === undefined)
-                        throw new Error('target node still dangling and contained'); 
+/*                     if (this.yMatrix.get(targetNode) === undefined)
+                        throw new Error('target node still dangling and contained');  */
                     return [sourceNode + '+' + targetNode]
                 })).flat()
         return JSON.stringify(edges.sort());
