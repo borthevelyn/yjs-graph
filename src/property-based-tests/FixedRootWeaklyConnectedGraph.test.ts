@@ -131,7 +131,7 @@ describe('properties', () => {
             ),
             async (commands) => {
             const yDocs = Array.from({ length: clientCount }, () => new Y.Doc())
-            const yGraphs = yDocs.map((yDoc, i) => new FixedRootWeaklyConnectedGraph(yDoc.getMap('adjacency map'), yDoc.getArray('graphElements'), i === 0))
+            const yGraphs = yDocs.map((yDoc) => new FixedRootWeaklyConnectedGraph(yDoc))
             createGraph(yGraphs[0], initialGraphSize);
             expect(yGraphs[0].nodeCount).toBe(initialGraphSize);
             await syncConcurrently(yDocs, yGraphs);
@@ -243,7 +243,7 @@ describe('properties', () => {
             ),
             async (commands) => {
             const yDocs = Array.from({ length: clientCount }, () => new Y.Doc())
-            const yGraphs = yDocs.map((yDoc, i) => new FixedRootWeaklyConnectedGraph(yDoc.getMap('adjacency map'), yDoc.getArray('graphElements'), i === 0))
+            const yGraphs = yDocs.map((yDoc) => new FixedRootWeaklyConnectedGraph(yDoc))
 
             yGraphs[0].addNodeWithEdge('0', '<-', 'root', `$node0`, { x: 0, y: 0 }, `$root+0`);
             await syncConcurrently(yDocs, yGraphs);
@@ -258,9 +258,6 @@ describe('properties', () => {
             for (let i = 1; i < yGraphs.length; i++) {
                 yGraphs[i].removeEdge(`${i - 1}`, `${i}`);
             }
-
-            // expect(yGraphs[0].nodeCount).toBe(initialGraphSize);
-            // await syncConcurrently(yDocs, yGraphs);
 
             const freeNodeIds = Array.from({ length: maxGraphSize - initialGraphSize }, (_, i) => i + (initialGraphSize - 2) + 1)
             console.log(freeNodeIds)
@@ -293,10 +290,6 @@ describe('properties', () => {
             await csvWriter.writeRecords([{client: 'next round', op: '', arguments: ''}]);
             await syncConcurrently(yDocs, yGraphs);
             for (let i = 0; i < yGraphs.length; i++) {
-                const res = (yGraphs[i] as any).getConnectedComponents()
-                if (!yGraphs[0].isWeaklyConnected()) {
-                    const res2 = (yGraphs[i] as any).getConnectedComponents()
-                }
                 expect(yGraphs[i].isWeaklyConnected()).toBe(true);
                 expect(yGraphs[i].nodeCount).toEqual(yGraphs[0].nodeCount);
                 expect(yGraphs[i].edgeCount).toEqual(yGraphs[0].edgeCount);
@@ -308,9 +301,6 @@ describe('properties', () => {
         { 
             numRuns: 1000,
             verbose: true,
-            seed: -2132014208, 
-            path: "6:1:1:1:2:3:0:1:1:1:0:0:0:0:0:1:0:5:3:2:1:0:0:1:1:0:0:0:0:4:2:0:1:0:1:2:1:0:0:0:0:1:1:1:0:0:1:0:1:0:1:0:0:2:1:2:0:1:2:1:0:0:1:1:0:1:0:0:2:0:3:0:2:1:1:0:2:1:0:1:0:1:1:2:1:2:0:2:0:0:3:3:0:0:0:1:1:1:2:0:1:1:0:2:0:0:0:1:2:4:0:1:2:1:2:1:0:0:2:3:0:0:0:0:0:0:0:2:1:1:1:3:0:0:1:2:0:0:0:2:1:1:4:4:3:1:1:0:0:0:1:1:1:0:1:0:0:0:0:2:3:3:1:0:0:2:0:5:0:0:0:1:2:0:0:1:1:0:1:6:0:0:3:1:3:2:2:0:0:1:1:0:1:0:2:1:0:0:1:0:0:0:0:0:8:0:2", 
-            endOnFailure: true
         },
         );
     }, 50000000);
