@@ -625,6 +625,28 @@ describe('DirectedAcyclicGraph', () => {
         expect(yMatrix2.edgeCount).toBe(1);
         expect(yMatrix2.nodeCount).toBe(3);
     })
+    
+// addEdge(m1,m2), removeEdge(n1,n2) m1 == n1, m2 == n2
+    it('add edge1-2 in one map and remove edge1-2 in the other map', () => {
+        yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
+        yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
+        yMatrix1.addEdge('node1', 'node2', 'edge1-2');
+        sync12Concurrently();
+
+        yMatrix1.addEdge('node1', 'node2', 'new-edge1-2');
+        yMatrix2.removeEdge('node1', 'node2');
+        sync12Concurrently();
+
+        expect(yMatrix1.nodeCount).toBe(2);
+        expect(yMatrix1.edgeCount).toBe(1);
+        expect(yMatrix1.getNode('node1')).toBeDefined();
+        expect(yMatrix1.getNode('node2')).toBeDefined();
+        expect(yMatrix1.getEdge('node1', 'node2')).toBeDefined();
+        expect(yMatrix1.getEdge('node1', 'node2')?.data?.label).toBe('new-edge1-2');
+        expect(yMatrix1.getNodesAsJson()).toEqual(yMatrix2.getNodesAsJson());
+        expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
+        expect(yMatrix1.getYEdgesAsJson()).toEqual(yMatrix2.getYEdgesAsJson());
+    })
 
 // removeNode(m), removeNode(n) n == m
     it('remove node1 in one map and remove node1 in the other map', () => {
