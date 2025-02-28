@@ -1,5 +1,6 @@
 const jestConfig = {
     verbose: true,
+    silent: true,
     collectCoverage: true,
     collectCoverageFrom: ['src/**/*.{ts,tsx}', '!src/**/*.d.ts', '!**/vendor/**'],
     coverageDirectory: 'coverage',

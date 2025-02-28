@@ -5,7 +5,21 @@ import { assert } from 'console';
 
 describe('properties', () => {
     fc.configureGlobal({ baseSize: 'medium' });
-    function syncConcurrently(yDocs: Y.Doc[], yGraphs: DirectedAcyclicGraph[]) {
+    const createExecutionTimeCsvWriter = require('csv-writer').createObjectCsvWriter;
+    const csvWriterExecutionTime = createExecutionTimeCsvWriter({
+        path: './dagExecutionTime.csv',
+        header: [
+            {id: 'graphNodes', title: 'Node count'},
+            {id: 'graphEdges', title: 'Edge count'},
+            {id: 'executionTime', title: 'Execution time'},
+            {id: 'cycles', title: 'Cycles'},
+            {id: 'cycleResolutionSteps', title: 'Cycle resolution steps'},
+            {id: 'yEdges', title: 'yEdges'},
+        ]
+    });
+    async function syncConcurrently(yDocs: Y.Doc[], yGraphs: DirectedAcyclicGraph[]) {
+        if (yDocs.length < 2) return;
+
         let updatesMap = new Map<number, Array<Uint8Array<ArrayBufferLike>>>()
         for (let i = 0; i < yDocs.length; i++) {
             let updates = new Array<Uint8Array<ArrayBufferLike>>()
@@ -22,7 +36,19 @@ describe('properties', () => {
             }
         }
         for (const graph of yGraphs) {
-            graph.removeCycles()
+            
+            performance.mark('start');
+            graph.removeCycles();
+            performance.mark('end');
+
+            await csvWriterExecutionTime.writeRecords([{
+                graphNodes: graph.nodeCount, 
+                graphEdges: graph.edgeCount, 
+                executionTime: performance.measure('makeGraphWeaklyConnected', 'start', 'end').duration,
+                cycles: graph.benchmarkData.cycles,
+                cycleResolutionSteps: graph.benchmarkData.cycleResolutionSteps,
+                yEdges: graph.benchmarkData.yEdges
+            }]);
         }
     }
 
@@ -32,10 +58,19 @@ describe('properties', () => {
         }
     }
 
-    function runAcyclicityTest(clientCount: number, initialGraphSize: number, maxGraphSize: number, maxOperationsPerRoundCount: number, iteration: number = 0) {
+    async function runAcyclicityTest(clientCount: number, initialGraphSize: number, maxGraphSize: number, maxOperationsPerRoundCount: number, iteration: number = 0) {
+        const createCsvWriter = require('csv-writer').createObjectCsvWriter;
+        const csvWriter = createCsvWriter({
+            path: './file.csv',
+            header: [
+                {id: 'client', title: 'client'},
+                {id: 'op', title: 'op'},
+                {id: 'arguments', title: 'arguments'},
+            ],
+        });
         assert(initialGraphSize < maxGraphSize);
-        fc.assert(
-        fc.property(
+        await fc.assert(
+        fc.asyncProperty(
             fc.constant(iteration),
             fc.array(
                 fc.tuple(
@@ -47,57 +82,68 @@ describe('properties', () => {
                         }),
                         fc.record({
                             op: fc.constant<'removeNode'>('removeNode'),
-                            nodeId: fc.integer({ min: 1, max: maxGraphSize }),
                         }),
                         {
                             arbitrary:
                                 fc.record({
                                     op: fc.constant<'addEdge'>('addEdge'),
-                                    from: fc.integer({ min: 1, max: maxGraphSize }),
-                                    to: fc.integer({ min: 1, max: maxGraphSize }),
                                 }),
                             weight: 6
                         },
                         fc.record({
                             op: fc.constant<'removeEdge'>('removeEdge'),
-                            from: fc.integer({ min: 1, max: maxGraphSize }),
-                            to: fc.integer({ min: 1, max: maxGraphSize }),
                         }),
                         fc.record({
                             op: fc.constant<'sync'>('sync'),
                             clients: fc.uniqueArray(fc.integer({ min: 0, max: clientCount-1 }), { minLength: 2, maxLength: clientCount }),
                         }
                         )
-                    )
+                    ),
+                    // refer to https://fast-check.dev/docs/core-blocks/arbitraries/primitives/number/
+                    fc.noBias(fc.integer({ min: 0, max: (1 << 24) - 1 }).map((v) => v / (1 << 24))),
+                    fc.noBias(fc.integer({ min: 0, max: (1 << 24) - 1 }).map((v) => v / (1 << 24))),
                 ),
-                { minLength: 5, maxLength: maxOperationsPerRoundCount }
+                { minLength: 15, maxLength: maxOperationsPerRoundCount }
             ),
-            (iteration, commands) => {
+            async (iteration, commands) => {
             const yDocs = Array.from({ length: clientCount }, () => new Y.Doc())
             const yGraphs = yDocs.map((yDoc) => new DirectedAcyclicGraph(yDoc.getMap('adjacency map'), yDoc.getArray('edges')))
             createGraph(yGraphs[0], initialGraphSize);
-            syncConcurrently(yDocs, yGraphs);
+            await syncConcurrently(yDocs, yGraphs);
 
             const freeNodeIds = Array.from({ length: maxGraphSize - initialGraphSize }, (_, i) => i + initialGraphSize + 1)
-            for (const [clientIdx, operation] of commands) {
+            for (const [clientIdx, operation, rnd1, rnd2] of commands) {
+                const nodesInGraph = yGraphs[clientIdx].nodeIds;
+                const sourceNode = nodesInGraph[Math.floor(rnd1 * yGraphs[clientIdx].nodeCount)];
+                const targetNode = nodesInGraph[Math.floor(rnd2 * yGraphs[clientIdx].nodeCount)];
                 if (operation.op === 'addNode') {
                     if (freeNodeIds.length === 0) 
                         continue;
                     const nodeId = freeNodeIds.shift()!.toString();
                     yGraphs[clientIdx].addNode(nodeId, nodeId, operation.position)
+                    await csvWriter.writeRecords([{client: clientIdx.toString(), op: operation.op, arguments: `${nodeId}`}]);
                 } else if (operation.op === 'removeNode') {
-                    yGraphs[clientIdx].removeNode(operation.nodeId.toString())
+                    yGraphs[clientIdx].removeNode(sourceNode)
+                    await csvWriter.writeRecords([{client: clientIdx.toString(), op: operation.op, arguments: `${sourceNode}`}]);
                 } else if (operation.op === 'addEdge') {
-                    yGraphs[clientIdx].addEdge(operation.from.toString(), operation.to.toString(), `edge${operation.from}+${operation.to}`)
+                    if (sourceNode === targetNode) 
+                        continue;
+                    yGraphs[clientIdx].addEdge(sourceNode, targetNode, `edge${sourceNode}+${targetNode}`)
+                    await csvWriter.writeRecords([{client: clientIdx.toString(), op: operation.op, arguments: `${sourceNode} -> ${targetNode}`}]);
                 } else if (operation.op === 'removeEdge') {
-                    yGraphs[clientIdx].removeEdge(operation.from.toString(), operation.to.toString())
+                    if (sourceNode === targetNode) 
+                        continue;
+                    yGraphs[clientIdx].removeEdge(sourceNode, targetNode)
+                    await csvWriter.writeRecords([{client: clientIdx.toString(), op: operation.op, arguments: `${sourceNode} -> ${targetNode}`}]);
                 } else if (operation.op === 'sync') {
                     let docs = yDocs.filter((_, index) => operation.clients.includes(index))
                     let graphs = yGraphs.filter((_, index) => operation.clients.includes(index))
-                    syncConcurrently(docs, graphs);
+                    await syncConcurrently(docs, graphs);
+                    await csvWriter.writeRecords([{client: '', op: operation.op, arguments: operation.clients.toString()}]);
                 }
             }
-            syncConcurrently(yDocs, yGraphs);
+            await csvWriter.writeRecords([{client: 'next round', op: '', arguments: ''}]);
+            await syncConcurrently(yDocs, yGraphs);
             for (let i = 0; i < yGraphs.length; i++) {
                 expect(yGraphs[i].isAcyclic()).toBe(true);
                 expect(yGraphs[i].nodeCount).toEqual(yGraphs[0].nodeCount);
@@ -133,38 +179,38 @@ describe('properties', () => {
         expect(yGraphs[0].getYEdgesAsJson()).toEqual(yGraphs[1].getYEdgesAsJson());
     });
 
-    test('graph should always be acyclic', () => {
+    test('graph should always be acyclic', async () => {
         const clientCount = 5;
         const initialGraphSize = 5;
         const maxGraphSize = 10;
-        const maxOperationsPerRoundCount = 10;
-        runAcyclicityTest(clientCount, initialGraphSize, maxGraphSize, maxOperationsPerRoundCount);
-    });
+        const maxOperationsPerRoundCount = 30;
+        await runAcyclicityTest(clientCount, initialGraphSize, maxGraphSize, maxOperationsPerRoundCount);
+    }, 50000000);
 
-    // This test takes 7 minutes to run!
-    test('general test with many clients', () => {
+    // This test takes 18 minutes to run!
+    test('general test with many clients', async () => {
         const clientCount = 10;
         const initialGraphSize = 5;
         const maxGraphSize = 10;
-        const maxOperationsPerRoundCount = 10;
+        const maxOperationsPerRoundCount = 30;
         for (let i = 0; i < 5; i++) {
-            runAcyclicityTest(clientCount + i*10, initialGraphSize, maxGraphSize, maxOperationsPerRoundCount, i);
+            await runAcyclicityTest(clientCount + i*10, initialGraphSize, maxGraphSize, maxOperationsPerRoundCount, i);
         }
-    });
+    }, 50000000);
 
     // Initial graph size: 5, 10, 15, 20, 25, ..., 50
     // Max graph size: 10, 20, 30, 40, 50, ..., 100
     // Max operations per round count: 10, 20, 30, 40, 50, ..., 100
     // This test takes 7 minutes to run!
-    test('general test with different graph sizes', () => {
+    test('general test with different graph sizes', async () => {
         const clientCount = 5;
         const initialGraphSize = 5;
         const maxGraphSize = 10;
-        const maxOperationsPerRoundCount = 10;
+        const maxOperationsPerRoundCount = 30;
         for (let i = 0; i < 10; i++) {
-            runAcyclicityTest(clientCount, initialGraphSize + 5 * i, maxGraphSize + 10 * i, maxOperationsPerRoundCount + 10 * i, i);
+            await runAcyclicityTest(clientCount, initialGraphSize + 5 * i, maxGraphSize + 10 * i, maxOperationsPerRoundCount + 10 * i, i);
         }
-    });
+    }, 50000000);
 
 
     // Test specific seeds failed in bigger tests
