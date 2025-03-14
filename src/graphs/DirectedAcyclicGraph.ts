@@ -13,6 +13,7 @@ type BenchmarkData = {
 type EdgeInformation = {
     label: string
 }
+
 type NodeInformation = ObjectYMap<{
     flowNode: FlowNode
     // This map may contain dangling edges because of Yjs synchronization
@@ -368,7 +369,79 @@ export class DirectedAcyclicGraph implements Graph {
         yEdges: 0,
     }
 
-    public removeCycles(): void {
+    private removeCyclesOptimized(remainingCycles: Set<yEdgeInformation[]>, edgesContributingToCycles: Set<yEdgeInformation>): void {
+        while (remainingCycles.size > 0) {
+            const edgeIdxInYEdges = new Map(
+                Array.from(this.yEdges).map((x, i) => [x.edgeId, i])
+            );
+
+            const renamedRemainingCycles = remainingCycles
+            const edgeContributesToCyclesMap = new Map<EdgeId, Set<yEdgeInformation[]>>(
+                [...edgesContributingToCycles].map((e) => [e.edgeId, new Set([...renamedRemainingCycles].filter(edges => edges.find(x => x === e) !== undefined))])
+            )
+
+            const clockCompareFn = (a: yEdgeInformation, b: yEdgeInformation) => {
+                return this.clockLess(a.clock, b.clock) ? -1 : this.clockLess(b.clock, a.clock) ? 1 : 0
+            }
+            const cycleCountCompareFn = (a: yEdgeInformation, b: yEdgeInformation) => {
+                return edgeContributesToCyclesMap.get(a.edgeId)!.size < edgeContributesToCyclesMap.get(b.edgeId)!.size 
+                        ? -1 
+                            : edgeContributesToCyclesMap.get(b.edgeId)!.size < edgeContributesToCyclesMap.get(a.edgeId)!.size 
+                            ? 1 
+                            : 0
+            }
+            const yIndexCompareFn = (a: yEdgeInformation, b: yEdgeInformation) => {
+                return edgeIdxInYEdges.get(a.edgeId)! < edgeIdxInYEdges.get(b.edgeId)! 
+                        ? -1 
+                            : edgeIdxInYEdges.get(b.edgeId)! < edgeIdxInYEdges.get(a.edgeId)! 
+                            ? 1 
+                            : 0
+            }
+
+            const edgesContributingToCyclesSorted = 
+                [...edgesContributingToCycles].sort(yIndexCompareFn).sort(cycleCountCompareFn).sort(clockCompareFn)
+
+            const maxEdge = edgesContributingToCyclesSorted[edgesContributingToCyclesSorted.length - 1];
+            const edgeIndex = edgeIdxInYEdges.get(maxEdge.edgeId);
+            assert(edgeIndex !== undefined, 'Edge not found in yEdges, but is part of a cycle.')
+
+            const edgeToBeRemoved = splitEdgeId(maxEdge.edgeId);
+            this.removeEdge(edgeToBeRemoved[0], edgeToBeRemoved[1]);
+            this.benchmarkData.cycleResolutionSteps++;
+
+            const resolvedCycles = edgeContributesToCyclesMap.get(maxEdge.edgeId)!;
+            remainingCycles = remainingCycles.difference(resolvedCycles);
+            edgesContributingToCycles = new Set(Array.from(remainingCycles).flat()); 
+        }
+
+    }
+
+    private removeCyclesNotOptimized(remainingCycles: Set<yEdgeInformation[]>, edgesContributingToCycles: Set<yEdgeInformation>): void {
+        while (remainingCycles.size > 0) {
+            const renamedRemainingCycles = remainingCycles
+            const edgeContributesToCyclesMap = new Map<EdgeId, Set<yEdgeInformation[]>>(
+                [...edgesContributingToCycles].map((e) => [e.edgeId, new Set([...renamedRemainingCycles].filter(edges => edges.find(x => x === e) !== undefined))])
+            )
+            const findEdgeIndex = (edgesContributingToCycles: Set<yEdgeInformation>) => {
+                const reverseIdx = this.yEdges.toArray().reverse().findIndex((edge) => edgesContributingToCycles.has(edge));
+                return this.yEdges.length - 1 - reverseIdx
+            }
+            const edgeIndex = findEdgeIndex(edgesContributingToCycles);
+            assert(edgeIndex !== -1, 'Edge not found in yEdges, but is part of a cycle.')
+
+            const edgeToBeRemoved = this.yEdges.get(edgeIndex).edgeId;
+            const [source, target] = splitEdgeId(edgeToBeRemoved);
+            this.removeEdge(source, target);
+            this.benchmarkData.cycleResolutionSteps++;
+
+            const resolvedCycles = edgeContributesToCyclesMap.get(edgeToBeRemoved)!;
+            remainingCycles = remainingCycles.difference(resolvedCycles);
+            edgesContributingToCycles = new Set(Array.from(remainingCycles).flat()); 
+        }
+
+    }
+
+    public removeCycles(optimized: boolean = true): void {
         this.yEdges.doc!.transact(() => {
             this.benchmarkData = {
                 cycles: 0,
@@ -393,49 +466,10 @@ export class DirectedAcyclicGraph implements Graph {
             let remainingCycles = cycleEdgeRepresentation(cycles);
             let edgesContributingToCycles = new Set([...remainingCycles].flat());
 
-            while (remainingCycles.size > 0) {
-                const edgeIdxInYEdges = new Map(
-                    Array.from(this.yEdges).map((x, i) => [x.edgeId, i])
-                );
-
-                const renamedRemainingCycles = remainingCycles
-                const edgeContributesToCyclesMap = new Map<EdgeId, Set<yEdgeInformation[]>>(
-                    [...edgesContributingToCycles].map((e) => [e.edgeId, new Set([...renamedRemainingCycles].filter(edges => edges.find(x => x === e) !== undefined))])
-                )
-
-                const clockCompareFn = (a: yEdgeInformation, b: yEdgeInformation) => {
-                    return this.clockLess(a.clock, b.clock) ? -1 : this.clockLess(b.clock, a.clock) ? 1 : 0
-                }
-                const cycleCountCompareFn = (a: yEdgeInformation, b: yEdgeInformation) => {
-                    return edgeContributesToCyclesMap.get(a.edgeId)!.size < edgeContributesToCyclesMap.get(b.edgeId)!.size 
-                            ? -1 
-                                : edgeContributesToCyclesMap.get(b.edgeId)!.size < edgeContributesToCyclesMap.get(a.edgeId)!.size 
-                                ? 1 
-                                : 0
-                }
-                const yIndexCompareFn = (a: yEdgeInformation, b: yEdgeInformation) => {
-                    return edgeIdxInYEdges.get(a.edgeId)! < edgeIdxInYEdges.get(b.edgeId)! 
-                            ? -1 
-                                : edgeIdxInYEdges.get(b.edgeId)! < edgeIdxInYEdges.get(a.edgeId)! 
-                                ? 1 
-                                : 0
-                }
-
-                const edgesContributingToCyclesSorted = 
-                    [...edgesContributingToCycles].sort(yIndexCompareFn).sort(cycleCountCompareFn).sort(clockCompareFn)
-
-                const maxEdge = edgesContributingToCyclesSorted[edgesContributingToCyclesSorted.length - 1];
-                const edgeIndex = edgeIdxInYEdges.get(maxEdge.edgeId);
-                assert(edgeIndex !== undefined, 'Edge not found in yEdges, but is part of a cycle.')
-
-                const edgeToBeRemoved = splitEdgeId(maxEdge.edgeId);
-                this.removeEdge(edgeToBeRemoved[0], edgeToBeRemoved[1]);
-                this.benchmarkData.cycleResolutionSteps++;
-
-                const resolvedCycles = edgeContributesToCyclesMap.get(maxEdge.edgeId)!;
-                remainingCycles = remainingCycles.difference(resolvedCycles);
-                edgesContributingToCycles = new Set(Array.from(remainingCycles).flat()); 
-            }
+            if (optimized) 
+                this.removeCyclesOptimized(remainingCycles, edgesContributingToCycles);
+            else 
+                this.removeCyclesNotOptimized(remainingCycles, edgesContributingToCycles);
         })
     }
     // Complexity: O(1)

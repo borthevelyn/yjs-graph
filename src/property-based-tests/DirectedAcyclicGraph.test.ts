@@ -9,6 +9,7 @@ describe('properties', () => {
     const csvWriterExecutionTime = createExecutionTimeCsvWriter({
         path: './dagExecutionTime.csv',
         header: [
+            {id: 'optimized', title: 'Optimized'},
             {id: 'graphNodes', title: 'Node count'},
             {id: 'graphEdges', title: 'Edge count'},
             {id: 'executionTime', title: 'Execution time'},
@@ -17,7 +18,7 @@ describe('properties', () => {
             {id: 'yEdges', title: 'yEdges'},
         ]
     });
-    async function syncConcurrently(yDocs: Y.Doc[], yGraphs: DirectedAcyclicGraph[]) {
+    async function syncConcurrently(yDocs: Y.Doc[], yGraphs: DirectedAcyclicGraph[], optimized: boolean = true) {
         if (yDocs.length < 2) return;
 
         let updatesMap = new Map<number, Array<Uint8Array<ArrayBufferLike>>>()
@@ -38,13 +39,14 @@ describe('properties', () => {
         for (const graph of yGraphs) {
             
             performance.mark('start');
-            graph.removeCycles();
+            graph.removeCycles(optimized);
             performance.mark('end');
 
             await csvWriterExecutionTime.writeRecords([{
+                optimized: optimized,
                 graphNodes: graph.nodeCount, 
                 graphEdges: graph.edgeCount, 
-                executionTime: performance.measure('makeGraphWeaklyConnected', 'start', 'end').duration,
+                executionTime: performance.measure('removeCycles', 'start', 'end').duration,
                 cycles: graph.benchmarkData.cycles,
                 cycleResolutionSteps: graph.benchmarkData.cycleResolutionSteps,
                 yEdges: graph.benchmarkData.yEdges
@@ -56,6 +58,108 @@ describe('properties', () => {
         for (let i = 1; i <= n; i++) {
             graph.addNode(i.toString(), i.toString(), { x: 0, y: 0 })
         }
+    }
+
+    const createCsvWriter = require('csv-writer').createObjectCsvWriter;
+    const csvWriterForBenchmarks = createCsvWriter({
+        path: './fileBenchmarks.csv',
+        header: [
+            {id: 'client', title: 'client'},
+            {id: 'op', title: 'op'},
+            {id: 'arguments', title: 'arguments'},
+        ],
+    });
+
+    async function acyclicityTestForBenchmarks(
+        optimized: boolean,
+        clientCount: number, 
+        initialGraphSize: number, 
+        maxGraphSize: number, 
+        commands: [number, {
+            op: "addNode";
+            position: {
+                x: number;
+                y: number;
+            };
+        } |  {
+            op: "addEdge";
+        }, number, number][]) {
+
+        const yDocs = Array.from({ length: clientCount }, () => new Y.Doc())
+        const yGraphs = yDocs.map((yDoc) => new DirectedAcyclicGraph(yDoc.getMap('adjacency map'), yDoc.getArray('edges')))
+        createGraph(yGraphs[0], initialGraphSize);
+        await syncConcurrently(yDocs, yGraphs, optimized);
+
+        const freeNodeIds = Array.from({ length: maxGraphSize - initialGraphSize }, (_, i) => i + initialGraphSize + 1)
+        for (const [clientIdx, operation, rnd1, rnd2] of commands) {
+            const nodesInGraph = yGraphs[clientIdx].nodeIds;
+            const sourceNode = nodesInGraph[Math.floor(rnd1 * yGraphs[clientIdx].nodeCount)];
+            const targetNode = nodesInGraph[Math.floor(rnd2 * yGraphs[clientIdx].nodeCount)];
+            if (operation.op === 'addNode') {
+                if (freeNodeIds.length === 0) 
+                    continue;
+                const nodeId = freeNodeIds.shift()!.toString();
+                yGraphs[clientIdx].addNode(nodeId, nodeId, operation.position)
+                await csvWriterForBenchmarks.writeRecords([{client: clientIdx.toString(), op: operation.op, arguments: `${nodeId}`}]);
+            } else if (operation.op === 'addEdge') {
+                if (sourceNode === targetNode) 
+                    continue;
+                yGraphs[clientIdx].addEdge(sourceNode, targetNode, `edge${sourceNode}+${targetNode}`)
+                await csvWriterForBenchmarks.writeRecords([{client: clientIdx.toString(), op: operation.op, arguments: `${sourceNode} -> ${targetNode}`}]);
+            }
+        }
+        await syncConcurrently(yDocs, yGraphs, optimized);
+        await csvWriterForBenchmarks.writeRecords([{client: 'next round', op: '', arguments: ''}]);
+
+        for (let i = 0; i < yGraphs.length; i++) {
+            expect(yGraphs[i].isAcyclic()).toBe(true);
+            expect(yGraphs[i].nodeCount).toEqual(yGraphs[0].nodeCount);
+            expect(yGraphs[i].edgeCount).toEqual(yGraphs[0].edgeCount);
+            expect(yGraphs[i].getNodesAsJson()).toEqual(yGraphs[0].getNodesAsJson());
+            expect(yGraphs[i].getEdgesAsJson()).toEqual(yGraphs[0].getEdgesAsJson());
+            expect(yGraphs[i].getYEdgesAsJson()).toEqual(yGraphs[0].getYEdgesAsJson());
+        }
+    }
+    async function runAcyclicityTestForBenchmarks(clientCount: number, initialGraphSize: number, maxGraphSize: number, minOperationsPerRoundCount: number, maxOperationsPerRoundCount: number, iteration: number = 0) {
+        assert(initialGraphSize < maxGraphSize);
+        await fc.assert(
+        fc.asyncProperty(
+            fc.constant(iteration),
+            fc.array(
+                fc.tuple(
+                    fc.integer({ min: 0, max: clientCount - 1 }), 
+                    fc.oneof(
+                        {
+                            arbitrary:
+                                fc.record({
+                                    op: fc.constant<'addNode'>('addNode'),
+                                    position: fc.constant({ x: 0, y: 0 })
+                                }),
+                            weight: 2
+                        },
+                        {
+                            arbitrary:
+                                fc.record({
+                                    op: fc.constant<'addEdge'>('addEdge'),
+                                }),
+                            weight: minOperationsPerRoundCount
+                        }
+                    ),
+                    // refer to https://fast-check.dev/docs/core-blocks/arbitraries/primitives/number/
+                    fc.noBias(fc.integer({ min: 0, max: (1 << 24) - 1 }).map((v) => v / (1 << 24))),
+                    fc.noBias(fc.integer({ min: 0, max: (1 << 24) - 1 }).map((v) => v / (1 << 24))),
+                ),
+                { minLength: minOperationsPerRoundCount, maxLength: maxOperationsPerRoundCount }
+            ),
+            async (iteration, commands) => {
+                await acyclicityTestForBenchmarks(true, clientCount, initialGraphSize, maxGraphSize, commands);
+                await acyclicityTestForBenchmarks(false, clientCount, initialGraphSize, maxGraphSize, commands);
+        }),
+        { 
+            numRuns: 1000,
+            verbose: true,
+        },
+        );
     }
 
     async function runAcyclicityTest(clientCount: number, initialGraphSize: number, maxGraphSize: number, maxOperationsPerRoundCount: number, iteration: number = 0) {
@@ -160,15 +264,15 @@ describe('properties', () => {
         );
     }
     
-    test('simple test', () => {
+    test('simple test', async () => {
         const yDocs = Array.from({ length: 2 }, () => new Y.Doc())
         const yGraphs = yDocs.map((yDoc) => new DirectedAcyclicGraph(yDoc.getMap('adjacency map'), yDoc.getArray('edges')))
 
         createGraph(yGraphs[0], 2);
-        syncConcurrently(yDocs, yGraphs);
+        await syncConcurrently(yDocs, yGraphs);
         yGraphs[0].addEdge('1', '2', 'edge1+2');
         yGraphs[1].addEdge('2', '1', 'edge2+1');
-        syncConcurrently(yDocs, yGraphs);
+        await syncConcurrently(yDocs, yGraphs);
         expect(yGraphs[0].isAcyclic()).toBe(true);
         expect(yGraphs[1].isAcyclic()).toBe(true);
         expect(yGraphs[0].nodeCount).toEqual(2);
@@ -210,6 +314,25 @@ describe('properties', () => {
         for (let i = 0; i < 10; i++) {
             await runAcyclicityTest(clientCount, initialGraphSize + 5 * i, maxGraphSize + 10 * i, maxOperationsPerRoundCount + 10 * i, i);
         }
+    }, 50000000);
+
+    // This test compares the cycle resolution time between optimized and not optimized versions
+    // Initial graph size starts with a specific amount of nodes without edges
+    // Then clients apply at least 15 operations or more concurrently to the graph
+    // Allowed operations are addNode (weight: 2), removeNode (weight: 1), addEdge (weight: minOperationsCount)
+    // The reason for the choice of allowed operations for this benchmark is to reach a high number of cycles in the graph
+    // At the end all clients sync their changes either in the optimized or not optimized version
+    test('Benchmark 1: Optimized vs. Not optimized cycle resolution', async () => {
+        const clientCount = 8;
+        const initialGraphSize = 5;
+        const maxGraphSize = 10;
+        const maxOperationsPerRoundCount = 30;
+        await csvWriterForBenchmarks.writeRecords([{client: 'start', op: '', arguments: ''}]);
+        for (let i = 0; i < 5; i++) {
+            const minOperationsPerRoundCount = Math.floor((maxOperationsPerRoundCount + 10 * i) / 2);
+            await runAcyclicityTestForBenchmarks(clientCount, initialGraphSize + 5 * i, maxGraphSize + 10 * i, minOperationsPerRoundCount, maxOperationsPerRoundCount + 10 * i, i);
+        }
+        await csvWriterForBenchmarks.writeRecords([{client: 'end', op: '', arguments: ''}]);
     }, 50000000);
 
 
