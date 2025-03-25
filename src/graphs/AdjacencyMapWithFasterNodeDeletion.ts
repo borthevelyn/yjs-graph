@@ -6,8 +6,14 @@ import { Graph, IncomingNodesGraph } from './Graph';
 type EdgeInformation = {
     label: string
 }
-type NodeInformation = ObjectYMap<{
-    flowNode: FlowNode,
+type NodeData = {
+    id: string,
+    label: string,
+    position: XYPosition,
+    deletable: boolean,
+    dimension: {width: number | undefined, height: number | undefined}
+}
+type NodeInformation = ObjectYMap<NodeData & {
     edgeInformation: Y.Map<EdgeInformation>,
     /* 
     `incomingNodes` is a actually a ymap where keys are producer nodes of incoming edges, 
@@ -59,7 +65,7 @@ export class AdjacencyMapWithFasterNodeDeletion implements Graph, IncomingNodesG
                     continue
 
                 source.get('edgeInformation').delete(target);
-                this.selectedEdges.delete(`${source.get('flowNode').id}+${target}`);
+                this.selectedEdges.delete(`${source.get('id')}+${target}`);
             }
             for (const incomingNode of source.get('incomingNodes').keys()) {
                 if (this.yMatrix.get(incomingNode) !== undefined)
@@ -78,13 +84,17 @@ export class AdjacencyMapWithFasterNodeDeletion implements Graph, IncomingNodesG
                 return 
             }
             
-            nodeInfo.set('flowNode', { ...nodeInfo.get('flowNode'), data: { label } })
+            nodeInfo.set('label', label)
         });
     }
 
     private makeNodeInformation(node: FlowNode, edges: Y.Map<EdgeInformation>, incomingNodes: YSet) {
         const res = new Y.Map<FlowNode | Y.Map<EdgeInformation> | Y.Map<boolean>>() as NodeInformation
-        res.set('flowNode', node)
+        res.set('id', node.id);
+        res.set('label', node.data.label);
+        res.set('position', node.position);
+        res.set('deletable', true);
+        res.set('dimension', {width: node.measured?.width, height: node.measured?.height});
         res.set('edgeInformation', edges)
         res.set('incomingNodes', incomingNodes)
         return res
@@ -93,7 +103,7 @@ export class AdjacencyMapWithFasterNodeDeletion implements Graph, IncomingNodesG
     addNode(nodeId: string, label: string, position: XYPosition): void {
         const innerMap = this.makeNodeInformation({ 
             id: nodeId, 
-            data : { label}, 
+            data : { label }, 
             position, 
             deletable: true, 
             // type: 'editNodeLabel' 
@@ -142,7 +152,7 @@ export class AdjacencyMapWithFasterNodeDeletion implements Graph, IncomingNodesG
                     return 
                 }
                 innerMap.get('edgeInformation').delete(nodeId);
-                this.selectedEdges.delete(`${innerMap.get('flowNode').id}+${nodeId}`);
+                this.selectedEdges.delete(`${innerMap.get('id')}+${nodeId}`);
             }
             // Removes the node and its outgoing edges 
             this.yMatrix.delete(nodeId)
@@ -176,7 +186,7 @@ export class AdjacencyMapWithFasterNodeDeletion implements Graph, IncomingNodesG
                 return 
             }
 
-            nodeInfo.set('flowNode', { ...nodeInfo.get('flowNode'), position })
+            nodeInfo.set('position', position )
         });
     }
 
@@ -188,7 +198,7 @@ export class AdjacencyMapWithFasterNodeDeletion implements Graph, IncomingNodesG
                 return 
             }
 
-            nodeInfo.set('flowNode', { ...nodeInfo.get('flowNode'), measured: dimensions })
+            nodeInfo.set('dimension', dimensions )
         });
     }
 
@@ -227,10 +237,13 @@ export class AdjacencyMapWithFasterNodeDeletion implements Graph, IncomingNodesG
 
     nodesAsFlow(): FlowNode[] {
         return Array.from(this.yMatrix.values()).map(x => {
-            const flowNode = x.get('flowNode');
             return {
-                ...flowNode,
-                selected: this.selectedNodes.has(flowNode.id)
+                id: x.get('id'),
+                data: { label: x.get('label') },
+                position: x.get('position'),
+                deletable: x.get('deletable'),
+                measured: x.get('dimension'),
+                selected: this.selectedNodes.has(x.get('id'))
             }
         })
     }
@@ -258,7 +271,17 @@ export class AdjacencyMapWithFasterNodeDeletion implements Graph, IncomingNodesG
     }
 
     getNode(nodeId: string): FlowNode | undefined {
-        return this.yMatrix.get(nodeId)?.get('flowNode');
+        const nodeInfo = this.yMatrix.get(nodeId);
+        if (nodeInfo === undefined)
+            return undefined
+        return {
+            id: nodeInfo.get('id'),
+            data: { label: nodeInfo.get('label') },
+            position: nodeInfo.get('position'),
+            deletable: nodeInfo.get('deletable'),
+            measured: nodeInfo.get('dimension'),
+            selected: this.selectedNodes.has(nodeId)
+        }
     }
 
     getEdge(source: string, target: id): FlowEdge | undefined {

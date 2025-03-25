@@ -13,9 +13,14 @@ type BenchmarkData = {
 type EdgeInformation = {
     label: string
 }
-
-type NodeInformation = ObjectYMap<{
-    flowNode: FlowNode
+type NodeData = {
+    id: string,
+    label: string,
+    position: XYPosition,
+    deletable: boolean,
+    dimension: {width: number | undefined, height: number | undefined}
+}
+type NodeInformation = ObjectYMap<NodeData & {
     // This map may contain dangling edges because of Yjs synchronization
     // Reading from this map should always takes this into account
     edgeInformation: Y.Map<EdgeInformation>
@@ -85,7 +90,7 @@ export class DirectedAcyclicGraph implements Graph {
                     if (this.yMatrix.get(target) !== undefined) {
                         continue
                     }
-                    this.removeEdge(source.get('flowNode').id, target);
+                    this.removeEdge(source.get('id'), target);
                 }
             }
         });   
@@ -107,7 +112,11 @@ export class DirectedAcyclicGraph implements Graph {
     }
     private makeNodeInformation(node: FlowNode, edges: Y.Map<EdgeInformation>) {
         const res = new Y.Map() as NodeInformation;
-        res.set('flowNode', node);
+        res.set('id', node.id);
+        res.set('label', node.data.label);
+        res.set('position', node.position);
+        res.set('deletable', true);
+        res.set('dimension', {width: node.measured?.width, height: node.measured?.height});
         res.set('edgeInformation', edges);
         return res
     }
@@ -525,7 +534,7 @@ export class DirectedAcyclicGraph implements Graph {
                     continue;
                 
                 nodeInformation.get('edgeInformation').delete(nodeId);
-                const edgeId: EdgeId = `${nodeInformation.get('flowNode').id}+${nodeId}`;
+                const edgeId: EdgeId = `${nodeInformation.get('id')}+${nodeId}`;
 
                 this.filterRemovedEdgeInYEdges(edgeId);
 
@@ -560,10 +569,13 @@ export class DirectedAcyclicGraph implements Graph {
     nodesAsFlow(): FlowNode[] {
         assert(this.yMatrix !== undefined, 'yMatrix is undefined')
         return Array.from(this.yMatrix.values()).map(x => {
-            const flowNode = x.get('flowNode');
             return {
-                ...flowNode,
-                selected: this.selectedNodes.has(flowNode.id)
+                id: x.get('id'),
+                data: { label: x.get('label') },
+                position: x.get('position'),
+                deletable: x.get('deletable'),
+                measured: x.get('dimension'),
+                selected: this.selectedNodes.has(x.get('id'))
             }
         })
     }
@@ -593,7 +605,17 @@ export class DirectedAcyclicGraph implements Graph {
         return nestedEdges.flat()
     }
     getNode(nodeId: id): FlowNode | undefined {
-        return this.yMatrix.get(nodeId)?.get('flowNode');
+        const nodeInfo = this.yMatrix.get(nodeId);
+        if (nodeInfo === undefined)
+            return undefined
+        return {
+            id: nodeInfo.get('id'),
+            data: { label: nodeInfo.get('label') },
+            position: nodeInfo.get('position'),
+            deletable: nodeInfo.get('deletable'),
+            measured: nodeInfo.get('dimension'),
+            selected: this.selectedNodes.has(nodeId)
+        }
     }
     getEdge(source: id, target: id): FlowEdge | undefined {
         this.removeDanglingEdges();

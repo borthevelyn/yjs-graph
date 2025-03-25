@@ -7,8 +7,15 @@ type EdgeInformation = ObjectYMap<{
     id: string,
     label: string
 }>
-type NodeInformation = ObjectYMap<{
-    flowNode: FlowNode,
+type NodeData = {
+    id: string,
+    label: string,
+    position: XYPosition,
+    deletable: boolean,
+    dimension: {width: number | undefined, height: number | undefined}
+}
+
+type NodeInformation = ObjectYMap<NodeData & {
     edgeInformation: Y.Array<EdgeInformation>
 }>
 export type AdjacencyListGraph = Y.Map<NodeInformation>;
@@ -55,7 +62,7 @@ export class AdjacencyList implements Graph {
                     return
 
                 source.get('edgeInformation').delete(index, 1);
-                this.selectedEdges.delete(`${source.get('flowNode').id}+${targetId}`);
+                this.selectedEdges.delete(`${source.get('id')}+${targetId}`);
             })
         }
     }
@@ -67,7 +74,7 @@ export class AdjacencyList implements Graph {
                 const edgeId = edge.get('id');
                 if (uniqueEdgesForNode.has(edgeId)) {
                     source.get('edgeInformation').delete(index, 1);
-                    this.selectedEdges.delete(`${source.get('flowNode').id}+${edgeId}`);
+                    this.selectedEdges.delete(`${source.get('id')}+${edgeId}`);
                 } else {
                     uniqueEdgesForNode.add(edgeId);
                 } 
@@ -82,13 +89,17 @@ export class AdjacencyList implements Graph {
                 console.warn('Node does not exist');
                 return 
             }
-            nodeInfo.set('flowNode', { ...nodeInfo.get('flowNode'), data: { label, } });
+            nodeInfo.set('label', label);
         });
     }
 
     private makeNodeInformation(node: FlowNode, edges: Y.Array<EdgeInformation>) {
         const res = new Y.Map<FlowNode | Y.Array<EdgeInformation>>() as NodeInformation
-        res.set('flowNode', node);
+        res.set('id', node.id);
+        res.set('label', node.data.label);
+        res.set('position', node.position);
+        res.set('deletable', true);
+        res.set('dimension', {width: node.measured?.width, height: node.measured?.height});
         res.set('edgeInformation', edges);
         return res
     }
@@ -148,7 +159,7 @@ export class AdjacencyList implements Graph {
                 edges.forEach((edgeInfo, index) => {
                     if (edgeInfo.get('id') === nodeId) {
                         edges.delete(index, 1);
-                        this.selectedEdges.delete(`${nodeInfo.get('flowNode').id}+${nodeId}`);
+                        this.selectedEdges.delete(`${nodeInfo.get('id')}+${nodeId}`);
                     }
                 })
             })
@@ -180,7 +191,7 @@ export class AdjacencyList implements Graph {
                 console.warn('Node does not exist');
                 return 
             }
-            nodeInfo.set('flowNode', { ...nodeInfo.get('flowNode'), position });
+            nodeInfo.set('position', position);
         });
     }
 
@@ -191,7 +202,7 @@ export class AdjacencyList implements Graph {
                 console.warn('Node does not exist');
                 return 
             }
-            nodeInfo.set('flowNode', { ...nodeInfo.get('flowNode'), measured: dimensions });
+            nodeInfo.set('dimension', dimensions);
         });
     }
 
@@ -230,11 +241,13 @@ export class AdjacencyList implements Graph {
 
     nodesAsFlow(): FlowNode[] {
         return Array.from(this.yMatrix.values()).map(x => {
-            const flowNode = x.get('flowNode');
-            console.log('node is selected', this.selectedNodes.has(flowNode.id), this.selectedNodes);
             return {
-                ...flowNode,
-                selected: this.selectedNodes.has(flowNode.id)
+                id: x.get('id'),
+                data: { label: x.get('label') },
+                position: x.get('position'),
+                deletable: x.get('deletable'),
+                measured: x.get('dimension'),
+                selected: this.selectedNodes.has(x.get('id')),
             }
         })
     }
@@ -262,7 +275,17 @@ export class AdjacencyList implements Graph {
     }
 
     getNode(nodeId: string): FlowNode | undefined {
-        return this.yMatrix.get(nodeId)?.get('flowNode');
+        const nodeInfo = this.yMatrix.get(nodeId);
+        if (nodeInfo === undefined)
+            return undefined
+        return {
+            id: nodeInfo.get('id'),
+            data: { label: nodeInfo.get('label') },
+            position: nodeInfo.get('position'),
+            deletable: nodeInfo.get('deletable'),
+            measured: nodeInfo.get('dimension'),
+            selected: this.selectedNodes.has(nodeId)
+        }
     }
 
     getEdge(source: string, target: id): FlowEdge | undefined {

@@ -209,7 +209,7 @@ type EdgeInformation = {
 type NodeData = {
     id: string,
     label: string,
-    position: { x: number; y: number }
+    position: XYPosition,
     selected: boolean
 }
 type NodeInformation = {
