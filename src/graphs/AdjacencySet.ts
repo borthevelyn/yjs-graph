@@ -22,16 +22,16 @@ type NodeInformation = ObjectYMap<NodeData & {
     edgeInformation: YSet<id>
 }>
 
-export type AdjacencyMapGraph = Y.Map<NodeInformation>
+export type AdjacencySetGraph = Y.Map<NodeInformation>
 
-export class AdjacencyMap implements Graph {
-    private yMatrix: AdjacencyMapGraph;
+export class AdjacencySet implements Graph {
+    private yMatrix: AdjacencySetGraph;
     private selectedNodes: Set<id>;
     private selectedEdges: Set<EdgeId>;
     private eventEmitter: EventEmitter | undefined;
     private edges: EdgeInformation;
 
-    constructor(yMatrix: AdjacencyMapGraph, eventEmitter?: EventEmitter) {
+    constructor(yMatrix: AdjacencySetGraph, eventEmitter?: EventEmitter) {
         this.yMatrix = yMatrix;
         this.selectedNodes = new Set();
         this.selectedEdges = new Set();
@@ -97,7 +97,7 @@ export class AdjacencyMap implements Graph {
                 deletable: true, 
                 // type: 'editNodeLabel',
             }, 
-            new YSet(this.yMatrix.doc!.getArray(nodeId)));
+            new YSet(new Y.Array<id>()));
         this.yMatrix.set(nodeId, innerMap);
         console.log('document of newly created map (should not be null)', this.yMatrix.get(nodeId)!.get('edgeInformation').doc);
       }
