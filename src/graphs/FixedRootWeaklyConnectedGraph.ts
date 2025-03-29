@@ -1,7 +1,6 @@
 import * as Y from 'yjs';
 import { XYPosition } from "@xyflow/react";
 import { id, EdgeId, ObjectYMap, splitEdgeId, EdgeDirection } from "../Types";
-
 import assert from 'assert';
 
 
@@ -210,7 +209,6 @@ type NodeData = {
     id: string,
     label: string,
     position: XYPosition,
-    selected: boolean
 }
 type NodeInformation = {
     nodeData: ObjectYMap<NodeData>
@@ -301,7 +299,6 @@ export class FixedRootWeaklyConnectedGraph {
             id: this.rootId,
             label: this.rootId,
             position: { x: 0, y: 0},
-            selected: false
         })
     }
 
@@ -318,7 +315,6 @@ export class FixedRootWeaklyConnectedGraph {
         this.uncheckedNodeMap(id).nodeData.set('id', data.id)
         this.uncheckedNodeMap(id).nodeData.set('label', data.label)
         this.uncheckedNodeMap(id).nodeData.set('position', data.position)
-        this.uncheckedNodeMap(id).nodeData.set('selected', data.selected)
 
         return true
     }
@@ -360,7 +356,6 @@ export class FixedRootWeaklyConnectedGraph {
                     id: nodeId, 
                     label: nodeLabel,
                     position: nodePosition, 
-                    selected: false, 
                 }),
                 'Could not add node'
             )
@@ -526,10 +521,6 @@ export class FixedRootWeaklyConnectedGraph {
 
             // 4. Add removed edge to the removed edges list
             this.removedGraphElements.push([removedGraphElement]);
-
-            // 5. Remove it from selected edges
-            // TODO SELECTED
-            // this.selectedEdges.delete(edgeId);
 
             return true
         });
@@ -863,8 +854,7 @@ export class FixedRootWeaklyConnectedGraph {
             this.addNode(edgeWithNode.nodeId, {
                 id: edgeWithNode.nodeId,
                 label: edgeWithNode.nodeLabel,
-                position: edgeWithNode.nodePosition,
-                selected: false
+                position: edgeWithNode.nodePosition
             })
 
             // Add dangling edge or dangling incoming node information to the removed graph element
@@ -1053,7 +1043,24 @@ export class FixedRootWeaklyConnectedGraph {
         return JSON.stringify(edges.sort());
     }
 
+    getIncomingNodesAsJson(): string {
+        let incomingNodes = 
+            Array.from(this.nodeIds.keys()).map(node =>
+                Array.from(this.nodeMap(node)!.incomingNodes).map(([incomingNode]) => {
+                    return [incomingNode + '+' + node]
+                })).flat()
+        return JSON.stringify(incomingNodes.sort());
+    }
+
     getNodes(): string[] {
         return Array.from(this.nodeIds.keys());
+    }
+
+    getNode(id: id): NodeInformation | undefined {
+        return this.nodeMap(id);
+    }
+
+    getEdge(source: id, target: id): EdgeInformation | undefined {
+        return this.nodeMap(source)?.edgeInformation.get(target);
     }
 }
