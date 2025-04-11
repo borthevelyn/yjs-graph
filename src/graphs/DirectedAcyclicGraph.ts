@@ -79,6 +79,13 @@ export class DirectedAcyclicGraph implements Graph {
         });
     }
 
+    public hasInvalidEdges() {
+        const dangling = [...this.yMatrix.values()].some(source => [...source.get('edgeInformation').keys()].some(target => this.yMatrix.get(target) === undefined))
+        const edges = [...this.yEdges]
+        const duplicate = edges.some((edge, idx) => edges.some((otherEdge, otherIdx) => edge.edgeId === otherEdge.edgeId && otherIdx !== idx))
+        return dangling || duplicate
+    }
+
     private removeInvalidEdges() {
         this.removeDuplicateEdges()
         this.removeDanglingEdges()
