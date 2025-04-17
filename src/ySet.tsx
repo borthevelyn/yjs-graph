@@ -1,6 +1,47 @@
 import * as Y from 'yjs'; 
 import { EventEmitter } from 'events';
 
+// Y.Map<YSet<T>> is ideal type
+// not possible because of synchronization issue
+// -> we store Y.Map<Y.Array<T>>
+// for better usability and better runtime performance, sets are more desirable than arrays
+// -> thus use YSet<T>
+// Y.Map<YSet<T>> cannot really exist in a useful way
+// -> to achieve mentioned benefits, it's required to use a different container for YSet<T>
+// -> use ReadonlyMap<string, YSet<T>>
+
+// disadvantages: 
+// - duplicate data (not ideal both for performance and development)
+//   - manual synchronization required (via observe)
+//   - initialization (YSet constructor)
+// advantages:
+// - better runtime performance (via YSet.has)
+// - possible to express the idea of a set
+
+// -----------------------------------------------------------
+
+export function wrapYMap<YJsT, DesiredT>(map: Y.Map<YJsT>, transformer: (yjsVal: YJsT) => DesiredT, updateTransformer: (yjsVal: YJsT, key:string, oldVal: DesiredT) => DesiredT): ReadonlyMap<string, DesiredT> {
+    const result = new Map([...map.entries()].map(([k, v]) => [k, transformer(v)]))
+
+    map.observe((event, transaction) => {
+        for (const [key, { action, oldValue }] of event.changes.keys) {
+            switch (action) {
+                case 'add': 
+                    result.set(key, transformer(map.get(key)!))
+                    break
+                case 'delete':
+                    result.delete(key)
+                    break
+                case 'update':
+                    result.set(key, updateTransformer(map.get(key)!, key, oldValue))
+            }
+        }
+    })
+    
+    return result
+}
+
+
 export class YSet<T> extends EventEmitter {
     yArray: Y.Array<T>;
     doc: Y.Doc;
@@ -50,16 +91,16 @@ export class YSet<T> extends EventEmitter {
         });
     }
 
-    public add(val: any) {
+    public add(val: T) {
         if (this.set.has(val)) 
             return
 
         this.doc.transact(() => {
             this.yArray.push([val]);
-        });    
+        });
     }
 
-    public delete(val: any) {
+    public delete(val: T) {
         if (!this.set.has(val)) 
             return
 

@@ -3,7 +3,7 @@ import * as Y from 'yjs'
 import { MarkerType, XYPosition } from '@xyflow/react'
 import { id, FlowEdge, FlowNode, ObjectYMap, EventEmitter, EdgeId, splitEdgeId } from '../Types'
 import assert from 'assert';
-import { YSet } from '../ySet';
+import { wrapYMap, YSet } from '../ySet';
 
 // Maps edge id to label
 type EdgeInformation = Y.Map<string>
@@ -17,9 +17,7 @@ type NodeData = {
 }
 
 type NodeInformation = ObjectYMap<NodeData & {
-    // This map may contain dangling edges because of Yjs synchronization
-    // Reading from this map should always takes this into account
-    edgeInformation: YSet<id>
+    edgeInformation: Y.Array<id>
 }>
 
 export type AdjacencySetGraph = Y.Map<NodeInformation>
@@ -29,16 +27,31 @@ export class AdjacencySet implements Graph {
     private selectedNodes: Set<id>;
     private selectedEdges: Set<EdgeId>;
     private eventEmitter: EventEmitter | undefined;
-    private edges: EdgeInformation;
+    private edgeLabelMap: EdgeInformation;
+
+    private wrappedNodes: ReadonlyMap<string, { readonly edgeInformation: YSet<id>; readonly id: id }>
 
     constructor(yMatrix: AdjacencySetGraph, eventEmitter?: EventEmitter) {
         this.yMatrix = yMatrix;
         this.selectedNodes = new Set();
         this.selectedEdges = new Set();
-        this.edges = this.yMatrix.doc!.getMap<string>('edges');
+        this.edgeLabelMap = this.yMatrix.doc!.getMap<string>('edges');
         this.eventEmitter = eventEmitter;
         if (this.eventEmitter !== undefined)
             this.yMatrix.observeDeep(() => this.eventEmitter?.fire());
+
+        this.wrappedNodes = wrapYMap(yMatrix, nodeInfo => { return { 
+            edgeInformation: new YSet(nodeInfo.get('edgeInformation')),
+            id: nodeInfo.get('id'),
+        }}, (nodeInfo, key, old) => {
+            if (key === 'edgeInformation')
+                return old
+            else
+                return {
+                    edgeInformation: new YSet(nodeInfo.get('edgeInformation')),
+                    id: nodeInfo.get('id'),
+            }
+        })
     }
 
     observe(lambda: () => void) {
@@ -46,20 +59,20 @@ export class AdjacencySet implements Graph {
     }
 
     public removeDanglingEdges() {
-        for (const source of this.yMatrix.values()) {
-            for (const target of source.get('edgeInformation').keys()) {
+        for (const source of this.wrappedNodes.values()) {
+            for (const target of source.edgeInformation.keys()) {
                 if (this.yMatrix.get(target) !== undefined)
                     continue
 
-                source.get('edgeInformation').delete(target);
-                this.selectedEdges.delete(`${source.get('id')}+${target}`);
+                source.edgeInformation.delete(target);
+                this.selectedEdges.delete(`${source.id}+${target}`);
             }
         }
     }
 
     public hasNoDanglingEdges() {
-        for (const source of this.yMatrix.values()) {
-            for (const target of source.get('edgeInformation').keys()) {
+        for (const source of this.wrappedNodes.values()) {
+            for (const target of source.edgeInformation.keys()) {
                 if (this.yMatrix.get(target) === undefined)
                     return false
             }
@@ -78,14 +91,14 @@ export class AdjacencySet implements Graph {
         });
     }
 
-    private makeNodeInformation(node: FlowNode, edges: YSet<id>) {
+    private makeNodeInformation(node: FlowNode) {
         const res = new Y.Map() as NodeInformation;
         res.set('id', node.id);
         res.set('label', node.data.label);
         res.set('position', node.position);
         res.set('deletable', true);
         res.set('dimension', {width: node.measured?.width, height: node.measured?.height});
-        res.set('edgeInformation', edges);
+        res.set('edgeInformation', new Y.Array());
         return res
     }
 
@@ -96,23 +109,22 @@ export class AdjacencySet implements Graph {
                 position, 
                 deletable: true, 
                 // type: 'editNodeLabel',
-            }, 
-            new YSet(new Y.Array<id>()));
+            });
         this.yMatrix.set(nodeId, innerMap);
-        console.log('document of newly created map (should not be null)', this.yMatrix.get(nodeId)!.get('edgeInformation').doc);
-      }
+    }
       
     addEdge(source: id, target: id, label: string) {
         this.yMatrix.doc!.transact(() => {
-            const nodeInfo1 = this.yMatrix.get(source);
-            const nodeInfo2 = this.yMatrix.get(target);
+            const nodeInfo1 = this.wrappedNodes.get(source);
+            const nodeInfo2 = this.wrappedNodes.get(target);
             if (nodeInfo1 === undefined || nodeInfo2 === undefined) {
                 console.warn('one of the edge nodes does not exist', source, target)
                 return 
             }
-            nodeInfo1.get('edgeInformation').add(target);
-            this.yMatrix.doc!.getMap('edges').set(`${source}+${target}`, label);
-            console.log('added edge with label, edges', label, nodeInfo1.get('edgeInformation'));
+            nodeInfo1.edgeInformation.add(target);
+            this.edgeLabelMap.set(`${source}+${target}`, label);
+            
+            console.log('added edge with label, edges', label, nodeInfo1.edgeInformation);
         });
     }
 
@@ -124,9 +136,9 @@ export class AdjacencySet implements Graph {
         }
         this.yMatrix.doc!.transact(() => {   
             this.yMatrix.delete(nodeId)
-            for (const nodeInfo of this.yMatrix.values()) {
-                nodeInfo.get('edgeInformation').delete(nodeId);     
-                this.selectedEdges.delete(`${nodeInfo.get('id')}+${nodeId}`);
+            for (const nodeInfo of this.wrappedNodes.values()) {
+                nodeInfo.edgeInformation.delete(nodeId);     
+                this.selectedEdges.delete(`${nodeInfo.id}+${nodeId}`);
             }
             this.selectedNodes.delete(nodeId);
         });
@@ -134,13 +146,13 @@ export class AdjacencySet implements Graph {
 
     removeEdge(source: id, target: id) {
         this.yMatrix.doc!.transact(() => {
-            const innerMap = this.yMatrix.get(source);
+            const innerMap = this.wrappedNodes.get(source);
             if (innerMap === undefined) {
                 console.warn('Node does not exist');
                 return 
             }
             console.log('removed edge', source, target);
-            innerMap.get('edgeInformation').delete(target);
+            innerMap.edgeInformation.delete(target);
             this.yMatrix.doc!.getMap('edges').delete(`${source}+${target}`);
             this.selectedEdges.delete(`${source}+${target}`);
         });
@@ -226,12 +238,12 @@ export class AdjacencySet implements Graph {
         console.log('after remove', this.yMatrix.get('node1')?.get('edgeInformation'));
 
         const nestedEdges = 
-            Array.from(this.yMatrix.entries()).map(([sourceNode, nodeInfo]) =>
-                Array.from(nodeInfo.get('edgeInformation').keys()).map((targetNode) => {
+            Array.from(this.wrappedNodes.entries()).map(([sourceNode, nodeInfo]) =>
+                Array.from(nodeInfo.edgeInformation.keys()).map((targetNode) => {
                     if (this.yMatrix.get(targetNode) === undefined)
                         throw new Error('target node still dangling and contained');
                     const edgeId: EdgeId = `${sourceNode}+${targetNode}`;
-                    const edgeLabel = this.edges.get(edgeId);
+                    const edgeLabel = this.edgeLabelMap.get(edgeId);
                     assert(edgeLabel !== undefined, 'edge label is undefined');
                     return {
                         id: edgeId,
@@ -251,7 +263,9 @@ export class AdjacencySet implements Graph {
 
     getNode(nodeId: string): FlowNode | undefined {
         const nodeInfo = this.yMatrix.get(nodeId);
-        assert(nodeInfo !== undefined, 'nodeInfo is undefined');
+        if (nodeInfo === undefined)
+            return undefined
+
         return {
             id: nodeInfo.get('id'),
             data: { label: nodeInfo.get('label') },
@@ -264,11 +278,11 @@ export class AdjacencySet implements Graph {
 
     getEdge(source: string, target: id): FlowEdge | undefined {
         this.removeDanglingEdges();
-        let edge = this.yMatrix.get(source)?.get('edgeInformation').has(target);
-        if (edge === undefined)
+        let edge = this.wrappedNodes.get(source)?.edgeInformation.has(target);
+        if (edge === undefined || !edge)
             return undefined 
         const edgeId: EdgeId = `${source}+${target}`;
-        const edgeLabel = this.edges.get(edgeId);
+        const edgeLabel = this.edgeLabelMap.get(edgeId);
         assert(edgeLabel !== undefined, 'edge label is undefined');
         return { 
                 id: edgeId, 
@@ -286,8 +300,8 @@ export class AdjacencySet implements Graph {
     }
 
     getEdgesAsJson(): string {
-        return JSON.stringify(Array.from(this.yMatrix.entries()).map(([source, nodeInfo]) => 
-            Array.from(nodeInfo.get('edgeInformation').keys()).map(target => `${source}+${target}`)).flat().sort());
+        return JSON.stringify(Array.from(this.wrappedNodes.entries()).map(([source, nodeInfo]) => 
+            Array.from(nodeInfo.edgeInformation.keys()).map(target => `${source}+${target}`)).flat().sort());
     }
 
     isNodeSelected(nodeId: id) {
@@ -304,7 +318,7 @@ export class AdjacencySet implements Graph {
 
     get edgeCount() {
         this.removeDanglingEdges();
-        return Array.from(this.yMatrix.values()).reduce((acc, x) => acc + x.get('edgeInformation').size, 0);
+        return Array.from(this.wrappedNodes.values()).reduce((acc, x) => acc + x.edgeInformation.size, 0);
     }
 
     get selectedNodesCount(): number {
