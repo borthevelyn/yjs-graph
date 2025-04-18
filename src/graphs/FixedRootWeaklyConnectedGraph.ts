@@ -17,6 +17,10 @@ type BenchmarkData = {
     restoredPaths: number,
 }
 
+type clock = {
+    [client: string]: number | undefined
+}
+
 // encodes a path as an ordered collection of nodes and edges like (edge - node)* - edge
 type Path<NodePayload, EdgePayload> = {
     // (edge - node)*
@@ -25,11 +29,13 @@ type Path<NodePayload, EdgePayload> = {
         edgeId: EdgeId,
         nodePayload: NodePayload,
         nodeId: id,
+        vectorclock: clock
     }[],
     // - edge
     finalEdge: {
         id: EdgeId,
-        edgePayload: EdgePayload
+        edgePayload: EdgePayload,
+        vectorclock: clock
     }
 }
 
@@ -69,7 +75,9 @@ type RestorablePath = Path<{ label: string, position: XYPosition }, { label: str
  * Calculates a complete list of paths with length m + 1, where items has also m set of paths.
  * @param paths The list of already calculated and complete paths. Assumes that at every index i, the paths of length i + 1 are stored.
  */
+// O(path * hops * pathLength)
 function findPathsOfLengthPlusOne(hops: RemovedGraphElement[], paths: Array<PathWithoutNodes>): Array<PathWithoutNodes> {
+    // O(1) 
     function tryAppendToPath(item: RemovedGraphElement, path: PathWithoutNodes): PathWithoutNodes | undefined {
         const newNodes = new Set(splitEdgeId(item.item.edgeId))
         const oldNodes = new Set(splitEdgeId(path.finalEdge.id))
@@ -85,14 +93,16 @@ function findPathsOfLengthPlusOne(hops: RemovedGraphElement[], paths: Array<Path
                     edgePayload: path.finalEdge.edgePayload,
                     edgeId: path.finalEdge.id,
                     nodePayload: undefined,
-                    nodeId: commonNode
+                    nodeId: commonNode,
+                    vectorclock: path.finalEdge.vectorclock
                 }],
             finalEdge: {
                 id: item.item.edgeId,
                 edgePayload: { 
                     label: item.item.edgeLabel,
                     usedRemovedElements: new Set([item])
-                }
+                },
+                vectorclock: item.item.vectorclock
             }
         }
     }
@@ -102,7 +112,7 @@ function findPathsOfLengthPlusOne(hops: RemovedGraphElement[], paths: Array<Path
         return []
     
     
-    // the combination of all paths with first and last will have length m + 1, and will also be complete
+    // the combination of all paths will have length m + 1, and will also be complete
     return paths.flatMap(longPath => 
         // for each path of length m, calculate all combinations with paths of length 1
         // try to combine `path` with all items in `first` - may return an empty array, if no combination can be built
@@ -120,7 +130,8 @@ function findPathsOfLengthPlusOne(hops: RemovedGraphElement[], paths: Array<Path
     )
 }
 
-function findAllPathsInGraphElements(graphElements: Array<RemovedGraphElement>): Set<RestorablePath> {
+// O(removedGraphElements!)
+function findAllPaths(graphElements: Array<RemovedGraphElement>): Set<RestorablePath> {
     // index i in result stores all paths of length i + 1
     const result: PathWithoutNodes[][] = [graphElements.map(x => {
         return {
@@ -130,13 +141,18 @@ function findAllPathsInGraphElements(graphElements: Array<RemovedGraphElement>):
                 edgePayload: {
                     label: x.item.edgeLabel,
                     usedRemovedElements: new Set([x])
-                }
+                },
+                vectorclock: x.item.vectorclock
             },
         }
     })]
     
     // first, calculate paths of length 2
+    // O(removedGraphElements^2)
     let toAppend = findPathsOfLengthPlusOne(graphElements, result[0])
+
+    // O(Vrm * (Vrm!* removedGraphElements * Vrm))
+    // => O(removedGraphElements!)
     while (toAppend.length > 0) {
         // append if they exist
         result.push(toAppend)
@@ -146,6 +162,8 @@ function findAllPathsInGraphElements(graphElements: Array<RemovedGraphElement>):
     }
     
     // all paths have been found
+    // paths ^= O(removedGraphElements!)
+    // O (removedGraphElements! * edges * removedGraphElements) = O(removedGraphElements!)
     return new Set(
         result
         .flat()
@@ -167,7 +185,8 @@ function findAllPathsInGraphElements(graphElements: Array<RemovedGraphElement>):
                     nodePayload: {
                         label: node.item.nodeLabel,
                         position: node.item.nodePosition
-                    }
+                    },
+                    vectorclock: edge.vectorclock
                 }
             })
 
@@ -190,6 +209,7 @@ function findAllPathsInGraphElements(graphElements: Array<RemovedGraphElement>):
  * @param connectingNodes Nodes used to connect the two components
  * @returns Connected components with comp1, comp2 and connectingNodes merged. 
  */
+// O(V^2)
 function mergeComponents(connectedComponents: Set<Set<id>>, componentsToBeMerged: Set<Set<id>>, connectingNodes: Set<id> = new Set()): Set<Set<id>> {
     let mergedComponents = new Set<string>();
     let componentsSet = new Set(connectedComponents)
@@ -221,6 +241,7 @@ type NodeInformation = {
 type EdgeInformationForRemovedEdges = {
     edgeId: EdgeId
     edgeLabel: string
+    vectorclock: clock
 }
 type EdgeInformationForRemovedEdgesWithNode = {
     nodeId: id
@@ -269,6 +290,7 @@ export class FixedRootWeaklyConnectedGraph {
     readonly nodeIncoming = (id: id) => `node_incoming_${id}`
     readonly nodeData = (id: id) => `node_data_${id}`
 
+    // O(1)
     private uncheckedNodeMap(id: id): NodeInformation {
         return {
             incomingNodes: this.yDoc.getMap(this.nodeIncoming(id)) as NodeInformation['incomingNodes'],
@@ -276,6 +298,7 @@ export class FixedRootWeaklyConnectedGraph {
             nodeData: this.yDoc.getMap(this.nodeData(id)) as NodeInformation['nodeData']
         }
     }
+    // O(1)
     private nodeMap(id: id): NodeInformation | undefined {
         if (this.nodeIds.get(id) === undefined)
             return undefined
@@ -287,6 +310,7 @@ export class FixedRootWeaklyConnectedGraph {
         }
     }
 
+    // O(1)
     constructor (doc: Y.Doc) {
         this.yDoc = doc
 
@@ -302,6 +326,7 @@ export class FixedRootWeaklyConnectedGraph {
         })
     }
 
+    // O(1)
     private addNode(id: id, data: NodeData): boolean {
         if (this.nodeIds.get(id))
             return false
@@ -328,6 +353,7 @@ export class FixedRootWeaklyConnectedGraph {
      * @param nodePosition 
      * @param edgeLabel 
      */
+    // O(removedGraphElements + 1)
     public addNodeWithEdge(nodeId: id, edgeDirection: EdgeDirection, otherNodeId: id, nodeLabel: string, nodePosition: XYPosition, edgeLabel: string): boolean {
         return this.yDoc.transact(() => {
 
@@ -369,6 +395,7 @@ export class FixedRootWeaklyConnectedGraph {
         })
     }
 
+    // O(1)
     private removeNode(id: id): boolean {
         if (!this.nodeIds.get(id))
             return false
@@ -377,10 +404,12 @@ export class FixedRootWeaklyConnectedGraph {
         return true
     }
 
+    // O(1)
     public hasNode(id: id): boolean {
         return this.nodeIds.get(id) !== undefined
     }
 
+    //(removedGraphElements)
     public addEdge(source: id, target: id, label: string) {
         const sourceInfo = this.nodeMap(source)
         const targetInfo = this.nodeMap(target)
@@ -395,6 +424,7 @@ export class FixedRootWeaklyConnectedGraph {
         return true
     }
 
+    // O(1)
     public hasEdge(source: id, target: id): string | undefined {
         const sourceInfo = this.nodeMap(source)
         const targetInfo = this.nodeMap(target)
@@ -416,7 +446,10 @@ export class FixedRootWeaklyConnectedGraph {
      * @param source Source node of the edge
      * @param target Target node of the edge
      */
-    public removeEdge(source: id, target: id): boolean {
+    // O(V + E), O(1) for dangling edges
+    // isConnectedAfterEdgeRemoval O(V + E), isEdgeRemovingANode O(1)
+    public removeEdge(source: id, target: id, vec?: clock): boolean {
+        // O(1)
         function isEdgeRemovingANode(nodeInfo1: NodeInformation, nodeInfo2: NodeInformation): NodeInformation | undefined {
             // it is assumed that nodeInfo1 and nodeInfo2 are different and connected via an edge
             // when the nodes are the same, the node will never be deleted after deleting a self-loop if the graph was correct before
@@ -479,34 +512,7 @@ export class FixedRootWeaklyConnectedGraph {
             if (edgeLabel === undefined)
                 return false
 
-            const removedGraphElement: RemovedGraphElement = (nodeRemovedWithEdge !== undefined) ? ({ 
-                type: 'edgeWithNode', 
-                item: { 
-                    nodeId: nodeRemovedWithEdge.nodeData.get('id'),
-                    nodeLabel: nodeRemovedWithEdge.nodeData.get('label'),
-                    nodePosition: nodeRemovedWithEdge.nodeData.get('position'),
-                    edgeInformation: 
-                        Array.from(nodeRemovedWithEdge.edgeInformation.entries())
-                        .map<EdgeInformationForRemovedEdges>(([target, {label}]) => ({ edgeId: `${nodeRemovedWithEdge.nodeData.get('id')}+${target}`, edgeLabel: label}))
-                        .concat(this.removedGraphElements
-                            .toArray()
-                            .filter(x => (x.type === 'edge'))
-                            .filter(x => splitEdgeId(x.item.edgeId)[0] === nodeRemovedWithEdge.nodeData.get('id'))
-                            .map(x => x.item)),
-                    incomingNodes: 
-                        Array.from(nodeRemovedWithEdge.incomingNodes.entries())
-                        .map<EdgeInformationForRemovedEdges>(([source, {label}]) => ({ edgeId: `${source}+${nodeRemovedWithEdge.nodeData.get('id')}`, edgeLabel: label}))
-                        .concat(this.removedGraphElements
-                            .toArray()
-                            .filter(x => (x.type === 'edge'))
-                            .filter(x => splitEdgeId(x.item.edgeId)[1] === nodeRemovedWithEdge.nodeData.get('id'))
-                            .map(x => x.item)),
-                    edgeId, 
-                    edgeLabel 
-                    }
-                })
-                :
-                ({ type: 'edge', item: { edgeId, edgeLabel } });
+
 
             // 1. Remove the edge from the source node to the target node
             node1EdgeInfo?.delete(target);
@@ -519,6 +525,26 @@ export class FixedRootWeaklyConnectedGraph {
                 this.removeNode(nodeRemovedWithEdge.nodeData.get('id'));
             }
 
+            const vecToUse = vec ?? Object.fromEntries(Y.decodeStateVector(Y.encodeStateVector(this.yDoc)));
+            const removedGraphElement: RemovedGraphElement = (nodeRemovedWithEdge !== undefined) ? ({ 
+                type: 'edgeWithNode', 
+                item: { 
+                    vectorclock: vecToUse,
+                    nodeId: nodeRemovedWithEdge.nodeData.get('id'),
+                    nodeLabel: nodeRemovedWithEdge.nodeData.get('label'),
+                    nodePosition: nodeRemovedWithEdge.nodeData.get('position'),
+                    edgeInformation: 
+                        Array.from(nodeRemovedWithEdge.edgeInformation.entries())
+                        .map<EdgeInformationForRemovedEdges>(([target, {label}]) => ({ edgeId: `${nodeRemovedWithEdge.nodeData.get('id')}+${target}`, edgeLabel: label, vectorclock: vecToUse })),
+                    incomingNodes: 
+                        Array.from(nodeRemovedWithEdge.incomingNodes.entries())
+                        .map<EdgeInformationForRemovedEdges>(([source, {label}]) => ({ edgeId: `${source}+${nodeRemovedWithEdge.nodeData.get('id')}`, edgeLabel: label, vectorclock: vecToUse })),
+                    edgeId, 
+                    edgeLabel 
+                    }
+                })
+                :
+                ({ type: 'edge', item: { edgeId, edgeLabel, vectorclock: vecToUse } });
             // 4. Add removed edge to the removed edges list
             this.removedGraphElements.push([removedGraphElement]);
 
@@ -530,6 +556,7 @@ export class FixedRootWeaklyConnectedGraph {
      * Calculates all danginling edges.
      * @returns This does not return an actual removed graph element, but only is in the format.
      */
+    // O(V * E)
     private getDanglingEdges(): Array<RemovedGraphElement & { type: 'edge' }> {
         const danglingEdges = new Array<RemovedGraphElement & { type: 'edge' }>()
         for (const source of this.nodeIds.keys()) {
@@ -539,9 +566,11 @@ export class FixedRootWeaklyConnectedGraph {
                 if (this.nodeIds.get(target) !== undefined) 
                     continue;
                 
+                // Special case: dangling edges have no vector clock for deletion
+                // Dangling edge vcs should be ignored when comparing path vcs
                 danglingEdges.push({
                     type: 'edge',
-                    item: { edgeId: `${source}+${target}`, edgeLabel: sourceInfo.edgeInformation.get(target)!.label }
+                    item: { edgeId: `${source}+${target}`, edgeLabel: sourceInfo.edgeInformation.get(target)!.label, vectorclock: {} }
                 })
                 
             }
@@ -552,7 +581,7 @@ export class FixedRootWeaklyConnectedGraph {
 
                 danglingEdges.push({
                     type: 'edge',
-                    item: { edgeId: `${target}+${source}`, edgeLabel: sourceInfo.incomingNodes.get(target)!.label }
+                    item: { edgeId: `${target}+${source}`, edgeLabel: sourceInfo.incomingNodes.get(target)!.label, vectorclock: {} }
                 })   
             }
             
@@ -560,11 +589,11 @@ export class FixedRootWeaklyConnectedGraph {
         return danglingEdges
     }
 
-
     /**
      * @param danglingEdges Set of removed graph element edges that are dangling
      */
-    private removeRemainingDanglingEdges(danglingEdges: Set<RemovedGraphElement & { type: 'edge' }>): void {
+    // O(DanglingEdges)
+    private removeRemainingDanglingEdges(danglingEdges: Set<RemovedGraphElement & { type: 'edge' }>, clock?: clock): void {
         this.yDoc.transact(() => {
             for (const danglingEdge of danglingEdges) {
                 const [source, target] = splitEdgeId(danglingEdge.item.edgeId);
@@ -575,7 +604,7 @@ export class FixedRootWeaklyConnectedGraph {
                 // Delete the dangling edge
                 // TODO dangling
                 if (this.nodeMap(source)?.edgeInformation.has(target)) {
-                    this.removeEdge(source, target);
+                    this.removeEdge(source, target, clock);
                     continue;
                 }
                 if (this.nodeMap(target)?.incomingNodes.has(source)) {
@@ -587,6 +616,7 @@ export class FixedRootWeaklyConnectedGraph {
         });
     }
 
+    // O(V + E)
     private dfsVisitedNodes(nodeId: id, excludedEdges: Set<EdgeId> = new Set<EdgeId>()): Set<id> {
         const visited = new Set<string>();
 
@@ -605,8 +635,8 @@ export class FixedRootWeaklyConnectedGraph {
                     dfs(neighborId);
                 }
             });
-            const incomingEdges = info.incomingNodes
 
+            const incomingEdges = info.incomingNodes
             incomingEdges.forEach((_, neighborId) => {
                 if (!visited.has(neighborId) && (!excludedEdges.has(`${neighborId}+${nodeId}`))) 
                     dfs(neighborId);
@@ -616,6 +646,7 @@ export class FixedRootWeaklyConnectedGraph {
         return visited;
     }
 
+    // O(V + E)
     private getConnectedComponents(): Set<Set<id>> {
         let connectedComponents = new Set<Set<id>>();
         let visited = new Set<id>();
@@ -629,9 +660,13 @@ export class FixedRootWeaklyConnectedGraph {
         }
         return connectedComponents;
     }
+
+    // O(V + E)
     public isWeaklyConnected(): boolean {
         return this.getConnectedComponents().size === 1;
     }
+
+    // O(V + E) 
     private findPath(source: id, target: id, excludedEdge: Set<EdgeId>): ReadonlyArray<id> {
         if(this.nodeIds.get(source) === undefined || this.nodeIds.get(target) === undefined)
             return []
@@ -673,7 +708,7 @@ export class FixedRootWeaklyConnectedGraph {
         return dfs(source) ? path : []
     }
 
-
+    // O(V + E)
     private isConnectedAfterEdgeRemoval(source: id, target: id): boolean {
         const excludedEdge = new Set<EdgeId>([`${source}+${target}`, `${target}+${source}`]);
 
@@ -689,7 +724,17 @@ export class FixedRootWeaklyConnectedGraph {
         return sourceToRootPath.length !== 0 && targetToRootPath.length !== 0;
     }
 
-    private computePathConnectingComponents(connectedComponents: Set<Set<id>>, allPathsWithCostInGraph: Set<[RestorablePath, BigInt]>, danglingEdges: Set<RemovedGraphElement>): [RestorablePath, Set<RemovedGraphElement>, Set<Set<id>>,  Set<[RestorablePath, BigInt]>] | undefined {
+    // O(ClientCount)
+    private clockLeq(clock1: clock , clock2: clock): boolean {
+        for (const [key, value] of Object.entries(clock1) as [string, number][]) {
+            if (value > (clock2[key] ?? 0))
+                return false
+        }
+        return true
+    }
+
+    // O(PathsInRemovedGraphElements * V^2 + (danglingEdges + V^2 + pathsInRemovedGraphElements))
+    private computePathConnectingComponentsVar1(connectedComponents: Set<Set<id>>, allPathsWithCostInGraph: Set<[RestorablePath, BigInt]>, danglingEdges: Set<RemovedGraphElement>): [RestorablePath, Set<RemovedGraphElement>, Set<Set<id>>,  Set<[RestorablePath, BigInt]>] | undefined {
         const allPathsSorted =  Array.from(allPathsWithCostInGraph).sort((a, b) => a[1] < b[1] ? -1 : 1);
         for (const [path, ] of allPathsSorted) {
             const first = begin(path)!
@@ -731,7 +776,83 @@ export class FixedRootWeaklyConnectedGraph {
         return undefined
     }
 
+    // O(pathsInRemovedGraphElements * (pathlength + danglingEdges + components * O(V))) 
+    // + 2 * O(paths log(paths))
+    // + O(paths log(paths) * pathlength^2)
+    // + O((PathsInRemovedGraphElements + (V^2 + pathsInRemovedGraphElements)))
+    // => O(pathsInRemovedGraphElements * (pathlength + danglingEdges + components * O(V))) + O(paths log(paths) * pathlength^2) + V^2 
+    private computePathConnectingComponents(connectedComponents: Set<Set<id>>, allPathsWithCostInGraph: Set<[RestorablePath, BigInt]>, danglingEdges: Set<RemovedGraphElement>): [RestorablePath, Set<RemovedGraphElement>, Set<Set<id>>,  Set<[RestorablePath, BigInt]>] | undefined {
+        // Sort the paths by cost (ascending)
+        const allPathsSorted =  Array.from(allPathsWithCostInGraph).sort((a, b) => a[1] < b[1] ? -1 : 1);
 
+        // Sort by the number of components a path connects (descending)
+        // O(PathsInRemovedGraphElements * (pathlength + danglingEdges + danglingEdges + O(V) + components * O(V))
+        // O(pathsInRemovedGraphElements * (pathlength + danglingEdges + components * O(V)))
+        const connectingComponentsCountPerPath = new Map<RestorablePath, [Set<string>, Set<Set<id>>, Set<RemovedGraphElement>]>(allPathsSorted.map(([path]) => {
+            const allVisitedNodes = new Set(path.edges.map(x => x.nodeId).concat(end(path)!)); 
+
+            const danglingEdgesInPath = 
+                new Set(
+                    Array.from(danglingEdges)
+                    .filter(x => splitEdgeId(x.item.edgeId).some(y => allVisitedNodes.has(y)))
+                );
+
+            const danglingEdgeNodesToBeRestored = new Set([...danglingEdgesInPath].map(x => splitEdgeId(x.item.edgeId)).flat());
+
+            const allNodesToBeRestored = allVisitedNodes.union(danglingEdgeNodesToBeRestored);
+
+            return [path, [allVisitedNodes, new Set([...connectedComponents].filter(component => 
+                component.intersection(allNodesToBeRestored).size > 0)
+            ), danglingEdgesInPath]]
+        }))
+
+        // O(paths log(paths))
+        const pathsSortedByComponentCount = allPathsSorted.toSorted(([path1], [path2]) => connectingComponentsCountPerPath.get(path2)![1].size - connectingComponentsCountPerPath.get(path1)![1].size)
+
+        // Sort by vc (causal order)
+        // put those paths in front which are greater on all clocks than other paths
+        // (note that this will have to return 0 for concurrently deleted paths)
+
+        // O(paths log(paths) * pathlength^2)
+        const pathsSortedByCausality = pathsSortedByComponentCount.toSorted(([path1], [path2]) => {
+            const vcs1 = path1.edges.map(edge => edge.vectorclock).concat(path1.finalEdge.vectorclock)
+            const vcs2 = path2.edges.map(edge => edge.vectorclock).concat(path2.finalEdge.vectorclock)
+
+            const vcs1leq2 = vcs1.every(vc1 => vcs2.every(vc2 => this.clockLeq(vc1, vc2)))
+            const vcs2leq1 = vcs1.every(vc1 => vcs2.every(vc2 => this.clockLeq(vc2, vc1)))
+
+            if (vcs1leq2 === vcs2leq1)
+                // this covers the case if both are true and both are false
+                // so if both are equal or they are concurrent
+                return 0
+
+            if (vcs1leq2)
+                return -1
+            
+            
+            return 1
+        })
+
+        // O(PathsInRemovedGraphElements + (V^2 + pathsInRemovedGraphElements))
+        for (const [path, ] of pathsSortedByCausality) {
+            const [pathNodes, componentsToBeMerged, danglingEdgesInPath] = connectingComponentsCountPerPath.get(path)!
+            if (componentsToBeMerged.size > 1) {
+                const mergedComponents = mergeComponents(connectedComponents, componentsToBeMerged, pathNodes)
+                const pathsContainedInConnectedComponents =
+                    new Set(
+                        allPathsSorted
+                        .filter(x => mergedComponents.isSupersetOf(new Set(x[0].edges.map(y => y.nodeId).concat(splitEdgeId(x[0].finalEdge.id)))))
+                    );
+
+                return [path, danglingEdgesInPath, mergedComponents, pathsContainedInConnectedComponents];
+            } 
+        }
+    
+        return undefined
+    }
+
+    // O(removedGraphElements * components^2 + max((componentsize * danglingEdges + components * nodesInDanglingEdgesToRepair + components^2), 1)
+    // => O(removedGraphElements * components^2 + (componentsize * danglingEdges + components * nodesInDanglingEdgesToRepair)
     private getGraphElementIdxAndMergedComponents(connectedComponents: Set<Set<id>>, danglingEdges: Set<RemovedGraphElement>): [number, Set<Set<id>>, Set<RemovedGraphElement>] | undefined {
         for (const [reversedGraphElementIndex, graphElement] of this.removedGraphElements.toArray().toReversed().entries()) {  
             for (const component of connectedComponents) {
@@ -749,6 +870,7 @@ export class FixedRootWeaklyConnectedGraph {
                                 ((component.has(source) && otherConnectedComponent.has(target)) || 
                                 (component.has(target) && otherConnectedComponent.has(source)))) {
 
+                                // O(1) because number of merge components is 2
                                 const mergedComponents = mergeComponents(connectedComponents, new Set([component, otherConnectedComponent]));
                                 const edgeIndex = this.removedGraphElements.length - 1 - reversedGraphElementIndex;
 
@@ -759,13 +881,14 @@ export class FixedRootWeaklyConnectedGraph {
                             const targetNodes = new Set (graphElement.item.edgeInformation.map(x => splitEdgeId(x.edgeId)[1]));
 
                             // Check if the connecting node is connected via a dangling edge to a component
+                            // O(componentsize * danglingEdges)
                             const componentDanglingEdgeToConnectionNode = 
                                 Array.from(component)
                                 .filter(x => [...danglingEdges]
-                                                .find(y => 
-                                                    (y.item.edgeId === `${x}+${graphElement.item.nodeId}`) || 
-                                                    (y.item.edgeId === `${graphElement.item.nodeId}+${x}`)) 
-                                                !== undefined).length > 0;
+                                    .find(y => 
+                                        (y.item.edgeId === `${x}+${graphElement.item.nodeId}`) || 
+                                        (y.item.edgeId === `${graphElement.item.nodeId}+${x}`)) 
+                                    !== undefined).length > 0;
 
                             const otherComponentDanglingEdgeToConnectionNode =
                                 Array.from(otherConnectedComponent)
@@ -800,17 +923,20 @@ export class FixedRootWeaklyConnectedGraph {
 
                                 const nodesInDanglingEdgesToRepair = new Set([...danglingEdgesToRepair].map(x => splitEdgeId(x.item.edgeId)).flat());
 
+                                // O(nodesInDanglingEdgesToRepair + 1)
                                 const nodesToBeMerged = 
                                     nodesInDanglingEdgesToRepair
                                     .union(incomingSourceNodes)
                                     .union(targetNodes);
                                 
+                                // O(components * nodesInDanglingEdgesToRepair)
                                 const componentsToBeMerged =
                                     new Set(
                                         Array.from(connectedComponents)
                                         .filter(x => x.intersection(nodesToBeMerged).size > 0)
                                     )
-                                    
+                                
+                                // O(components^2)
                                 const mergedComponents = mergeComponents(connectedComponents, componentsToBeMerged, new Set([graphElement.item.nodeId]));
                                 const nodeIndex = this.removedGraphElements.length - 1 - reversedGraphElementIndex;
                                 return [nodeIndex, mergedComponents, danglingEdgesToRepair];
@@ -834,6 +960,7 @@ export class FixedRootWeaklyConnectedGraph {
         return undefined;
     }
 
+    // O(removedGraphElements + danglingEdgesToNode)
     private addYRemovedEdgeWithNode(edgeWithNode: EdgeInformationForRemovedEdgesWithNode, danglingToNode: Set<RemovedGraphElement>): void {
         this.yDoc.transact(() => {
 
@@ -884,6 +1011,7 @@ export class FixedRootWeaklyConnectedGraph {
         });
     }
 
+    // O(pathLength * (removedGraphElements + danglingEdgesToPath))
     private addYRemovedPath(path: RestorablePath, danglingEdgesInPath: Set<RemovedGraphElement>): void {
         this.yDoc.transact(() => {
             for (const edge of path.edges) {
@@ -924,8 +1052,8 @@ export class FixedRootWeaklyConnectedGraph {
         restoredPaths: 0,
     }
 
-    private i = 0;
-    public makeGraphWeaklyConnected(): void {
+    public makeGraphWeaklyConnectedVariant2(): void {
+        const clock = Object.fromEntries(Y.decodeStateVector(Y.encodeStateVector(this.yDoc)));
         this.yDoc.transact(() => {
             this.i++;
             this.benchmarkData = {
@@ -987,17 +1115,182 @@ export class FixedRootWeaklyConnectedGraph {
                 return cost;
             }
             
+            let pathsWithCost: Set<[RestorablePath, BigInt]> = 
+                connectedComponents.size > 1 
+                ? new Set(
+                    Array.from(
+                        findAllPaths(this.removedGraphElements.toArray().concat(Array.from(danglingEdges))))
+                        .map(x => [x, pathCost(x)])
+                )
+                : new Set();
+            
+            this.benchmarkData.paths = pathsWithCost.size;
+
+            while (connectedComponents.size > 1) {
+                const tryToConnectComponentsWithPath = this.computePathConnectingComponents(connectedComponents, pathsWithCost, danglingEdges);
+                if (tryToConnectComponentsWithPath !== undefined) {
+                    const [path, danglingEdgesInPath, mergedComponents, pathsContainedInConnectedComponents] = tryToConnectComponentsWithPath;
+                    this.addYRemovedPath(path, danglingEdgesInPath);
+                    connectedComponents = mergedComponents;
+                    danglingEdges = danglingEdges.difference(danglingEdgesInPath);
+                    pathsWithCost = pathsWithCost.difference(pathsContainedInConnectedComponents)
+                    this.benchmarkData.restoredPaths++;
+                }
+
+                assert(tryToConnectComponentsWithPath !== undefined, 'Could not connect components');
+            }
+
+            // Remove remaining dangling edges which were not used to connect components
+            this.removeRemainingDanglingEdges(danglingEdges, clock);
+
+            assert(this.getDanglingEdges().length === 0, 'Dangling edges should be removed');
+
+        });
+    }
+
+    private i = 0;
+    // getDanglingEdges: O(V * E)
+    // getConnectedComponents: O(V + E)
+    // getGraphElementIdxAndMergedComponents: O(removedGraphElements * components^2 + (componentsize * danglingEdges + components * nodesInDanglingEdgesToRepair)
+    // addYRemovedEdgeWithNode: O(removedGraphElements + danglingEdgesToNode)
+    // addEdge: removedGraphElements
+    // findAllPathsInGraphElements: O(removedGraphElements!)
+    // computePathConnectingComponents: O(PathsInRemovedGraphElements * V^2 + (danglingEdges + V^2 + pathsInRemovedGraphElements)) 
+    // addYRemovedPath: O(pathEdges * (removedGraphElements + danglingEdgesToPath))
+    // removeRemainingDanglingEdges: O(DanglingEdges)
+    //----------------------------------------------------------------------------------------------------------------------------------------------------------------
+    // getDanglingEdges + getConnectedComponents +
+    // connectedComponents * (getGraphElementIdxAndMergedComponents + max(addYRemovedEdgeWithNode, addEdge)) +
+    // findAllPathsInGraphElements + connectedComponents * (computePathConnectingComponents + addYRemovedPath) 
+    // + removeRemainingDanglingEdges
+
+    // O(V * E + V + E + components * (removedGraphElements! * ((danglingEdges + components * V) + log(removedGraphElements!)) + V^2 + danglingEdgesToPath))
+
+    // O(V * E)
+    // + O(V + E)
+    // + O(components * (removedGraphElements * components^2 + danglingEdges  * (componentsize + components)))
+    // + O(danglingEdges * log(danglingEdges))
+    // + O(removedGraphElements! * (removedGraphElements + danglingEdges))
+    // + O(components * (removedGraphElements! * ((danglingEdges + components * V) + log(removedGraphElements!)) + V^2 + danglingEdgesToPath))
+    // + O(danglingEdges) x
+    // = O(V * E)
+    // + O(R * C^3 + C * DE * (CS + C) + C * R! * (DE + C * V + log(R!)) + V^2 + DE)
+    // + O(DE * log(DE))
+    // + O(R! * DE)
+    // = O(V * E)
+    // + O(R * C^3 + C * DE * (CS + C) + C * R! * (DE + C * V + log(R!)) + V^2)
+    // + O(DE * log(DE))
+    // = O(V * E + V^2 + DE * log(DE) + C * (R * C^2 + DE * (CS + C) + R! * (DE + C * V + log(R!))))
+
+    // cost if the graph is already correct:
+    // O(V * E)
+    public makeGraphWeaklyConnected(): void {
+        const clock = Object.fromEntries(Y.decodeStateVector(Y.encodeStateVector(this.yDoc)));
+        this.yDoc.transact(() => {
+            this.i++;
+            this.benchmarkData = {
+                danglingEdges: 0,
+                connectedComponents: 0,
+                paths: 0,
+                restoredNodesWithEdges: 0,
+                restoredEdges: 0,
+                restoredPaths: 0,
+            }
+
+            let danglingEdges = new Set(this.getDanglingEdges());
+            this.benchmarkData.danglingEdges = danglingEdges.size;
+            let connectedComponents = this.getConnectedComponents();
+            this.benchmarkData.connectedComponents = connectedComponents.size;
+
+            if (connectedComponents.size === 1 && danglingEdges.size === 0) return;
+
+            // O(components * (removedGraphElements * components^2 + danglingEdges * (componentsize + components)))
+            // + O(components * (removedGraphElements + danglingEdges))
+            // = O(components * (removedGraphElements * (components^2 + 1) + danglingEdges  * (componentsize + components + 1)))
+            // \eq O(components * (removedGraphElements * components^2 + danglingEdges  * (componentsize + components)))
+
+            while (connectedComponents.size > 1) {
+                // O(components * (removedGraphElements * components^2 + danglingEdges * (componentsize + components)))
+                const tryToConnectComponentsWithGraphElement = this.getGraphElementIdxAndMergedComponents(connectedComponents, danglingEdges);
+                if (tryToConnectComponentsWithGraphElement === undefined) 
+                    break;
+
+                const [graphElementIdxConnectingTwoComponents, mergedComponents, danglingEdgesToRepair] = tryToConnectComponentsWithGraphElement;
+                const graphElementConnectingTwoComponents = this.removedGraphElements.get(graphElementIdxConnectingTwoComponents);
+                
+                // O(components * (removedGraphElements + danglingEdges))
+                switch (graphElementConnectingTwoComponents.type) {
+                    case 'edgeWithNode': {
+                        const nodeConnectingTwoComponents = graphElementConnectingTwoComponents.item;
+                        this.addYRemovedEdgeWithNode(nodeConnectingTwoComponents, danglingEdgesToRepair);
+                        danglingEdges = danglingEdges.difference(danglingEdgesToRepair);
+                        this.benchmarkData.restoredNodesWithEdges++;
+                        break;
+                    }
+                    case 'edge': {
+                        const edgeConnectingTwoComponents = graphElementConnectingTwoComponents.item;
+                        const [source, target] = splitEdgeId(edgeConnectingTwoComponents.edgeId);
+                        const edgeLabel = edgeConnectingTwoComponents.edgeLabel;
+                        // Added edge is removed from the removed edges list in addEdge
+                        this.addEdge(source, target, edgeLabel);
+                        this.benchmarkData.restoredEdges++;
+                        break;
+                    }
+                }
+                
+                connectedComponents = mergedComponents;
+            }
+
+            let allGraphElementsRev: RemovedGraphElement[] | undefined = undefined
+
+            // O(danglingEdges * log(danglingEdges))
+            const lazyAllGraphElements = () => {
+                if (allGraphElementsRev !== undefined)
+                    return allGraphElementsRev
+
+                // O(danglingEdges * log(danglingEdges))
+                const sortedDanglingEdges = Array.from(danglingEdges).sort((a, b) => a.item.edgeId.localeCompare(b.item.edgeId));
+                // O(1)
+                allGraphElementsRev = this.removedGraphElements.toArray().concat(sortedDanglingEdges).toReversed();
+                return allGraphElementsRev
+            }
+
+            // O(pathLength * (removedGraphElements + danglingEdges))
+            const pathCost = (path: RestorablePath): BigInt => {
+                let cost = 0n;
+                // O(pathLength)
+                // assumption: usedRemovedElements per edge in path is limited to at most 2
+                const usedRemovedElements = path.edges.reduce((s, n) => s.union(n.edgePayload.usedRemovedElements), path.finalEdge.edgePayload.usedRemovedElements)
+                for (const elem of usedRemovedElements) {
+                    const indexReversed = lazyAllGraphElements().findIndex(x => elem === x);
+
+                    if (indexReversed === -1) {
+                        console.warn('Element does not exist in the removed graph elements list (computePathConnectingComponents)', elem);
+                    }
+                    cost = cost + (1n << BigInt(indexReversed));
+                }
+                return cost;
+            }
+            
+            // O(V! * pathLength * (removedGraphElements + danglingEdges))
+            // > O(removedGraphElements! * (removedGraphElements + danglingEdges))
             let allPathsWithCostInGraph: Set<[RestorablePath, BigInt]> = 
                 connectedComponents.size > 1 
                 ? new Set(
                     Array.from(
-                        findAllPathsInGraphElements(this.removedGraphElements.toArray().concat(Array.from(danglingEdges))))
+                        findAllPaths(this.removedGraphElements.toArray().concat(Array.from(danglingEdges))))
                         .map(x => [x, pathCost(x)])
                 )
                 : new Set();
             
             this.benchmarkData.paths = allPathsWithCostInGraph.size;
 
+            // Assuming removedGraphElements as pathLength
+            // Assuming removedGraphElements! as pathCount
+            // using distributivity
+            // O(components * (removedGraphElements! * ((danglingEdges + components * V) + log(removedGraphElements!)) + V^2)
+            // + O(components * (removedGraphElements^2 + removedGraphElements * danglingEdgesToPath))
+            // = O(components * (removedGraphElements! * ((danglingEdges + components * V) + log(removedGraphElements!)) + V^2 + danglingEdgesToPath))
             while (connectedComponents.size > 1) {
                 const tryToConnectComponentsWithPath = this.computePathConnectingComponents(connectedComponents, allPathsWithCostInGraph, danglingEdges);
                 if (tryToConnectComponentsWithPath !== undefined) {
@@ -1013,7 +1306,8 @@ export class FixedRootWeaklyConnectedGraph {
             }
 
             // Remove remaining dangling edges which were not used to connect components
-            this.removeRemainingDanglingEdges(danglingEdges);
+            // O (danglingEdges)
+            this.removeRemainingDanglingEdges(danglingEdges, clock);
 
             assert(this.getDanglingEdges().length === 0, 'Dangling edges should be removed');
 
