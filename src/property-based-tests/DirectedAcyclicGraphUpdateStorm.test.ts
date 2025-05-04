@@ -62,12 +62,12 @@ describe('properties', () => {
                         .filter(i => i !== idx)
                         .map(i => Y.encodeStateAsUpdate(yDocs[i], Y.encodeStateVector(yDocs[idx])))
                     
-                        // try to apply again
+                    // try to apply again
                     // if successful, simply continue
                     // if still unsuccessful, resolve conflicts, calculate resolving transaction
                     newUpdates.forEach(up => Y.applyUpdate(yDocs[idx], up))
                     const waitingHelped = !yGraphs[idx].hasInvalidEdges() && yGraphs[idx].isAcyclic()
-                    yGraphs[idx].removeCycles();
+                    yGraphs[idx].makeGraphValid();
                     await csvPUSWriter.writeRecords([{
                         id: id,
                         cycleCount: yGraphs[idx].benchmarkData.cycles,

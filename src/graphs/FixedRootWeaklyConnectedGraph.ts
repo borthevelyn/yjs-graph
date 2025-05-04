@@ -2,6 +2,7 @@ import * as Y from 'yjs';
 import { XYPosition } from "@xyflow/react";
 import { id, EdgeId, ObjectYMap, splitEdgeId, EdgeDirection } from "../Types";
 import assert from 'assert';
+import { syncDefault, syncPUSPromAll } from './SynchronizationMethods';
 
 
 function xor(a: boolean, b: boolean): boolean {
@@ -15,6 +16,7 @@ type BenchmarkData = {
     restoredNodesWithEdges: number,
     restoredEdges: number,
     restoredPaths: number,
+    time: number
 }
 
 type clock = {
@@ -788,8 +790,19 @@ export class FixedRootWeaklyConnectedGraph {
         // Sort by the number of components a path connects (descending)
         // O(PathsInRemovedGraphElements * (pathlength + danglingEdges + danglingEdges + O(V) + components * O(V))
         // O(pathsInRemovedGraphElements * (pathlength + danglingEdges + components * O(V)))
-        const connectingComponentsCountPerPath = new Map<RestorablePath, [Set<string>, Set<Set<id>>, Set<RemovedGraphElement>]>(allPathsSorted.map(([path]) => {
-            const allVisitedNodes = new Set(path.edges.map(x => x.nodeId).concat(end(path)!)); 
+        const connectingComponentsCountPerPath = new Map<RestorablePath, [Set<string>, Set<Set<id>>, Set<RemovedGraphElement>]>(allPathsSorted.map(([path, cost]) => {
+
+            if (![...connectedComponents].some(component => component.has(begin(path)!))
+                || ![...connectedComponents].some(component => component.has(end(path)!)))
+                return [path, [new Set(), new Set(), new Set()]]
+
+            const allVisitedNodes = new Set(path.edges.flatMap(x => splitEdgeId(x.edgeId)).concat(end(path)!));
+
+            if (![...allVisitedNodes].every(node => 
+                node === begin(path) || node === end(path)
+                    ? [...connectedComponents].some(component => component.has(node))
+                    : [...connectedComponents].every(component => !component.has(node))))
+                return [path, [new Set(), new Set(), new Set()]]
 
             const danglingEdgesInPath = 
                 new Set(
@@ -1043,7 +1056,7 @@ export class FixedRootWeaklyConnectedGraph {
         });
     }
 
-    public benchmarkData: BenchmarkData = {
+    public benchmarkData: Omit<BenchmarkData, 'time'> = {
         danglingEdges: 0,
         connectedComponents: 0,
         paths: 0,
@@ -1052,9 +1065,9 @@ export class FixedRootWeaklyConnectedGraph {
         restoredPaths: 0,
     }
 
-    public makeGraphWeaklyConnectedVariant2(): void {
+    public makeGraphWeaklyConnectedVariant2(): BenchmarkData {
         const clock = Object.fromEntries(Y.decodeStateVector(Y.encodeStateVector(this.yDoc)));
-        this.yDoc.transact(() => {
+        return this.yDoc.transact(() => {
             this.i++;
             this.benchmarkData = {
                 danglingEdges: 0,
@@ -1064,6 +1077,8 @@ export class FixedRootWeaklyConnectedGraph {
                 restoredEdges: 0,
                 restoredPaths: 0,
             }
+
+            const start = performance.now()
 
             let danglingEdges = new Set(this.getDanglingEdges());
             this.benchmarkData.danglingEdges = danglingEdges.size;
@@ -1145,6 +1160,7 @@ export class FixedRootWeaklyConnectedGraph {
 
             assert(this.getDanglingEdges().length === 0, 'Dangling edges should be removed');
 
+            return { ...this.benchmarkData, time: performance.now() - start }
         });
     }
 
@@ -1184,9 +1200,9 @@ export class FixedRootWeaklyConnectedGraph {
 
     // cost if the graph is already correct:
     // O(V * E)
-    public makeGraphWeaklyConnected(): void {
+    public makeGraphWeaklyConnected(): BenchmarkData {
         const clock = Object.fromEntries(Y.decodeStateVector(Y.encodeStateVector(this.yDoc)));
-        this.yDoc.transact(() => {
+        return this.yDoc.transact(() => {
             this.i++;
             this.benchmarkData = {
                 danglingEdges: 0,
@@ -1197,12 +1213,15 @@ export class FixedRootWeaklyConnectedGraph {
                 restoredPaths: 0,
             }
 
+            const start = performance.now()
+
             let danglingEdges = new Set(this.getDanglingEdges());
             this.benchmarkData.danglingEdges = danglingEdges.size;
             let connectedComponents = this.getConnectedComponents();
             this.benchmarkData.connectedComponents = connectedComponents.size;
 
-            if (connectedComponents.size === 1 && danglingEdges.size === 0) return;
+            if (connectedComponents.size === 1 && danglingEdges.size === 0) 
+                return { ...this.benchmarkData, time: performance.now() - start }
 
             // O(components * (removedGraphElements * components^2 + danglingEdges * (componentsize + components)))
             // + O(components * (removedGraphElements + danglingEdges))
@@ -1311,8 +1330,33 @@ export class FixedRootWeaklyConnectedGraph {
 
             assert(this.getDanglingEdges().length === 0, 'Dangling edges should be removed');
 
+            return { ...this.benchmarkData, time: performance.now() - start }
         });
     }
+
+    static syncDefault(graphs: FixedRootWeaklyConnectedGraph[], useVariant2: boolean = false) {
+        return syncDefault(
+            graphs,
+            graphs.map(graph => graph.yDoc),
+            useVariant2 
+                ? graph => graph.makeGraphWeaklyConnectedVariant2()
+                : graph => graph.makeGraphWeaklyConnected()
+            )
+    }
+    static async syncPUS(graphs: FixedRootWeaklyConnectedGraph[], maxSleep: number, rnd: (idx: number) => number, useVariant2: boolean = false) {
+        return await syncPUSPromAll(
+            graphs,
+            graphs.map(x => x.yDoc),
+            rnd,
+            yDoc => new FixedRootWeaklyConnectedGraph(yDoc),
+            graph => graph.getDanglingEdges().length === 0 && graph.isWeaklyConnected(),
+            useVariant2 
+                ? graph => graph.makeGraphWeaklyConnectedVariant2()
+                : graph => graph.makeGraphWeaklyConnected(),
+            maxSleep
+        )
+    }
+
 
     get nodeCount() {
         return this.nodeIds.size

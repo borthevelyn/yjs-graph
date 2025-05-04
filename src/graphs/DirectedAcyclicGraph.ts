@@ -3,11 +3,14 @@ import { id, FlowNode, FlowEdge, ObjectYMap, EventEmitter, EdgeId, splitEdgeId }
 import { Graph } from "./Graph";
 import * as Y from 'yjs'
 import assert from 'assert';
+import { syncDefault, syncPUSPromAll, syncPUSParSim } from "./SynchronizationMethods";
 
 type BenchmarkData = {
     cycles: number,
     cycleResolutionSteps: number,
     yEdges: number,
+    optimized: boolean,
+    time: number
 }
 
 type EdgeInformation = {
@@ -52,9 +55,12 @@ export class DirectedAcyclicGraph implements Graph {
     private selectedEdges: Set<EdgeId>;
     private eventEmitter: EventEmitter | undefined;
 
-    constructor(yMatrix: AdjacencyMapGraph, yEdges: Y.Array<yEdgeInformation>, eventEmitter?: EventEmitter) {
-        this.yMatrix = yMatrix;
-        this.yEdges = yEdges;
+    private readonly yMatrixId = 'adjacency_map_ydoc'
+    private readonly yEdgesId = 'edges_ydoc'
+
+    constructor(yDoc: Y.Doc, eventEmitter?: EventEmitter) {
+        this.yMatrix = yDoc.getMap(this.yMatrixId);
+        this.yEdges = yDoc.getArray(this.yEdgesId);
         this.selectedNodes = new Set();
         this.selectedEdges = new Set();
         this.eventEmitter = eventEmitter;
@@ -379,10 +385,11 @@ export class DirectedAcyclicGraph implements Graph {
         return strictlyLess
     }
 
-    public benchmarkData: BenchmarkData = {
+    public benchmarkData: Omit<BenchmarkData, 'time'> = {
         cycles: 0,
         cycleResolutionSteps: 0,
         yEdges: 0,
+        optimized: true,
     }
 
     private removeCyclesOptimized(remainingCycles: Set<yEdgeInformation[]>, edgesContributingToCycles: Set<yEdgeInformation>): void {
@@ -457,17 +464,19 @@ export class DirectedAcyclicGraph implements Graph {
 
     }
 
-    public removeCycles(optimized: boolean = true): void {
-        this.yEdges.doc!.transact(() => {
+    public makeGraphValid(optimized: boolean = true): BenchmarkData {
+        return this.yEdges.doc!.transact(() => {
             this.benchmarkData = {
                 cycles: 0,
                 cycleResolutionSteps: 0,
+                optimized,
                 yEdges: this.yEdges.length,
             }
+            const start = performance.now()
 
             this.removeInvalidEdges();
             if (!this.isCyclic()) 
-                return
+                return { ...this.benchmarkData, time: performance.now() - start }
             
             const cycles = this.getAllCyclesInDAG();
             this.benchmarkData.cycles = cycles.size;
@@ -486,6 +495,8 @@ export class DirectedAcyclicGraph implements Graph {
                 this.removeCyclesOptimized(remainingCycles, edgesContributingToCycles);
             else 
                 this.removeCyclesNotOptimized(remainingCycles, edgesContributingToCycles);
+
+            return { ...this.benchmarkData, time: performance.now() - start }
         })
     }
     // Complexity: O(1)
@@ -561,6 +572,22 @@ export class DirectedAcyclicGraph implements Graph {
             this.selectedEdges.delete(edgeId);
         });
     }
+
+    static syncDefault(graphs: DirectedAcyclicGraph[], useVariant2: boolean = false) {
+        return syncDefault(graphs, graphs.map(graph => graph.yMatrix.doc!), graph => graph.makeGraphValid(useVariant2))
+    }
+    static async syncPUS(graphs: DirectedAcyclicGraph[], maxSleep: number, rnd: (idx: number) => number, useVariant2: boolean = false) {
+        return await syncPUSParSim(
+            graphs,
+            graphs.map(x => x.yMatrix.doc!),
+            rnd,
+            yDoc => new DirectedAcyclicGraph(yDoc),
+            graph => !graph.hasInvalidEdges() && graph.isAcyclic(),
+            graph => graph.makeGraphValid(useVariant2),
+            maxSleep, maxSleep / 2.0
+        )
+    }
+
     changeNodePosition(nodeId: id, position: XYPosition): void {
         throw new Error("Method not implemented.");
     }
@@ -574,7 +601,6 @@ export class DirectedAcyclicGraph implements Graph {
         throw new Error("Method not implemented.");
     }
     nodesAsFlow(): FlowNode[] {
-        assert(this.yMatrix !== undefined, 'yMatrix is undefined')
         return Array.from(this.yMatrix.values()).map(x => {
             return {
                 id: x.get('id'),
@@ -587,14 +613,10 @@ export class DirectedAcyclicGraph implements Graph {
         })
     }
     edgesAsFlow(): FlowEdge[] {
-        this.removeDanglingEdges();
-
         const nestedEdges = 
             Array.from(this.yMatrix.entries()).map(([sourceNode, nodeInfo]) =>
                 Array.from(nodeInfo.get('edgeInformation')).map(([targetNode, {label}]) => {
                     assert(this.yMatrix.get(targetNode) !== undefined, 'target node still dangling and contained')
-/*                     if (this.yMatrix.get(targetNode) === undefined)
-                        throw new Error('target node still dangling and contained'); */
                     const edgeId: EdgeId = `${sourceNode}+${targetNode}`;
                     return {
                         id: edgeId,
@@ -657,7 +679,6 @@ export class DirectedAcyclicGraph implements Graph {
         return JSON.stringify(this.yEdges.toArray());
     }
     getEdgesAsJson(): string {
-        //this.removeDanglingEdges();
         let edges = 
             Array.from(this.yMatrix.entries()).map(([sourceNode, nodeInfo]) =>
                 Array.from(nodeInfo.get('edgeInformation')).map(([targetNode,]) => {
@@ -675,7 +696,6 @@ export class DirectedAcyclicGraph implements Graph {
         return this.yMatrix.size;
     }
     get edgeCount(): number {
-        this.removeDanglingEdges();
         return Array.from(this.yMatrix.values()).reduce((acc, x) => acc + x.get('edgeInformation').size, 0);
     }
     get yEdgeCount(): number {
@@ -688,4 +708,14 @@ export class DirectedAcyclicGraph implements Graph {
         return this.selectedEdges.size;
     }
     
+
+    /**
+     * This function generates a new Y.Doc and creates a new class instance.
+     * @returns A newly created DAG on a newly copied Y.Doc
+     */
+    clone() {
+        const doc = new Y.Doc()
+        Y.applyUpdate(doc, Y.encodeStateAsUpdate(this.yMatrix.doc!))
+        return new DirectedAcyclicGraph(doc)
+    }
 }

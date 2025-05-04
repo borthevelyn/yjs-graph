@@ -4,6 +4,7 @@ import { MarkerType, XYPosition } from '@xyflow/react'
 import { id, FlowEdge, FlowNode, ObjectYMap, EventEmitter, EdgeId, splitEdgeId } from '../Types'
 import assert from 'assert';
 import { wrapYMap, YSet } from '../ySet';
+import { syncDefault, syncPUSPromAll } from './SynchronizationMethods';
 
 // Maps edge id to label
 type EdgeInformation = Y.Map<string>
@@ -31,8 +32,11 @@ export class AdjacencySet implements Graph {
 
     private wrappedNodes: ReadonlyMap<string, { readonly edgeInformation: YSet<id>; readonly id: id }>
 
-    constructor(yMatrix: AdjacencySetGraph, eventEmitter?: EventEmitter) {
-        this.yMatrix = yMatrix;
+    
+    private readonly yMatrixId = 'adjacencyset_ydoc'
+
+    constructor(yDoc: Y.Doc, eventEmitter?: EventEmitter) {
+        this.yMatrix = yDoc.getMap(this.yMatrixId);
         this.selectedNodes = new Set();
         this.selectedEdges = new Set();
         this.edgeLabelMap = this.yMatrix.doc!.getMap<string>('edges');
@@ -40,7 +44,7 @@ export class AdjacencySet implements Graph {
         if (this.eventEmitter !== undefined)
             this.yMatrix.observeDeep(() => this.eventEmitter?.fire());
 
-        this.wrappedNodes = wrapYMap(yMatrix, nodeInfo => { return { 
+        this.wrappedNodes = wrapYMap(this.yMatrix, nodeInfo => { return { 
             edgeInformation: new YSet(nodeInfo.get('edgeInformation')),
             id: nodeInfo.get('id'),
         }}, (nodeInfo, key, old) => {
@@ -58,7 +62,8 @@ export class AdjacencySet implements Graph {
         this.eventEmitter?.addListener(lambda)
     }
 
-    public removeDanglingEdges() {
+    public makeGraphValid() {
+        const start = performance.now()
         for (const source of this.wrappedNodes.values()) {
             for (const target of source.edgeInformation.keys()) {
                 if (this.yMatrix.get(target) !== undefined)
@@ -68,6 +73,7 @@ export class AdjacencySet implements Graph {
                 this.selectedEdges.delete(`${source.id}+${target}`);
             }
         }
+        return { time: performance.now() - start }
     }
 
     public hasNoDanglingEdges() {
@@ -158,6 +164,22 @@ export class AdjacencySet implements Graph {
         });
     }
 
+    static syncDefault(graphs: AdjacencySet[]) {
+        return syncDefault(graphs, graphs.map(graph => graph.yMatrix.doc!), graph => graph.makeGraphValid())
+    }
+    static async syncPUS(graphs: AdjacencySet[], maxSleep: number, rnd: (idx: number) => number) {
+        return await syncPUSPromAll(
+            graphs,
+            graphs.map(x => x.yMatrix.doc!),
+            rnd,
+            yDoc => new AdjacencySet(yDoc),
+            graph => graph.hasNoDanglingEdges(),
+            graph => graph.makeGraphValid(),
+            maxSleep
+        )
+    }
+
+
     changeNodePosition(nodeId: id, position: XYPosition) {
         this.yMatrix.doc!.transact(() => {
             const nodeInfo = this.yMatrix.get(nodeId);
@@ -233,9 +255,6 @@ export class AdjacencySet implements Graph {
     }
     
     edgesAsFlow(): FlowEdge[] {
-        console.log('before remove', this.yMatrix.get('node1')?.get('edgeInformation'));
-        this.removeDanglingEdges();
-        console.log('after remove', this.yMatrix.get('node1')?.get('edgeInformation'));
 
         const nestedEdges = 
             Array.from(this.wrappedNodes.entries()).map(([sourceNode, nodeInfo]) =>
@@ -277,7 +296,6 @@ export class AdjacencySet implements Graph {
     }
 
     getEdge(source: string, target: id): FlowEdge | undefined {
-        this.removeDanglingEdges();
         let edge = this.wrappedNodes.get(source)?.edgeInformation.has(target);
         if (edge === undefined || !edge)
             return undefined 
@@ -317,7 +335,6 @@ export class AdjacencySet implements Graph {
     }
 
     get edgeCount() {
-        this.removeDanglingEdges();
         return Array.from(this.wrappedNodes.values()).reduce((acc, x) => acc + x.edgeInformation.size, 0);
     }
 

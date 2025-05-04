@@ -2,6 +2,7 @@ import * as Y from 'yjs'
 import { MarkerType, XYPosition } from '@xyflow/react';
 import { FlowNode, FlowEdge, ObjectYMap, YSet, id, makeYSet, EventEmitter, EdgeId, splitEdgeId } from '../Types';
 import { Graph, IncomingNodesGraph } from './Graph';
+import { syncDefault, syncPUSPromAll } from './SynchronizationMethods';
 
 type EdgeInformation = {
     label: string
@@ -30,8 +31,10 @@ export class AdjacencyMapWithFasterNodeDeletion implements Graph, IncomingNodesG
     private selectedEdges: Set<EdgeId>;
     private eventEmitter: EventEmitter | undefined;
 
-    constructor(yMatrix: AdjacencyMapWithFasterNodeDeletionGraph, eventEmitter?: EventEmitter) {
-        this.yMatrix = yMatrix
+    private readonly yMatrixId = 'adjacencymap_ydoc'
+
+    constructor(yDoc: Y.Doc, eventEmitter?: EventEmitter) {
+        this.yMatrix = yDoc.getMap(this.yMatrixId)
         this.selectedNodes = new Set();
         this.selectedEdges = new Set();
         this.eventEmitter = eventEmitter;
@@ -58,7 +61,8 @@ export class AdjacencyMapWithFasterNodeDeletion implements Graph, IncomingNodesG
         return true
     }
 
-    public removeDanglingEdges() {
+    public makeGraphValid() {
+        const start = performance.now()
         for (const source of this.yMatrix.values()) {
             for (const target of source.get('edgeInformation').keys()) {
                 if (this.yMatrix.get(target) !== undefined)
@@ -74,6 +78,7 @@ export class AdjacencyMapWithFasterNodeDeletion implements Graph, IncomingNodesG
                 source.get('incomingNodes').delete(incomingNode);
             }
         }
+        return { time: performance.now() - start }
     }
 
     private setLabel(nodeId: id, label: string) {
@@ -249,7 +254,7 @@ export class AdjacencyMapWithFasterNodeDeletion implements Graph, IncomingNodesG
     }
 
     edgesAsFlow(): FlowEdge[] {
-        this.removeDanglingEdges();
+        this.makeGraphValid();
         const nestedEdges = 
             Array.from(this.yMatrix.entries()).map(([sourceNode, nodeInfo]) =>
                 Array.from(nodeInfo.get('edgeInformation')).map(([targetNode, {label}]) => {
@@ -285,7 +290,7 @@ export class AdjacencyMapWithFasterNodeDeletion implements Graph, IncomingNodesG
     }
 
     getEdge(source: string, target: id): FlowEdge | undefined {
-        this.removeDanglingEdges();
+        this.makeGraphValid();
         let edge = this.yMatrix.get(source)?.get('edgeInformation').get(target);
         if (edge === undefined)
             return undefined 
@@ -301,6 +306,22 @@ export class AdjacencyMapWithFasterNodeDeletion implements Graph, IncomingNodesG
                 selected: this.selectedEdges.has(edgeId), 
         }
     }
+
+    static syncDefault(graphs: AdjacencyMapWithFasterNodeDeletion[]) {
+        return syncDefault(graphs, graphs.map(graph => graph.yMatrix.doc!), graph => graph.makeGraphValid())
+    }
+    static async syncPUS(graphs: AdjacencyMapWithFasterNodeDeletion[], maxSleep: number, rnd: (idx: number) => number) {
+        return await syncPUSPromAll(
+            graphs,
+            graphs.map(x => x.yMatrix.doc!),
+            rnd,
+            yDoc => new AdjacencyMapWithFasterNodeDeletion(yDoc),
+            graph => graph.hasNoDanglingEdges(),
+            graph => graph.makeGraphValid(),
+            maxSleep
+        )
+    }
+
 
     getNodesAsJson(): string {
         return JSON.stringify(Array.from(this.yMatrix.keys()).sort());
@@ -328,7 +349,7 @@ export class AdjacencyMapWithFasterNodeDeletion implements Graph, IncomingNodesG
     }
 
     get edgeCount(): number {
-        this.removeDanglingEdges();
+        this.makeGraphValid();
         return Array.from(this.yMatrix.values()).reduce((acc, x) => acc + x.get('edgeInformation').size, 0);
     }
 

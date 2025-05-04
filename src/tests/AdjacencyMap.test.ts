@@ -14,23 +14,17 @@ describe('AdjacencyMap', () => {
     let ydoc2: Y.Doc
     let yMatrix2: AdjacencyMap
 
-    function syncConcurrently() {
-        const updates1to2 = Y.encodeStateAsUpdate(ydoc1, Y.encodeStateVector(ydoc2))
-        const updates2to1 = Y.encodeStateAsUpdate(ydoc2, Y.encodeStateVector(ydoc1))
-        Y.applyUpdate(ydoc1, updates2to1)
-        Y.applyUpdate(ydoc2, updates1to2)
-      }
   
     beforeEach(() => {
         ydoc1 = new Y.Doc()
-        yMatrix1 = new AdjacencyMap(ydoc1.getMap('adjacency map'))
+        yMatrix1 = new AdjacencyMap(ydoc1)
         ydoc2 = new Y.Doc()
-        yMatrix2 = new AdjacencyMap(ydoc2.getMap('adjacency map'))
+        yMatrix2 = new AdjacencyMap(ydoc2)
     })
 
     it('should add a node from yMatrix1 to both maps', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
 
         const node1LabelForMatrix1 = yMatrix1.getNode('node1')?.data.label;
         const node1LabelForMatrix2 = yMatrix2.getNode('node1')?.data.label;
@@ -47,7 +41,7 @@ describe('AdjacencyMap', () => {
 
     it('should add a node from yMatrix2 to both maps', () => {
         yMatrix2.addNode('node1', 'node1', { x: 0, y: 0 });
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
 
         const node1LabelForMatrix1 = yMatrix1.getNode('node1')?.data.label;
         const node1LabelForMatrix2 = yMatrix2.getNode('node1')?.data.label;
@@ -64,9 +58,9 @@ describe('AdjacencyMap', () => {
 
     it('should delete a node in both maps', () => {
         yMatrix1.addNode('node2', 'node2', { x: 0, y: 0 });
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeNode('node2');
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeUndefined();
         expect(yMatrix1.getNode('node2')).toBeUndefined();
@@ -82,7 +76,7 @@ describe('AdjacencyMap', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 0, y: 0 });
         yMatrix1.addEdge('node1', 'node2', 'edge 1');
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
 
         const edgeLabelForMatrix1 = yMatrix1.getEdge('node1', 'node2')?.data?.label;
         const edgeLabelForMatrix2 = yMatrix2.getEdge('node1', 'node2')?.data?.label;
@@ -103,7 +97,7 @@ describe('AdjacencyMap', () => {
         yMatrix2.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix2.addNode('node2', 'node2', { x: 0, y: 0 });
         yMatrix2.addEdge('node1', 'node2', 'edge1');
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
 
         const edgeLabelForMatrix1 = yMatrix1.getEdge('node1', 'node2')?.data?.label;
         const edgeLabelForMatrix2 = yMatrix2.getEdge('node1', 'node2')?.data?.label;
@@ -124,9 +118,9 @@ describe('AdjacencyMap', () => {
         yMatrix1.addNode('node1', 'Node 1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'Node 2', { x: 0, y: 0 });
         yMatrix1.addEdge('node1', 'node2', 'edge1');
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('node1', 'node2');
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getEdge('node1', 'node2')).toBeUndefined();
         expect(yMatrix2.getEdge('node1', 'node2')).toBeUndefined();
@@ -141,7 +135,7 @@ describe('AdjacencyMap', () => {
     it('add node1 in one map and node2 in the other map)', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix2.addNode('node2', 'node2', { x: 10, y: 0 });
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -154,10 +148,10 @@ describe('AdjacencyMap', () => {
 // addNode(m), addEdge(n1,n2), m == n2, but not synchronously
     it('add node1 in one map and then node2 with edge1-2 in the other map', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
         yMatrix2.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix2.addEdge('node1', 'node2', 'edge1-2');
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
 
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
@@ -176,10 +170,10 @@ describe('AdjacencyMap', () => {
 // addNode(m), removeNode(n), m != n
     it('add node1 in one map and remove node2 the other map', () => {
         yMatrix2.addNode('node2', 'node2', { x: 10, y: 0 });
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix2.removeNode('node2');
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeUndefined();
@@ -197,10 +191,10 @@ describe('AdjacencyMap', () => {
         yMatrix2.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix2.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix2.addEdge('node1', 'node2', 'edge1-2');
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.addNode('node3', 'node3', { x: 10, y: 0 });
         yMatrix2.removeEdge('node1', 'node2');
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -224,10 +218,10 @@ describe('AdjacencyMap', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix2.addNode('node3', 'node3', { x: 10, y: 0 });
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix2.addEdge('node1', 'node3', 'edge1-3');
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -255,10 +249,10 @@ describe('AdjacencyMap', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix2.addEdge('node3', 'node2', 'edge3-2');
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -287,10 +281,10 @@ describe('AdjacencyMap', () => {
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix2.addNode('node3', 'node3', { x: 0, y: 10 });
         yMatrix2.addNode('node4', 'node4', { x: 10, y: 10 });
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix2.addEdge('node3', 'node4', 'edge3-4');
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -319,10 +313,10 @@ describe('AdjacencyMap', () => {
     it('try to add edge twice', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
         yMatrix2.addEdge('node1', 'node2', 'second edge1-2');
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
 
         const edgeForMatrix1 = yMatrix1.getEdge('node1', 'node2');
         const edgeForMatrix2 = yMatrix2.getEdge('node1', 'node2');
@@ -346,10 +340,10 @@ describe('AdjacencyMap', () => {
     it('add edge1-2 in one map and remove node1 in the other map', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
         yMatrix2.removeNode('node1');
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeUndefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -368,10 +362,10 @@ describe('AdjacencyMap', () => {
     it('add edge1-2 in one map and remove node2 in the other map', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix2.removeNode('node2');
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node2')).toBeUndefined();
         expect(yMatrix1.getNode('node1')).toBeDefined();
@@ -390,10 +384,10 @@ describe('AdjacencyMap', () => {
 // addEdge(m1,m2), removeNode(n) m1 == n, m2 == n
     it('add edge1-1 in one map and remove node1 in the other map', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.addEdge('node1', 'node1', 'edge1-1');
         yMatrix2.removeNode('node1');
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeUndefined();
         expect(yMatrix2.getNode('node1')).toBeUndefined();
@@ -408,10 +402,10 @@ describe('AdjacencyMap', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 0, y: 10 });
         yMatrix1.addNode('node3', 'node3', { x: 10, y: 0 });
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix2.removeNode('node3');
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
 
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
@@ -439,10 +433,10 @@ describe('AdjacencyMap', () => {
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
         yMatrix1.addEdge('node1', 'node3', 'edge1-3');
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix2.removeEdge('node1', 'node3');
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -469,10 +463,10 @@ describe('AdjacencyMap', () => {
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
         yMatrix1.addEdge('node3', 'node2', 'edge3-2');
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix2.removeEdge('node3', 'node2');
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -496,10 +490,10 @@ describe('AdjacencyMap', () => {
 // removeNode(m), removeNode(n) n == m
     it('remove node1 in one map and remove node1 in the other map', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeNode('node1');
         yMatrix2.removeNode('node1');
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeUndefined();
         expect(yMatrix2.getNode('node1')).toBeUndefined();
@@ -511,10 +505,10 @@ describe('AdjacencyMap', () => {
     it('remove node1 in one map and remove node2 in the other map', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix2.addNode('node2', 'node2', { x: 10, y: 0 });
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeNode('node1');
         yMatrix2.removeNode('node2');
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeUndefined();
         expect(yMatrix2.getNode('node2')).toBeUndefined();
@@ -527,10 +521,10 @@ describe('AdjacencyMap', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeNode('node1');
         yMatrix2.removeEdge('node1', 'node2');
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeUndefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -550,10 +544,10 @@ describe('AdjacencyMap', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('node1', 'node2');
         yMatrix2.removeNode('node2');
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node2')).toBeUndefined();
         expect(yMatrix1.getNode('node1')).toBeDefined();
@@ -574,10 +568,10 @@ describe('AdjacencyMap', () => {
         yMatrix2.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix2.addNode('node3', 'node3', { x: 0, y: 10 });
         yMatrix2.addEdge('node2', 'node3', 'edge2-3');
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeNode('node1');
         yMatrix2.removeEdge('node2', 'node3');
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeUndefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -598,10 +592,10 @@ describe('AdjacencyMap', () => {
     it('remove node1 in one map and remove edge1-1 in the other map', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix2.addEdge('node1', 'node1', 'edge1-1');
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeNode('node1');
         yMatrix2.removeEdge('node1', 'node1');
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeUndefined();
         expect(yMatrix1.nodeCount).toBe(0);
@@ -616,10 +610,10 @@ describe('AdjacencyMap', () => {
     it('remove edge1-2 in one map and remove edge1-2 in the other map', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix2.addEdge('node1', 'node1', 'edge1-1');
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('node1', 'node1');
         yMatrix2.removeEdge('node1', 'node1');
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getEdge('node1', 'node1')).toBeUndefined();
@@ -637,10 +631,10 @@ describe('AdjacencyMap', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix2.addEdge('node3', 'node2', 'edge3-2');
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('node1', 'node2');
         yMatrix2.removeEdge('node3', 'node2');
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -662,10 +656,10 @@ describe('AdjacencyMap', () => {
         yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix1.addEdge('node2', 'node3', 'edge2-3');
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('node1', 'node2');
         yMatrix2.removeEdge('node2', 'node3');
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -692,10 +686,10 @@ describe('AdjacencyMap', () => {
         yMatrix2.addNode('node4', 'node4', { x: 10, y: 10 });
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix2.addEdge('node3', 'node4', 'edge3-4');   
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('node1', 'node2');
         yMatrix2.removeEdge('node3', 'node4');
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -723,7 +717,7 @@ describe('AdjacencyMap', () => {
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix1.changeNodeSelection('node1', true);
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.isNodeSelected('node1')).toBe(true);
         expect(yMatrix2.isNodeSelected('node1')).toBe(false);
@@ -735,7 +729,7 @@ describe('AdjacencyMap', () => {
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix1.changeNodeSelection('node1', true);
         yMatrix1.changeNodeSelection('node1', false);
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.isNodeSelected('node1')).toBe(false);
         expect(yMatrix2.isNodeSelected('node1')).toBe(false);
@@ -746,7 +740,7 @@ describe('AdjacencyMap', () => {
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix1.changeEdgeSelection('node1+node2', true);
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.isEdgeSelected('node1', 'node2')).toBe(true);
         expect(yMatrix2.isEdgeSelected('node1', 'node2')).toBe(false);
@@ -758,7 +752,7 @@ describe('AdjacencyMap', () => {
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix1.changeEdgeSelection('node1+node2', true);
         yMatrix1.changeEdgeSelection('node1+node2', false);
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.isEdgeSelected('node1', 'node2')).toBe(false);
         expect(yMatrix2.isEdgeSelected('node1', 'node2')).toBe(false);
@@ -776,7 +770,7 @@ describe('AdjacencyMap', () => {
         yMatrix1.changeNodeSelection('node3', true);
         yMatrix1.changeEdgeSelection('node1+node2', true);
         yMatrix1.changeEdgeSelection('node3+node4', true);
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.isNodeSelected('node1')).toBe(true);
         expect(yMatrix1.isNodeSelected('node2')).toBe(true);
@@ -805,7 +799,7 @@ describe('AdjacencyMap', () => {
         yMatrix1.changeEdgeSelection('node3+node4', true);
         yMatrix1.changeNodeSelection('node1', false);
         yMatrix1.changeEdgeSelection('node1+node2', false);
-        syncConcurrently();
+        AdjacencyMap.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.isNodeSelected('node1')).toBe(false);
         expect(yMatrix1.isNodeSelected('node2')).toBe(true);

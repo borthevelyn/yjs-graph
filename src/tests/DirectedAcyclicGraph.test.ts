@@ -19,64 +19,20 @@ describe('DirectedAcyclicGraph', () => {
     let ydoc3: Y.Doc
     let yMatrix3: DirectedAcyclicGraph
 
-
-    function sync12Concurrently() {
-        let updates1to2 = Y.encodeStateAsUpdate(ydoc1, Y.encodeStateVector(ydoc2))
-        let updates2to1 = Y.encodeStateAsUpdate(ydoc2, Y.encodeStateVector(ydoc1))
-        Y.applyUpdate(ydoc1, updates2to1)
-        Y.applyUpdate(ydoc2, updates1to2)
-
-        yMatrix1.removeCycles()
-        yMatrix2.removeCycles()
-        // Should not be necessary, because removeCycles() should create the same result in both graphs
-        // updates1to2 = Y.encodeStateAsUpdate(ydoc1, Y.encodeStateVector(ydoc2))
-        // updates2to1 = Y.encodeStateAsUpdate(ydoc2, Y.encodeStateVector(ydoc1))
-        // Y.applyUpdate(ydoc1, updates2to1)
-        // Y.applyUpdate(ydoc2, updates1to2)
-    }
-
-    function sync13Concurrently() {
-        let updates1to3 = Y.encodeStateAsUpdate(ydoc1, Y.encodeStateVector(ydoc3))
-        let updates3to1 = Y.encodeStateAsUpdate(ydoc3, Y.encodeStateVector(ydoc1))
-        Y.applyUpdate(ydoc1, updates3to1)
-        Y.applyUpdate(ydoc3, updates1to3)
-
-        yMatrix1.removeCycles()
-        yMatrix3.removeCycles()
-    }
-
-    function syncThreeConcurrently() {
-        let updates1to2 = Y.encodeStateAsUpdate(ydoc1, Y.encodeStateVector(ydoc2))
-        let updates2to1 = Y.encodeStateAsUpdate(ydoc2, Y.encodeStateVector(ydoc1))
-        let updates1to3 = Y.encodeStateAsUpdate(ydoc1, Y.encodeStateVector(ydoc3))
-        let updates3to1 = Y.encodeStateAsUpdate(ydoc3, Y.encodeStateVector(ydoc1))
-        let updates2to3 = Y.encodeStateAsUpdate(ydoc2, Y.encodeStateVector(ydoc3))
-        let updates3to2 = Y.encodeStateAsUpdate(ydoc3, Y.encodeStateVector(ydoc2))
-        Y.applyUpdate(ydoc1, updates2to1)
-        Y.applyUpdate(ydoc1, updates3to1)
-        Y.applyUpdate(ydoc2, updates1to2)
-        Y.applyUpdate(ydoc2, updates3to2)
-        Y.applyUpdate(ydoc3, updates2to3)
-        Y.applyUpdate(ydoc3, updates1to3)
-
-        yMatrix1.removeCycles()
-        yMatrix2.removeCycles()
-        yMatrix3.removeCycles()
-    }
   
     beforeEach(() => {
         ydoc1 = new Y.Doc()
-        yMatrix1 = new DirectedAcyclicGraph(ydoc1.getMap('adjacency map'), ydoc1.getArray('edges'))
+        yMatrix1 = new DirectedAcyclicGraph(ydoc1)
         ydoc2 = new Y.Doc()
-        yMatrix2 = new DirectedAcyclicGraph(ydoc2.getMap('adjacency map'), ydoc2.getArray('edges'))
+        yMatrix2 = new DirectedAcyclicGraph(ydoc2)
         ydoc3 = new Y.Doc()
-        yMatrix3 = new DirectedAcyclicGraph(ydoc3.getMap('adjacency map'), ydoc3.getArray('edges'))
+        yMatrix3 = new DirectedAcyclicGraph(ydoc3)
     })
 
     // Basic tests
      it('should add a node from yMatrix1 to both maps', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         const node1LabelForMatrix1 = yMatrix1.getNode('node1')?.data.label;
         const node1LabelForMatrix2 = yMatrix2.getNode('node1')?.data.label;
@@ -93,7 +49,7 @@ describe('DirectedAcyclicGraph', () => {
 
     it('should add a node from yMatrix2 to both maps', () => {
         yMatrix2.addNode('node1', 'node1', { x: 0, y: 0 });
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         const node1LabelForMatrix1 = yMatrix1.getNode('node1')?.data.label;
         const node1LabelForMatrix2 = yMatrix2.getNode('node1')?.data.label;
@@ -110,9 +66,9 @@ describe('DirectedAcyclicGraph', () => {
 
     it('should delete a node in both maps', () => {
         yMatrix1.addNode('node2', 'node2', { x: 0, y: 0 });
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeNode('node2');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeUndefined();
         expect(yMatrix1.getNode('node2')).toBeUndefined();
@@ -128,7 +84,7 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 0, y: 0 });
         yMatrix1.addEdge('node1', 'node2', 'edge 1');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         const edgeLabelForMatrix1 = yMatrix1.getEdge('node1', 'node2')?.data?.label;
         const edgeLabelForMatrix2 = yMatrix2.getEdge('node1', 'node2')?.data?.label;
@@ -150,7 +106,7 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix2.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix2.addNode('node2', 'node2', { x: 0, y: 0 });
         yMatrix2.addEdge('node1', 'node2', 'edge1');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         const edgeLabelForMatrix1 = yMatrix1.getEdge('node1', 'node2')?.data?.label;
         const edgeLabelForMatrix2 = yMatrix2.getEdge('node1', 'node2')?.data?.label;
@@ -171,9 +127,9 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix1.addNode('node1', 'Node 1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'Node 2', { x: 0, y: 0 });
         yMatrix1.addEdge('node1', 'node2', 'edge1');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('node1', 'node2');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getEdge('node1', 'node2')).toBeUndefined();
         expect(yMatrix2.getEdge('node1', 'node2')).toBeUndefined();
@@ -248,7 +204,7 @@ describe('DirectedAcyclicGraph', () => {
     it('add node1 in one map and node2 in the other map)', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix2.addNode('node2', 'node2', { x: 10, y: 0 });
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -261,10 +217,10 @@ describe('DirectedAcyclicGraph', () => {
 // addNode(m), addEdge(n1,n2), m == n2, but not synchronously
     it('add node1 in one map and then node2 with edge1-2 in the other map', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix2.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix2.addEdge('node1', 'node2', 'edge1-2');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
@@ -283,10 +239,10 @@ describe('DirectedAcyclicGraph', () => {
 // addNode(m), removeNode(n), m != n
     it('add node1 in one map and remove node2 the other map', () => {
         yMatrix2.addNode('node2', 'node2', { x: 10, y: 0 });
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix2.removeNode('node2');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeUndefined();
@@ -304,10 +260,10 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix2.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix2.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix2.addEdge('node1', 'node2', 'edge1-2');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.addNode('node3', 'node3', { x: 10, y: 0 });
         yMatrix2.removeEdge('node1', 'node2');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -331,10 +287,10 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix2.addNode('node3', 'node3', { x: 10, y: 0 });
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix2.addEdge('node1', 'node3', 'edge1-3');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -362,10 +318,10 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix2.addEdge('node3', 'node2', 'edge3-2');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -394,10 +350,10 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix2.addNode('node3', 'node3', { x: 0, y: 10 });
         yMatrix2.addNode('node4', 'node4', { x: 10, y: 10 });
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix2.addEdge('node3', 'node4', 'edge3-4');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -426,10 +382,10 @@ describe('DirectedAcyclicGraph', () => {
     it('try to add edge twice', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix2.addEdge('node1', 'node2', 'second edge1-2');
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         const edgeForMatrix1 = yMatrix1.getEdge('node1', 'node2');
         const edgeForMatrix2 = yMatrix2.getEdge('node1', 'node2');
@@ -453,10 +409,10 @@ describe('DirectedAcyclicGraph', () => {
     it('add edge1-2 in one map and remove node1 in the other map', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix2.removeNode('node1');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeUndefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -474,13 +430,13 @@ describe('DirectedAcyclicGraph', () => {
     it('add edge1-2 in one map and remove node2 in the other map', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix2.removeNode('node2');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
         // this is only because edges as flow may trigger react updates
         yMatrix1.edgesAsFlow();
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node2')).toBeUndefined();
         expect(yMatrix1.getNode('node1')).toBeDefined();
@@ -498,10 +454,10 @@ describe('DirectedAcyclicGraph', () => {
 // addEdge(m1,m2), removeNode(n) m1 == n, m2 == n
     it('add edge1-1 in one map and remove node1 in the other map', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.addEdge('node1', 'node1', 'edge1-1');
         yMatrix2.removeNode('node1');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeUndefined();
         expect(yMatrix2.getNode('node1')).toBeUndefined();
@@ -514,10 +470,10 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 0, y: 10 });
         yMatrix1.addNode('node3', 'node3', { x: 10, y: 0 });
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix2.removeNode('node3');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
@@ -542,10 +498,10 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix2.addNode('node3', 'node3', { x: 0, y: 10 });
         yMatrix2.addNode('node4', 'node4', { x: 10, y: 10 });
         yMatrix2.addEdge('node3', 'node4', 'edge3-4');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix2.removeEdge('node3', 'node4');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -572,10 +528,10 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
         yMatrix1.addEdge('node1', 'node3', 'edge1-3');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix2.removeEdge('node1', 'node3');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -602,10 +558,10 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
         yMatrix1.addEdge('node3', 'node2', 'edge3-2');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix2.removeEdge('node3', 'node2');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -631,11 +587,11 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         yMatrix1.addEdge('node1', 'node2', 'new-edge1-2');
         yMatrix2.removeEdge('node1', 'node2');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.nodeCount).toBe(2);
         expect(yMatrix1.edgeCount).toBe(1);
@@ -651,10 +607,10 @@ describe('DirectedAcyclicGraph', () => {
 // removeNode(m), removeNode(n) n == m
     it('remove node1 in one map and remove node1 in the other map', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeNode('node1');
         yMatrix2.removeNode('node1');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeUndefined();
         expect(yMatrix2.getNode('node1')).toBeUndefined();
@@ -666,10 +622,10 @@ describe('DirectedAcyclicGraph', () => {
     it('remove node1 in one map and remove node2 in the other map', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix2.addNode('node2', 'node2', { x: 10, y: 0 });
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeNode('node1');
         yMatrix2.removeNode('node2');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeUndefined();
         expect(yMatrix2.getNode('node2')).toBeUndefined();
@@ -682,10 +638,10 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeNode('node1');
         yMatrix2.removeEdge('node1', 'node2');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeUndefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -705,10 +661,10 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('node1', 'node2');
         yMatrix2.removeNode('node2');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node2')).toBeUndefined();
         expect(yMatrix1.getNode('node1')).toBeDefined();
@@ -729,10 +685,10 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix2.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix2.addNode('node3', 'node3', { x: 0, y: 10 });
         yMatrix2.addEdge('node2', 'node3', 'edge2-3');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeNode('node1');
         yMatrix2.removeEdge('node2', 'node3');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeUndefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -753,10 +709,10 @@ describe('DirectedAcyclicGraph', () => {
     it('remove node1 in one map and remove edge1-1 in the other map', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix2.addEdge('node1', 'node1', 'edge1-1');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeNode('node1');
         yMatrix2.removeEdge('node1', 'node1');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeUndefined();
         expect(yMatrix1.nodeCount).toBe(0);
@@ -771,10 +727,10 @@ describe('DirectedAcyclicGraph', () => {
     it('remove edge1-2 in one map and remove edge1-2 in the other map', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix2.addEdge('node1', 'node1', 'edge1-1');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('node1', 'node1');
         yMatrix2.removeEdge('node1', 'node1');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getEdge('node1', 'node1')).toBeUndefined();
@@ -792,10 +748,10 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix2.addEdge('node3', 'node2', 'edge3-2');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('node1', 'node2');
         yMatrix2.removeEdge('node3', 'node2');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -817,10 +773,10 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix1.addEdge('node2', 'node3', 'edge2-3');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('node1', 'node2');
         yMatrix2.removeEdge('node2', 'node3');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -847,10 +803,10 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix2.addNode('node4', 'node4', { x: 10, y: 10 });
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix2.addEdge('node3', 'node4', 'edge3-4');   
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('node1', 'node2');
         yMatrix2.removeEdge('node3', 'node4');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -877,10 +833,10 @@ describe('DirectedAcyclicGraph', () => {
     it('add edge1-2 in one map and add edge2-1 in the other map', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix2.addNode('node2', 'node2', { x: 10, y: 0 });
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix2.addEdge('node2', 'node1', 'edge2-1');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -901,11 +857,11 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix1.addEdge('node2', 'node3', 'edge2-3');
         yMatrix2.addEdge('node3', 'node1', 'edge3-1');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -929,13 +885,13 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix1.addNode('node3', 'node3', { x: 20, y: 0 });
         yMatrix1.addNode('node4', 'node4', { x: 20, y: 0 });
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.addEdge('node1', 'node2', 'edge12');
         yMatrix1.addEdge('node2', 'node3', 'edge23');
         yMatrix1.addEdge('node1', 'node3', 'edge13');
         yMatrix1.addEdge('node3', 'node4', 'edge34');
         yMatrix2.addEdge('node4', 'node1', 'edge41');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.edgeCount).toBe(4);
         expect(yMatrix1.nodeCount).toBe(4);
@@ -959,10 +915,10 @@ describe('DirectedAcyclicGraph', () => {
     it('add two edges forming a cycle after sync', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix2.addEdge('node2', 'node1', 'edge2-1');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -983,11 +939,11 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
-        syncThreeConcurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix2.addEdge('node2', 'node3', 'edge2-3');
         yMatrix3.addEdge('node3', 'node1', 'edge3-1');
-        syncThreeConcurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -1024,14 +980,14 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
-        syncThreeConcurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix1.addEdge('node2', 'node3', 'edge2-3');
         yMatrix2.addEdge('node2', 'node3', 'edge2-3');
         yMatrix2.addEdge('node3', 'node1', 'edge3-1');
         yMatrix3.addEdge('node3', 'node1', 'edge3-1');
         yMatrix3.addEdge('node1', 'node2', 'edge1-2');
-        syncThreeConcurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -1066,7 +1022,7 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
-        syncThreeConcurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix1.addEdge('node2', 'node3', 'edge2-3');
         yMatrix1.addEdge('node3', 'node1', 'edge3-1');
@@ -1078,7 +1034,7 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix3.addEdge('node3', 'node1', 'edge3-1');
         yMatrix3.addEdge('node1', 'node2', 'edge1-2');
         yMatrix3.addEdge('node2', 'node1', 'edge2-3');
-        syncThreeConcurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -1114,7 +1070,7 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
-        syncThreeConcurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix1.addEdge('node2', 'node3', 'edge2-3');
         yMatrix1.addEdge('node3', 'node1', 'edge3-1');
@@ -1126,7 +1082,7 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix3.addEdge('node1', 'node2', 'edge1-2');
         yMatrix3.addEdge('node2', 'node3', 'edge2-3');
         yMatrix3.addEdge('node3', 'node1', 'edge3-1');
-        syncThreeConcurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -1163,7 +1119,7 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
-        syncThreeConcurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix1.addEdge('node2', 'node3', 'edge2-3');
 
@@ -1171,7 +1127,7 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix2.addEdge('node3', 'node2', 'edge3-2');
 
         yMatrix3.addEdge('node3', 'node1', 'edge3-1');
-        syncThreeConcurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -1211,7 +1167,7 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
-        syncThreeConcurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix1.addEdge('node2', 'node3', 'edge2-3');
 
@@ -1219,7 +1175,7 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix2.addEdge('node3', 'node2', 'edge3-2');
 
         yMatrix3.addEdge('node1', 'node3', 'edge1-3');
-        syncThreeConcurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -1259,7 +1215,7 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
-        syncThreeConcurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix1.addEdge('node2', 'node3', 'edge2-3');
 
@@ -1268,7 +1224,7 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix3.addEdge('node2', 'node1', 'edge2-1');
         yMatrix3.addEdge('node2', 'node3', 'edge2-3');
         yMatrix3.addEdge('node3', 'node1', 'edge3-1');
-        syncThreeConcurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -1307,17 +1263,17 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix1.addEdge('node2', 'node3', 'edge2-33');
         yMatrix2.addEdge('node2', 'node3', 'edge2-3');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         yMatrix1.addEdge('node1', 'node3', 'edge1-3');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         yMatrix2.removeEdge('node2', 'node3');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -1347,15 +1303,15 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix1.addEdge('node2', 'node3', 'edge2-3');
 
         yMatrix2.addEdge('node3', 'node2', 'edge3-2');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         yMatrix3.addEdge('node3', 'node2', 'edge3-2');
-        syncThreeConcurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);
     
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -1391,14 +1347,14 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
-        syncThreeConcurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);
 
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix2.addEdge('node2', 'node3', 'edge2-3');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         yMatrix3.addEdge('node3', 'node1', 'edge3-1');
-        syncThreeConcurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -1431,17 +1387,17 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
-        syncThreeConcurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);
 
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix1.addEdge('node2', 'node3', 'edge2-3');
         yMatrix2.addEdge('node2', 'node3', 'edge2-3');
         yMatrix2.addEdge('node3', 'node1', 'edge3-1');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         yMatrix3.addEdge('node3', 'node1', 'edge3-1');
         yMatrix3.addEdge('node1', 'node2', 'edge1-2');
-        syncThreeConcurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -1474,7 +1430,7 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
-        syncThreeConcurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);
 
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix1.addEdge('node2', 'node3', 'edge2-3');
@@ -1483,7 +1439,7 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix2.addEdge('node2', 'node3', 'edge2-3');
         yMatrix2.addEdge('node3', 'node1', 'edge3-1');
         yMatrix2.addEdge('node1', 'node2', 'edge1-2');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.getYEdgesAsJson()).toEqual(yMatrix2.getYEdgesAsJson());
         expect(yMatrix1.edgeCount).toBe(2);
         expect(yMatrix2.edgeCount).toBe(2);
@@ -1492,7 +1448,7 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix3.addEdge('node2', 'node1', 'edge2-1');
         yMatrix3.addEdge('node1', 'node3', 'edge1-3');
         expect(yMatrix3.edgeCount).toBe(2);
-        syncThreeConcurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -1530,7 +1486,7 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
-        syncThreeConcurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);
 
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix1.addEdge('node2', 'node3', 'edge2-3');
@@ -1539,12 +1495,12 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix2.addEdge('node1', 'node2', 'edge1-2');
         yMatrix2.addEdge('node2', 'node3', 'edge2-3');
         yMatrix2.addEdge('node3', 'node1', 'edge3-1');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         yMatrix3.addEdge('node1', 'node2', 'edge1-2');
         yMatrix3.addEdge('node2', 'node3', 'edge2-3');
         yMatrix3.addEdge('node3', 'node1', 'edge3-1');
-        syncThreeConcurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -1583,17 +1539,17 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
-        syncThreeConcurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);
 
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix1.addEdge('node2', 'node3', 'edge2-3');
 
         yMatrix2.addEdge('node2', 'node1', 'edge2-1');
         yMatrix2.addEdge('node3', 'node2', 'edge3-2');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         yMatrix3.addEdge('node3', 'node1', 'edge3-1');
-        syncThreeConcurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -1632,17 +1588,17 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
-        syncThreeConcurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);
 
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix1.addEdge('node2', 'node3', 'edge2-3');
 
         yMatrix2.addEdge('node2', 'node1', 'edge2-1');
         yMatrix2.addEdge('node3', 'node2', 'edge3-2');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         yMatrix3.addEdge('node1', 'node3', 'edge1-3');
-        syncThreeConcurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -1678,7 +1634,7 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
-        syncThreeConcurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);
 
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix1.addEdge('node2', 'node3', 'edge2-3');
@@ -1687,10 +1643,10 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix2.addEdge('node2', 'node1', 'edge2-1');
         yMatrix2.addEdge('node3', 'node2', 'edge3-2');
         yMatrix2.addEdge('node3', 'node1', 'edge3-1');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         yMatrix3.addEdge('node1', 'node3', 'edge1-3');
-        syncThreeConcurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -1726,15 +1682,15 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
-        syncThreeConcurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);
 
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix2.addEdge('node2', 'node3', 'edge2-3');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         yMatrix3.addEdge('node2', 'node1', 'edge2-1');
         yMatrix3.addEdge('node3', 'node2', 'edge3-2');
-        syncThreeConcurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -1771,17 +1727,17 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
-        syncThreeConcurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);
 
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix2.addEdge('node3', 'node2', 'edge3-2');
         yMatrix2.addEdge('node1', 'node3', 'edge1-3');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         yMatrix3.addEdge('node2', 'node1', 'edge2-1');
         yMatrix3.addEdge('node2', 'node3', 'edge2-3');
         yMatrix3.addEdge('node3', 'node1', 'edge3-1');
-        syncThreeConcurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -1819,15 +1775,15 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
-        syncThreeConcurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);
 
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix2.addEdge('node2', 'node3', 'edge2-3');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         yMatrix2.removeEdge('node2', 'node3');
         yMatrix3.addEdge('node3', 'node1', 'edge3-1');
-        syncThreeConcurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -1861,12 +1817,12 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.addEdge('node2', 'node1', 'edge2-1');
         yMatrix1.addEdge('node3', 'node1', 'edge3-1');
         yMatrix1.addEdge('node2', 'node3', 'edge2-3');
         yMatrix2.addEdge('node1', 'node2', 'edge1-2');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -1898,7 +1854,7 @@ describe('DirectedAcyclicGraph', () => {
 
     it('Can create graph with event emitter', () => {
         let ydoc = new Y.Doc()
-        let yMatrix = new DirectedAcyclicGraph(ydoc.getMap('adjacency map'), ydoc.getArray('edges'), new EventEmitter());
+        let yMatrix = new DirectedAcyclicGraph(ydoc, new EventEmitter());
         expect(yMatrix).toBeDefined();
         yMatrix.observe(() => { });
         yMatrix.addNode('node1', 'node1', { x: 0, y: 0 });
@@ -1938,7 +1894,7 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix1.addNode('node13', 'node13', { x: 0, y: 60 });
         yMatrix1.addNode('node14', 'node14', { x: 10, y: 60 });
         yMatrix1.addNode('node15', 'node15', { x: 0, y: 70 });
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
         yMatrix1.addEdge('node1', 'node3', 'edge1-3');
         yMatrix1.addEdge('node1', 'node4', 'edge1-4');
@@ -1958,7 +1914,7 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix1.addEdge('node5', 'node6', 'edge5-6');
         yMatrix1.addEdge('node6', 'node7', 'edge6-7');
         yMatrix2.addEdge('node7', 'node1', 'edge7-1');
-        sync12Concurrently();
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
 
         expect(yMatrix1.nodeCount).toBe(15);
         expect(yMatrix1.isAcyclic()).toBe(true);

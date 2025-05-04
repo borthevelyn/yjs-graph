@@ -3,6 +3,7 @@ import * as Y from 'yjs'
 import { MarkerType, XYPosition } from '@xyflow/react'
 import { id, FlowEdge, FlowNode, ObjectYMap, EventEmitter, EdgeId, splitEdgeId } from '../Types'
 import assert from 'assert';
+import { syncDefault, syncPUSPromAll } from './SynchronizationMethods';
 
 type EdgeInformation = {
     label: string
@@ -29,8 +30,11 @@ export class AdjacencyMap implements Graph {
     private selectedEdges: Set<EdgeId>;
     private eventEmitter: EventEmitter | undefined;
 
-    constructor(yMatrix: AdjacencyMapGraph, eventEmitter?: EventEmitter) {
-        this.yMatrix = yMatrix;
+
+    private readonly yMatrixId = 'adjacencymap_ydoc'
+
+    constructor(yDoc: Y.Doc, eventEmitter?: EventEmitter) {
+        this.yMatrix = yDoc.getMap(this.yMatrixId);
         this.selectedNodes = new Set();
         this.selectedEdges = new Set();
         this.eventEmitter = eventEmitter;
@@ -42,7 +46,8 @@ export class AdjacencyMap implements Graph {
         this.eventEmitter?.addListener(lambda)
     }
 
-    public removeDanglingEdges() {
+    public makeGraphValid() {
+        const start = performance.now()
         for (const source of this.yMatrix.values()) {
             for (const target of source.get('edgeInformation').keys()) {
                 if (this.yMatrix.get(target) !== undefined)
@@ -52,6 +57,7 @@ export class AdjacencyMap implements Graph {
                 this.selectedEdges.delete(`${source.get('id')}+${target}`);
             }
         }
+        return { time: performance.now() - start }
     }
 
     public hasNoDanglingEdges() {
@@ -216,9 +222,6 @@ export class AdjacencyMap implements Graph {
     }
     
     edgesAsFlow(): FlowEdge[] {
-        console.log('before remove', this.yMatrix.get('node1')?.get('edgeInformation'));
-        this.removeDanglingEdges();
-        console.log('after remove', this.yMatrix.get('node1')?.get('edgeInformation'));
 
         const nestedEdges = 
             Array.from(this.yMatrix.entries()).map(([sourceNode, nodeInfo]) =>
@@ -244,7 +247,8 @@ export class AdjacencyMap implements Graph {
 
     getNode(nodeId: string): FlowNode | undefined {
         const nodeInfo = this.yMatrix.get(nodeId);
-        assert(nodeInfo !== undefined, 'nodeInfo is undefined')
+        if (nodeInfo === undefined)
+            return undefined
         return {
             id: nodeInfo.get('id'),
             data: { label: nodeInfo.get('label') },
@@ -256,7 +260,6 @@ export class AdjacencyMap implements Graph {
     }
 
     getEdge(source: string, target: id): FlowEdge | undefined {
-        this.removeDanglingEdges();
         let edge = this.yMatrix.get(source)?.get('edgeInformation').get(target);
         if (edge === undefined)
             return undefined 
@@ -271,6 +274,22 @@ export class AdjacencyMap implements Graph {
                 selected: this.selectedEdges.has(edgeId), 
         }
     }
+
+        static syncDefault(graphs: AdjacencyMap[]) {
+            return syncDefault(graphs, graphs.map(graph => graph.yMatrix.doc!), graph => graph.makeGraphValid())
+        }
+        static async syncPUS(graphs: AdjacencyMap[], maxSleep: number, rnd: (idx: number) => number) {
+            return await syncPUSPromAll(
+                graphs,
+                graphs.map(x => x.yMatrix.doc!),
+                rnd,
+                yDoc => new AdjacencyMap(yDoc),
+                graph => graph.hasNoDanglingEdges(),
+                graph => graph.makeGraphValid(),
+                maxSleep
+            )
+        }
+    
 
     getNodesAsJson(): string {
         return JSON.stringify(Array.from(this.yMatrix.keys()).sort());
@@ -294,7 +313,6 @@ export class AdjacencyMap implements Graph {
     }
 
     get edgeCount() {
-        this.removeDanglingEdges();
         return Array.from(this.yMatrix.values()).reduce((acc, x) => acc + x.get('edgeInformation').size, 0);
     }
 

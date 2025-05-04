@@ -14,40 +14,8 @@ describe('Fixed Root Weakly Connected Graph', () => {
     let yMatrix2: FixedRootWeaklyConnectedGraph
     let ydoc3: Y.Doc
     let yMatrix3: FixedRootWeaklyConnectedGraph
-    function sync12Concurrently() {
-        let updates1to2 = Y.encodeStateAsUpdate(ydoc1, Y.encodeStateVector(ydoc2))
-        let updates2to1 = Y.encodeStateAsUpdate(ydoc2, Y.encodeStateVector(ydoc1))
-        Y.applyUpdate(ydoc1, updates2to1)
-        Y.applyUpdate(ydoc2, updates1to2)
-        yMatrix1.makeGraphWeaklyConnected()
-        yMatrix2.makeGraphWeaklyConnected()
-    }
-    function sync23Concurrently() {
-        let updates2to3 = Y.encodeStateAsUpdate(ydoc2, Y.encodeStateVector(ydoc3))
-        let updates3to2 = Y.encodeStateAsUpdate(ydoc3, Y.encodeStateVector(ydoc2))
-        Y.applyUpdate(ydoc2, updates3to2)
-        Y.applyUpdate(ydoc3, updates2to3)
-        yMatrix1.makeGraphWeaklyConnected()
-        yMatrix3.makeGraphWeaklyConnected()
-    }
 
-    function syncThreeConcurrently() {
-        let updates1to2 = Y.encodeStateAsUpdate(ydoc1, Y.encodeStateVector(ydoc2))
-        let updates2to1 = Y.encodeStateAsUpdate(ydoc2, Y.encodeStateVector(ydoc1))
-        let updates1to3 = Y.encodeStateAsUpdate(ydoc1, Y.encodeStateVector(ydoc3))
-        let updates3to1 = Y.encodeStateAsUpdate(ydoc3, Y.encodeStateVector(ydoc1))
-        let updates2to3 = Y.encodeStateAsUpdate(ydoc2, Y.encodeStateVector(ydoc3))
-        let updates3to2 = Y.encodeStateAsUpdate(ydoc3, Y.encodeStateVector(ydoc2))
-        Y.applyUpdate(ydoc1, updates2to1)
-        Y.applyUpdate(ydoc1, updates3to1)
-        Y.applyUpdate(ydoc2, updates1to2)
-        Y.applyUpdate(ydoc2, updates3to2)
-        Y.applyUpdate(ydoc3, updates2to3)
-        Y.applyUpdate(ydoc3, updates1to3)
-        yMatrix1.makeGraphWeaklyConnected()
-        yMatrix2.makeGraphWeaklyConnected()
-        yMatrix3.makeGraphWeaklyConnected()
-    }
+
     beforeEach(() => {
         ydoc1 = new Y.Doc()
         yMatrix1 = new FixedRootWeaklyConnectedGraph(ydoc1)
@@ -55,12 +23,14 @@ describe('Fixed Root Weakly Connected Graph', () => {
         yMatrix2 = new FixedRootWeaklyConnectedGraph(ydoc2)
         ydoc3 = new Y.Doc()
         yMatrix3 = new FixedRootWeaklyConnectedGraph(ydoc3)      
-        syncThreeConcurrently()
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3])
     })
+
+    
     // Basic tests
     it('should add a node with edge to root from yMatrix1 to both maps', () => {
         yMatrix1.addNodeWithEdge('node1', '->', 'root', 'node1', { x: 0, y: 0 }, 'edge1');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         const node1LabelForMatrix1 = yMatrix1.getNode('node1')?.nodeData.get('label');
         const node1LabelForMatrix2 = yMatrix2.getNode('node1')?.nodeData.get('label');
         expect(yMatrix1.getNode('root')).toBeDefined();
@@ -76,7 +46,7 @@ describe('Fixed Root Weakly Connected Graph', () => {
     })
     it('should add a node with edge to root from yMatrix2 to both maps', () => {
         yMatrix2.addNodeWithEdge('node1', '->', 'root', 'node1', { x: 0, y: 0 }, 'edge1');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         const node1LabelForMatrix1 = yMatrix1.getNode('node1')?.nodeData.get('label');
         const node1LabelForMatrix2 = yMatrix2.getNode('node1')?.nodeData.get('label');
         expect(yMatrix1.getNode('root')).toBeDefined();
@@ -92,9 +62,9 @@ describe('Fixed Root Weakly Connected Graph', () => {
     })
     it('should delete edge from root node with its target node in both maps', () => {
         yMatrix1.addNodeWithEdge('node1', '->', 'root', 'node1', { x: 0, y: 0 }, 'edge1');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('node1', 'root');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.nodeCount).toBe(1);
         expect(yMatrix1.edgeCount).toBe(0);
         expect(yMatrix1.getNode('root')).toBeDefined();
@@ -112,9 +82,9 @@ describe('Fixed Root Weakly Connected Graph', () => {
     it('should delete edge from root node with its target node (containing a self loop) in both maps', () => {
         yMatrix1.addNodeWithEdge('node1', '->', 'root', 'node1', { x: 0, y: 0 }, 'edge1');
         yMatrix1.addEdge('node1', 'node1', 'self loop');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('node1', 'root');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.nodeCount).toBe(1);
         expect(yMatrix1.edgeCount).toBe(0);
         expect(yMatrix1.getNode('root')).toBeDefined();
@@ -131,9 +101,9 @@ describe('Fixed Root Weakly Connected Graph', () => {
     })
     it('should delete edge to root node with its source node in both maps', () => {
         yMatrix1.addNodeWithEdge('node1', '<-', 'root', 'node1', { x: 0, y: 0 }, 'edge1');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('root', 'node1');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.nodeCount).toBe(1);
         expect(yMatrix1.edgeCount).toBe(0);
         expect(yMatrix1.getNode('root')).toBeDefined();
@@ -151,9 +121,9 @@ describe('Fixed Root Weakly Connected Graph', () => {
     it('should delete edge to root node with its source node (containing a self loop) in both maps', () => {
         yMatrix1.addNodeWithEdge('node1', '<-', 'root', 'node1', { x: 0, y: 0 }, 'edge1');
         yMatrix1.addEdge('node1', 'node1', 'self loop');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('root', 'node1');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.nodeCount).toBe(1);
         expect(yMatrix1.edgeCount).toBe(0);
         expect(yMatrix1.getNode('root')).toBeDefined();
@@ -171,9 +141,9 @@ describe('Fixed Root Weakly Connected Graph', () => {
     it('should delete an edge (not connected to root node) with its target node in both maps', () => {
         yMatrix1.addNodeWithEdge('node1', '<-', 'root', 'node1', { x: 0, y: 0 }, 'edge1');
         yMatrix1.addNodeWithEdge('node2', '<-', 'node1', 'node2', { x: 0, y: 0 }, 'edge2');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('node1', 'node2');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.nodeCount).toBe(2);
         expect(yMatrix1.edgeCount).toBe(1);
         expect(yMatrix1.getNode('root')).toBeDefined();
@@ -196,9 +166,9 @@ describe('Fixed Root Weakly Connected Graph', () => {
         yMatrix1.addNodeWithEdge('node1', '<-', 'root', 'node1', { x: 0, y: 0 }, 'edge1');
         yMatrix1.addNodeWithEdge('node2', '<-', 'node1', 'node2', { x: 0, y: 0 }, 'edge2');
         yMatrix1.addEdge('node2', 'node2', 'self loop');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('node1', 'node2');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.nodeCount).toBe(2);
         expect(yMatrix1.edgeCount).toBe(1);
         expect(yMatrix1.getNode('root')).toBeDefined();
@@ -220,9 +190,9 @@ describe('Fixed Root Weakly Connected Graph', () => {
     it('should delete an edge (not connected to root node) with its source node in both maps', () => {
         yMatrix1.addNodeWithEdge('node1', '<-', 'root', 'node1', { x: 0, y: 0 }, 'edge1');
         yMatrix1.addNodeWithEdge('node2', '->', 'node1', 'node2', { x: 0, y: 0 }, 'edge2');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('node2', 'node1');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.nodeCount).toBe(2);
         expect(yMatrix1.edgeCount).toBe(1);
         expect(yMatrix1.getNode('root')).toBeDefined();
@@ -245,9 +215,9 @@ describe('Fixed Root Weakly Connected Graph', () => {
         yMatrix1.addNodeWithEdge('node1', '<-', 'root', 'node1', { x: 0, y: 0 }, 'edge1');
         yMatrix1.addNodeWithEdge('node2', '->', 'node1', 'node2', { x: 0, y: 0 }, 'edge2');
         yMatrix1.addEdge('node2', 'node2', 'self loop');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('node2', 'node1');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.nodeCount).toBe(2);
         expect(yMatrix1.edgeCount).toBe(1);
         expect(yMatrix1.getNode('root')).toBeDefined();
@@ -269,9 +239,9 @@ describe('Fixed Root Weakly Connected Graph', () => {
     it('should delete an edge from root without deleting a node', () => {
         yMatrix1.addNodeWithEdge('node1', '<-', 'root', 'node1', { x: 0, y: 0 }, 'edge1');
         yMatrix1.addEdge('node1', 'root', 'back edge');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('root', 'node1');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.nodeCount).toBe(2);
         expect(yMatrix1.edgeCount).toBe(1);
         expect(yMatrix1.getNode('root')).toBeDefined();
@@ -293,9 +263,9 @@ describe('Fixed Root Weakly Connected Graph', () => {
     it('should delete an edge to root without deleting a node', () => {
         yMatrix1.addNodeWithEdge('node1', '->', 'root', 'node1', { x: 0, y: 0 }, 'edge1');
         yMatrix1.addEdge('root', 'node1', 'back edge');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('node1', 'root');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.nodeCount).toBe(2);
         expect(yMatrix1.edgeCount).toBe(1);
         expect(yMatrix1.getNode('root')).toBeDefined();
@@ -317,9 +287,9 @@ describe('Fixed Root Weakly Connected Graph', () => {
     it('should not delete an edge important for connectedness', () => {
         yMatrix1.addNodeWithEdge('node1', '<-', 'root', 'node1', { x: 0, y: 0 }, 'edge1');
         yMatrix1.addNodeWithEdge('node2', '<-', 'node1', 'node2', { x: 0, y: 0 }, 'edge2');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('node1', 'root');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.nodeCount).toBe(3);
         expect(yMatrix1.edgeCount).toBe(2);
         expect(yMatrix1.getNode('root')).toBeDefined();
@@ -387,7 +357,7 @@ describe('Fixed Root Weakly Connected Graph', () => {
     it('add node1 in one map and node2 in the other map)', () => {
         yMatrix1.addNodeWithEdge('node1', '<-', 'root', 'node1', { x: 0, y: 0 }, 'edge1');
         yMatrix2.addNodeWithEdge('node2', '<-', 'root', 'node2', { x: 0, y: 0 }, 'edge2');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix2.getNode('node1')).toBeDefined();
@@ -405,9 +375,9 @@ describe('Fixed Root Weakly Connected Graph', () => {
     // addNode(m), addEdge(n1,n2), m == n2, but not synchronously
     it('add node1 in one map and then node2 with edge1-2 in the other map', () => {
         yMatrix1.addNodeWithEdge('node1', '<-', 'root', 'node1', { x: 0, y: 0 }, 'edge1');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix2.addNodeWithEdge('node2', '->', 'node1', 'node2', { x: 0, y: 0 }, 'edge2-1');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.getEdge('node2', 'node1')).toBeDefined();
@@ -426,7 +396,7 @@ describe('Fixed Root Weakly Connected Graph', () => {
     it('add node1 with edge1-r in one map and then node2 with edge2-r in the other map', () => {
         yMatrix1.addNodeWithEdge('node1', '->', 'root', 'node1', { x: 0, y: 0 }, 'edge1-r');
         yMatrix2.addNodeWithEdge('node2', '->', 'root', 'node2', { x: 0, y: 0 }, 'edge2-r');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.getEdge('node1', 'root')).toBeDefined();
@@ -449,14 +419,14 @@ describe('Fixed Root Weakly Connected Graph', () => {
     it('add node3 with edge3-2 in one map and then node4 with edge4-1 in the other map', () => {
         yMatrix1.addNodeWithEdge('node1', '->', 'root', 'node1', { x: 0, y: 0 }, 'edge1-r');
         yMatrix1.addNodeWithEdge('node2', '->', 'node1', 'node2', { x: 0, y: 0 }, 'edge2-1');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.addNodeWithEdge('node3', '->', 'node2', 'node3', { x: 0, y: 0 }, 'edge3-2');
         yMatrix2.addNodeWithEdge('node4', '->', 'node1', 'node4', { x: 0, y: 0 }, 'edge4-1');
         console.log(yMatrix1.nodeCount);
         console.log(yMatrix1.edgeCount);
         console.log(yMatrix2.nodeCount);
         console.log(yMatrix2.edgeCount);
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.getNode('node3')).toBeDefined();
         expect(yMatrix1.getNode('node4')).toBeDefined();
         expect(yMatrix1.getEdge('node3', 'node2')).toBeDefined();
@@ -479,10 +449,10 @@ describe('Fixed Root Weakly Connected Graph', () => {
     it('add edge 1-r with node1 in one map and edge 2-r in other map', () => {
         yMatrix1.addNodeWithEdge('node3', '->', 'root', 'node1', { x: 0, y: 0 }, 'edge3-r');
         yMatrix1.addNodeWithEdge('node2', '<-', 'node3', 'node2', { x: 0, y: 0 }, 'edge2-1');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.addNodeWithEdge('node1', '->', 'root', 'node1', { x: 0, y: 0 }, 'edge1-r');
         yMatrix2.addEdge('node2', 'root', 'edge2-r');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.getNode('node3')).toBeDefined();
@@ -511,10 +481,10 @@ describe('Fixed Root Weakly Connected Graph', () => {
     it('add edge 1-r with node1 in one map and edge 3-2 in other map', () => {
         yMatrix1.addNodeWithEdge('node2', '->', 'root', 'node1', { x: 0, y: 0 }, 'edge2-r');
         yMatrix1.addNodeWithEdge('node3', '<-', 'node2', 'node3', { x: 0, y: 0 }, 'edge3-2');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.addNodeWithEdge('node1', '->', 'root', 'node1', { x: 0, y: 0 }, 'edge1-r');
         yMatrix2.addEdge('node3', 'node2', 'edge3-2');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.getNode('node3')).toBeDefined();
@@ -542,10 +512,10 @@ describe('Fixed Root Weakly Connected Graph', () => {
     // addEdge(n1, n2), addEdge(m1, m2), n1 == m1 && n2 == m2
     it('add edge r-1 in both maps', () => {
         yMatrix1.addNodeWithEdge('node1', '->', 'root', 'node1', { x: 0, y: 0 }, 'edge1-r');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.addEdge('root', 'node1', 'edger-1');
         yMatrix2.addEdge('root', 'node1', 'edger-1');
-        sync12Concurrently();      
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);      
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getEdge('node1', 'root')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(2);
@@ -564,10 +534,10 @@ describe('Fixed Root Weakly Connected Graph', () => {
     it('add edge 1-r in one map and edge 2-r in other map', () => {
         yMatrix1.addNodeWithEdge('node1', '<-', 'root', 'node1', { x: 0, y: 0 }, 'edger-1');
         yMatrix1.addNodeWithEdge('node2', '<-', 'root', 'node2', { x: 0, y: 0 }, 'edger-2');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.addEdge('node1', 'root', 'edge1-r');
         yMatrix2.addEdge('node2', 'root', 'edge2-r');
-        sync12Concurrently();      
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);      
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.getEdge('node1', 'root')).toBeDefined();
@@ -594,10 +564,10 @@ describe('Fixed Root Weakly Connected Graph', () => {
     it('add edge r-1 in one map and edge r-2 in other map', () => {
         yMatrix1.addNodeWithEdge('node1', '->', 'root', 'node1', { x: 0, y: 0 }, 'edge1-r');
         yMatrix1.addNodeWithEdge('node2', '->', 'root', 'node2', { x: 0, y: 0 }, 'edge2-r');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.addEdge('root', 'node1', 'edge1-r');
         yMatrix2.addEdge('root', 'node2', 'edge2-r');
-        sync12Concurrently();      
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);      
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.getEdge('node1', 'root')).toBeDefined();
@@ -626,10 +596,10 @@ describe('Fixed Root Weakly Connected Graph', () => {
         yMatrix1.addNodeWithEdge('node2', '->', 'root', 'node2', { x: 0, y: 0 }, 'edge2-r');
         yMatrix1.addNodeWithEdge('node3', '->', 'node1', 'node3', { x: 0, y: 0 }, 'edge3-1');
         yMatrix1.addNodeWithEdge('node4', '->', 'node2', 'node4', { x: 0, y: 0 }, 'edge4-2');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.addEdge('node1', 'node3', 'edge1-3');
         yMatrix2.addEdge('node2', 'node4', 'edge2-4');
-        sync12Concurrently();      
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);      
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.getNode('node3')).toBeDefined();
@@ -663,10 +633,10 @@ describe('Fixed Root Weakly Connected Graph', () => {
     // removeEdge(n1, n2), addNodeWithEdge(m = m1, m2), n1 != m1 && n2 = m2 && n = n1
     it('remove edge 1-r in one map and add node2 with edge2-r in other map', () => {
         yMatrix1.addNodeWithEdge('node1', '->', 'root', 'node1', { x: 0, y: 0 }, 'edge1-r');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('node1', 'root');
         yMatrix2.addNodeWithEdge('node2', '->', 'root', 'node2', { x: 0, y: 0 }, 'edge2-r');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.getNode('node1')).toBeUndefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.getEdge('node2', 'root')).toBeDefined();
@@ -689,10 +659,10 @@ describe('Fixed Root Weakly Connected Graph', () => {
     it('remove edge 1-r in one map and add node3 with edge3-2 in other map', () => {
         yMatrix1.addNodeWithEdge('node1', '->', 'root', 'node1', { x: 0, y: 0 }, 'edge1-r');
         yMatrix1.addNodeWithEdge('node2', '->', 'root', 'node2', { x: 0, y: 0 }, 'edge2-r');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('node1', 'root');
         yMatrix2.addNodeWithEdge('node3', '->', 'node2', 'node3', { x: 0, y: 0 }, 'edge3-2');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.getNode('node1')).toBeUndefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.getNode('node3')).toBeDefined();
@@ -719,10 +689,10 @@ describe('Fixed Root Weakly Connected Graph', () => {
     it('remove edge r-1 in one map and add node3 with edge3-2 in other map', () => {
         yMatrix1.addNodeWithEdge('node1', '<-', 'root', 'node1', { x: 0, y: 0 }, 'edger-1');
         yMatrix1.addNodeWithEdge('node2', '->', 'root', 'node2', { x: 0, y: 0 }, 'edge2-r');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('root', 'node1');
         yMatrix2.addNodeWithEdge('node3', '->', 'node2', 'node3', { x: 0, y: 0 }, 'edge3-2');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.getNode('node1')).toBeUndefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.getNode('node3')).toBeDefined();
@@ -748,10 +718,10 @@ describe('Fixed Root Weakly Connected Graph', () => {
     // removeEdge(n1, n2), addNodeWithEdge(m = m1, m2), n1 != m1 && n2 = m2 && n = n2
     it('remove edge r-1 in one map and add node2 with edge2-1 in other map', () => {
         yMatrix1.addNodeWithEdge('node1', '<-', 'root', 'node1', { x: 0, y: 0 }, 'edger-1');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('root', 'node1');
         yMatrix2.addNodeWithEdge('node2', '->', 'node1', 'node2', { x: 0, y: 0 }, 'edge2-1');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.getEdge('root', 'node1')).toBeDefined();
@@ -774,11 +744,11 @@ describe('Fixed Root Weakly Connected Graph', () => {
     // removeEdge(n1, n2), addNodeWithEdge(m = m1, m2), n2 != m1 && n1 = m2 && n = n1
     it('remove edge 1-r in one map and add node2 with edge2-1 in other map', () => {
         yMatrix1.addNodeWithEdge('node1', '->', 'root', 'node1', { x: 0, y: 0 }, 'edge1-r');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('node1', 'root');
         yMatrix2.addNodeWithEdge('node2', '->', 'node1', 'node2', { x: 0, y: 0 }, 'edge2-1');
         console.log('before second sync');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.getEdge('node1', 'root')).toBeDefined();
@@ -801,10 +771,10 @@ describe('Fixed Root Weakly Connected Graph', () => {
     // removeEdge(n1, n2), addNodeWithEdge(m1, m = m2), n1 = m1 && n2 != m2 && n = n1
     it('remove edge 1-r in one map and add node2 with edge1-2 in other map', () => {
         yMatrix1.addNodeWithEdge('node1', '->', 'root', 'node1', { x: 0, y: 0 }, 'edge1-r');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('node1', 'root');
         yMatrix2.addNodeWithEdge('node2', '<-', 'node1', 'node2', { x: 0, y: 0 }, 'edge1-2');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.getEdge('node1', 'root')).toBeDefined();
@@ -826,10 +796,10 @@ describe('Fixed Root Weakly Connected Graph', () => {
     // removeEdge(n1, n2), addNodeWithEdge(m1, m = m2), n2 = m1 && n1 != m2 && n = n2
     it('remove edge r-1 in one map and add node2 with edge1-2 in other map', () => {
         yMatrix1.addNodeWithEdge('node1', '<-', 'root', 'node1', { x: 0, y: 0 }, 'edger-1');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('root', 'node1');
         yMatrix2.addNodeWithEdge('node2', '<-', 'node1', 'node2', { x: 0, y: 0 }, 'edge1-2');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.getEdge('root', 'node1')).toBeDefined();
@@ -852,10 +822,10 @@ describe('Fixed Root Weakly Connected Graph', () => {
     it('remove edge 1-r in one map and add edge 2-r in other map', () => {
         yMatrix1.addNodeWithEdge('node1', '->', 'root', 'node1', { x: 0, y: 0 }, 'edge1-r');
         yMatrix1.addNodeWithEdge('node2', '<-', 'root', 'node2', { x: 0, y: 0 }, 'edger-2');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('node1', 'root');
         yMatrix2.addEdge('node2', 'root', 'edge2-r');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.getNode('node1')).toBeUndefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.getEdge('node2', 'root')).toBeDefined();
@@ -880,10 +850,10 @@ describe('Fixed Root Weakly Connected Graph', () => {
     it('remove edge 1-r in one map and add edge 1-2 in other map', () => {
         yMatrix1.addNodeWithEdge('node1', '->', 'root', 'node1', { x: 0, y: 0 }, 'edge1-r');
         yMatrix1.addNodeWithEdge('node2', '<-', 'root', 'node2', { x: 0, y: 0 }, 'edger-2');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('node1', 'root');
         yMatrix2.addEdge('node1', 'root', 'edge1-r');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.getNode('node1')).toBeUndefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.getEdge('node2', 'root')).toBeUndefined()
@@ -909,10 +879,10 @@ describe('Fixed Root Weakly Connected Graph', () => {
         yMatrix1.addNodeWithEdge('node1', '->', 'root', 'node1', { x: 0, y: 0 }, 'edge1-r');
         yMatrix1.addNodeWithEdge('node2', '<-', 'root', 'node2', { x: 0, y: 0 }, 'edger-2');
         yMatrix1.addNodeWithEdge('node3', '->', 'root', 'node3', { x: 0, y: 0 }, 'edge3-r');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('node1', 'root');
         yMatrix2.addEdge('node3', 'node2', 'edge3-2');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.getNode('node1')).toBeUndefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.getNode('node3')).toBeDefined();
@@ -941,10 +911,10 @@ describe('Fixed Root Weakly Connected Graph', () => {
     it('remove edge r-1 in one map and add edge 2-1 in other map', () => {
         yMatrix1.addNodeWithEdge('node1', '<-', 'root', 'node1', { x: 0, y: 0 }, 'edger-1');
         yMatrix1.addNodeWithEdge('node2', '<-', 'node1', 'node2', { x: 0, y: 0 }, 'edge1-2');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('root', 'node1');
         yMatrix2.addEdge('node2', 'node1', 'edge2-1');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.getEdge('node2', 'node1')).toBeDefined();
@@ -969,10 +939,10 @@ describe('Fixed Root Weakly Connected Graph', () => {
     it('remove edge r-1 in one map and add edge r-2 in other map', () => {
         yMatrix1.addNodeWithEdge('node1', '<-', 'root', 'node1', { x: 0, y: 0 }, 'edger-1');
         yMatrix1.addNodeWithEdge('node2', '->', 'root', 'node2', { x: 0, y: 0 }, 'edge2-r');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('root', 'node1');
         yMatrix2.addEdge('root', 'node2', 'edger-2');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.getNode('node1')).toBeUndefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.getEdge('node2', 'root')).toBeDefined();
@@ -998,10 +968,10 @@ describe('Fixed Root Weakly Connected Graph', () => {
         yMatrix1.addNodeWithEdge('node1', '<-', 'root', 'node1', { x: 0, y: 0 }, 'edger-1');
         yMatrix1.addNodeWithEdge('node3', '<-', 'root', 'node3', { x: 0, y: 0 }, 'edger-3');
         yMatrix1.addNodeWithEdge('node2', '->', 'node3', 'node2', { x: 0, y: 0 }, 'edge2-3');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('root', 'node1');
         yMatrix2.addEdge('root', 'node2', 'edger-2');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.getNode('node1')).toBeUndefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.getNode('node3')).toBeDefined();
@@ -1027,10 +997,10 @@ describe('Fixed Root Weakly Connected Graph', () => {
     // removeEdge(n = n1, n2), addEdge(m1,m2), n1 = m2 && n2 = m1, remove node wins in this case
     it('remove edge 1-r in one map and add edge r-1 in other map', () => {
         yMatrix1.addNodeWithEdge('node1', '->', 'root', 'node1', { x: 0, y: 0 }, 'edge1-r');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('node1', 'root');
         yMatrix2.addEdge('root', 'node1', 'edger-1');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(1);
         expect(yMatrix1.edgeCount).toBe(0);
@@ -1046,10 +1016,10 @@ describe('Fixed Root Weakly Connected Graph', () => {
     // removeEdge(n1, n = n2), addEdge(m1,m2), n1 = m2 && n2 = m1, remove node wins in this case
     it('remove edge r-1 in one map and add edge 1-r in other map', () => {
         yMatrix1.addNodeWithEdge('node1', '<-', 'root', 'node1', { x: 0, y: 0 }, 'edger-1');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('root', 'node1');
         yMatrix2.addEdge('node1', 'root', 'edge1-r');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(1);
         expect(yMatrix1.edgeCount).toBe(0);
@@ -1066,10 +1036,10 @@ describe('Fixed Root Weakly Connected Graph', () => {
     it('remove edge 1-r in one map and add edge 2-1 in other map', () => {
         yMatrix1.addNodeWithEdge('node1', '->', 'root', 'node1', { x: 0, y: 0 }, 'edge1-r');
         yMatrix1.addNodeWithEdge('node2', '->', 'root', 'node2', { x: 0, y: 0 }, 'edge2-r');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('node1', 'root');
         yMatrix2.addEdge('node2', 'node1', 'edge2-1');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.getEdge('node2', 'root')).toBeDefined();
@@ -1090,10 +1060,10 @@ describe('Fixed Root Weakly Connected Graph', () => {
     it('remove edge r-1 in one map and add edge 2-r in other map', () => {
         yMatrix1.addNodeWithEdge('node1', '<-', 'root', 'node1', { x: 0, y: 0 }, 'edger-1');
         yMatrix1.addNodeWithEdge('node2', '<-', 'root', 'node2', { x: 0, y: 0 }, 'edger-2');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('root', 'node1');
         yMatrix2.addEdge('node2', 'root', 'edge2-r');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.getEdge('node2', 'root')).toBeDefined();
@@ -1116,10 +1086,10 @@ describe('Fixed Root Weakly Connected Graph', () => {
     it('remove edge 1-r in one map and add edge r-2 in other map', () => {
         yMatrix1.addNodeWithEdge('node1', '->', 'root', 'node1', { x: 0, y: 0 }, 'edge1-r');
         yMatrix1.addNodeWithEdge('node2', '->', 'root', 'node2', { x: 0, y: 0 }, 'edge2-r');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('node1', 'root');
         yMatrix2.addEdge('root', 'node2', 'edger-2');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.getEdge('node2', 'root')).toBeDefined();
@@ -1142,10 +1112,10 @@ describe('Fixed Root Weakly Connected Graph', () => {
     it('remove edge r-1 in one map and add edge 1-2 in other map', () => {
         yMatrix1.addNodeWithEdge('node1', '<-', 'root', 'node1', { x: 0, y: 0 }, 'edger-1');
         yMatrix1.addNodeWithEdge('node2', '<-', 'root', 'node2', { x: 0, y: 0 }, 'edger-2');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('root', 'node1');
         yMatrix2.addEdge('node1', 'node2', 'edge1-2');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.getEdge('root', 'node2')).toBeDefined();
@@ -1166,10 +1136,10 @@ describe('Fixed Root Weakly Connected Graph', () => {
     it('remove edge r-1 in one map and add edge r-2 in other map without node deletion', () => {
         yMatrix1.addNodeWithEdge('node1', '<-', 'root', 'node1', { x: 0, y: 0 }, 'edger-1');
         yMatrix1.addNodeWithEdge('node2', '->', 'root', 'node2', { x: 0, y: 0 }, 'edge2-r');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.addEdge('root', 'node2', 'edger-2');
         yMatrix2.removeEdge('root', 'node1');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.getNode('node1')).toBeUndefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -1196,10 +1166,10 @@ describe('Fixed Root Weakly Connected Graph', () => {
     it('remove edge 1-r in one map and add edge 2-r in other map without node deletion', () => {
         yMatrix1.addNodeWithEdge('node1', '->', 'root', 'node1', { x: 0, y: 0 }, 'edge1-r');
         yMatrix1.addNodeWithEdge('node2', '<-', 'root', 'node2', { x: 0, y: 0 }, 'edger-2');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.addEdge('node2', 'root', 'edge2-r');
         yMatrix2.removeEdge('node1', 'root');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.getNode('node1')).toBeUndefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -1227,10 +1197,10 @@ describe('Fixed Root Weakly Connected Graph', () => {
         yMatrix1.addNodeWithEdge('node1', '<-', 'root', 'node1', { x: 0, y: 0 }, 'edger-1');
         yMatrix1.addNodeWithEdge('node2', '<-', 'root', 'node2', { x: 0, y: 0 }, 'edger-2');
         yMatrix1.addNodeWithEdge('node3', '<-', 'node1', 'node3', { x: 0, y: 0 }, 'edge1-3');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.addEdge('node2', 'root', 'edge2-r');
         yMatrix2.removeEdge('node1', 'node3');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -1256,10 +1226,10 @@ describe('Fixed Root Weakly Connected Graph', () => {
     // removeEdge(n1, n2), removeEdge(m1,m2), n = m && n1 = m1 && n2 = m2, remove same node
     it('remove edge r-1 in one map and remove edge r-1 in other map', () => {
         yMatrix1.addNodeWithEdge('node1', '<-', 'root', 'node1', { x: 0, y: 0 }, 'edger-1');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('root', 'node1');
         yMatrix2.removeEdge('root', 'node1');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.getNode('node1')).toBeUndefined();
         expect(yMatrix1.nodeCount).toBe(1);
@@ -1278,10 +1248,10 @@ describe('Fixed Root Weakly Connected Graph', () => {
     it('remove edge r-2 in one map and remove edge r-1 in other map', () => {
         yMatrix1.addNodeWithEdge('node1', '<-', 'root', 'node1', { x: 0, y: 0 }, 'edger-1');
         yMatrix1.addNodeWithEdge('node2', '<-', 'root', 'node2', { x: 0, y: 0 }, 'edger-2');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('root', 'node1');
         yMatrix2.removeEdge('root', 'node2');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(1);
         expect(yMatrix1.edgeCount).toBe(0);
@@ -1298,10 +1268,10 @@ describe('Fixed Root Weakly Connected Graph', () => {
     it('remove edge 1-r in one map and remove edge 2-r in other map', () => {
         yMatrix1.addNodeWithEdge('node1', '->', 'root', 'node1', { x: 0, y: 0 }, 'edge1-r');
         yMatrix1.addNodeWithEdge('node2', '->', 'root', 'node2', { x: 0, y: 0 }, 'edge2-r');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('node1', 'root');
         yMatrix2.removeEdge('node2', 'root');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(1);
         expect(yMatrix1.edgeCount).toBe(0);
@@ -1318,10 +1288,10 @@ describe('Fixed Root Weakly Connected Graph', () => {
     it('remove edge r-1 in one map and remove edge 2-r in other map', () => {
         yMatrix1.addNodeWithEdge('node1', '<-', 'root', 'node1', { x: 0, y: 0 }, 'edger-1');
         yMatrix1.addNodeWithEdge('node2', '->', 'root', 'node2', { x: 0, y: 0 }, 'edge2-r');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('root', 'node1');
         yMatrix2.removeEdge('node2', 'root');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(1);
         expect(yMatrix1.edgeCount).toBe(0);
@@ -1339,10 +1309,10 @@ describe('Fixed Root Weakly Connected Graph', () => {
         yMatrix1.addNodeWithEdge('node1', '<-', 'root', 'node1', { x: 0, y: 0 }, 'edger-1');
         yMatrix1.addNodeWithEdge('node2', '<-', 'node1', 'node2', { x: 0, y: 0 }, 'edge1-2');
         yMatrix1.addEdge('node1', 'root', 'edge1-r');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('root', 'node1');
         yMatrix2.removeEdge('node1', 'node2');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getEdge('node1', 'root')).toBeDefined();
@@ -1364,10 +1334,10 @@ describe('Fixed Root Weakly Connected Graph', () => {
         yMatrix1.addNodeWithEdge('node1', '<-', 'root', 'node1', { x: 0, y: 0 }, 'edger-1');
         yMatrix1.addNodeWithEdge('node2', '<-', 'node1', 'node2', { x: 0, y: 0 }, 'edge1-2');
         yMatrix1.addEdge('node1', 'root', 'edge1-r');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('node1', 'root');
         yMatrix2.removeEdge('node1', 'node2');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getEdge('root', 'node1')).toBeDefined();
@@ -1389,10 +1359,10 @@ describe('Fixed Root Weakly Connected Graph', () => {
         yMatrix1.addNodeWithEdge('node1', '->', 'root', 'node1', { x: 0, y: 0 }, 'edge1-r');
         yMatrix1.addNodeWithEdge('node2', '<-', 'root', 'node2', { x: 0, y: 0 }, 'edger-2');
         yMatrix1.addEdge('node2', 'root', 'edge2-r');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('node1', 'root');
         yMatrix2.removeEdge('node2', 'root');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.getEdge('root', 'node2')).toBeDefined();
@@ -1414,10 +1384,10 @@ describe('Fixed Root Weakly Connected Graph', () => {
         yMatrix1.addNodeWithEdge('node1', '->', 'root', 'node1', { x: 0, y: 0 }, 'edge1-r');
         yMatrix1.addNodeWithEdge('node2', '<-', 'root', 'node2', { x: 0, y: 0 }, 'edger-2');
         yMatrix1.addEdge('node2', 'root', 'edge2-r');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('node1', 'root');
         yMatrix2.removeEdge('root', 'node2');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.getEdge('node2', 'root')).toBeDefined();
@@ -1438,10 +1408,10 @@ describe('Fixed Root Weakly Connected Graph', () => {
     it('remove edge 1-r in one map and remove edge r-1 in other map, without node deletion, one of the edges is restored', () => {
         yMatrix1.addNodeWithEdge('node1', '->', 'root', 'node1', { x: 0, y: 0 }, 'edge1-r');
         yMatrix1.addEdge('root', 'node1', 'edger-1');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('node1', 'root');
         yMatrix2.removeEdge('root', 'node1');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(2);
@@ -1461,10 +1431,10 @@ describe('Fixed Root Weakly Connected Graph', () => {
         yMatrix1.addNodeWithEdge('node1', '<-', 'root', 'node1', { x: 0, y: 0 }, 'edger-1');
         yMatrix1.addNodeWithEdge('node2', '<-', 'root', 'node2', { x: 0, y: 0 }, 'edger-2');
         yMatrix1.addEdge('node2', 'node1', 'edge2-1');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('node2', 'node1');
         yMatrix2.removeEdge('root', 'node1');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -1486,10 +1456,10 @@ describe('Fixed Root Weakly Connected Graph', () => {
         yMatrix1.addNodeWithEdge('node1', '->', 'root', 'node1', { x: 0, y: 0 }, 'edge1-r');
         yMatrix1.addNodeWithEdge('node2', '<-', 'root', 'node2', { x: 0, y: 0 }, 'edger-2');
         yMatrix1.addEdge('node1', 'node2', 'edge1-2');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('node1', 'node2');
         yMatrix2.removeEdge('node1', 'root');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -1510,10 +1480,10 @@ describe('Fixed Root Weakly Connected Graph', () => {
     it('remove edge r-1 in one map and remove edge r-1 in other map, without node deletion', () => {
         yMatrix1.addNodeWithEdge('node1', '->', 'root', 'node1', { x: 0, y: 0 }, 'edge1-r');
         yMatrix1.addEdge('root', 'node1', 'edger-1');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('root', 'node1');
         yMatrix2.removeEdge('root', 'node1');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getEdge('node1', 'root')).toBeDefined();
@@ -1538,10 +1508,10 @@ describe('Fixed Root Weakly Connected Graph', () => {
         yMatrix1.addNodeWithEdge('node2', '<-', 'node1', 'node2', { x: 0, y: 0 }, 'edge1-2');
         yMatrix1.addEdge('node2', 'node1', 'edge2-1');
         yMatrix1.addEdge('node1', 'root', 'edge1-r');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('root', 'node1');
         yMatrix2.removeEdge('node1', 'node2');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -1568,10 +1538,10 @@ describe('Fixed Root Weakly Connected Graph', () => {
         yMatrix1.addNodeWithEdge('node2', '<-', 'root', 'node2', { x: 0, y: 0 }, 'edger-2');
         yMatrix1.addEdge('node1', 'root', 'edge1-r');
         yMatrix1.addEdge('node2', 'root', 'edge2-r');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('root', 'node1');
         yMatrix2.removeEdge('root', 'node2');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -1595,10 +1565,10 @@ describe('Fixed Root Weakly Connected Graph', () => {
         yMatrix1.addNodeWithEdge('node3', '<-', 'node2', 'node3', { x: 0, y: 0 }, 'edge2-3');
         yMatrix1.addEdge('node1', 'root', 'edge1-r');
         yMatrix1.addEdge('node3', 'node2', 'edge3-2');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix1.removeEdge('root', 'node1');
         yMatrix2.removeEdge('node3', 'node2');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -1626,13 +1596,13 @@ describe('Fixed Root Weakly Connected Graph', () => {
     // Restore connectedness with a path 1-> 2 -> 3
     it('restore connectedness with a path', () => {
         yMatrix1.addNodeWithEdge('node1', '<-', 'root', 'node1', { x: 0, y: 0 }, 'edger-1');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix2.addNodeWithEdge('node2', '<-', 'node1', 'node2', { x: 0, y: 0 }, 'edge1-2');
-        sync23Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix2, yMatrix3]);
         yMatrix1.removeEdge('root', 'node1');
         yMatrix2.removeEdge('node1', 'node2');
         yMatrix3.addNodeWithEdge('node3', '<-', 'node2', 'node3', { x: 0, y: 0 }, 'edge2-3');
-        syncThreeConcurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(4);
         expect(yMatrix1.edgeCount).toBe(3);
@@ -1641,13 +1611,13 @@ describe('Fixed Root Weakly Connected Graph', () => {
     // 3 -> 2 -> 1 -> root
     it('restore connectedness with a reversed path', () => {
         yMatrix1.addNodeWithEdge('node1', '->', 'root', 'node1', { x: 0, y: 0 }, 'edge1-r');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix2.addNodeWithEdge('node2', '->', 'node1', 'node2', { x: 0, y: 0 }, 'edge2-1');
-        sync23Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix2, yMatrix3]);
         yMatrix1.removeEdge('node1', 'root');
         yMatrix2.removeEdge('node2', 'node1');
         yMatrix3.addNodeWithEdge('node3', '->', 'node2', 'node3', { x: 0, y: 0 }, 'edge3-2');
-        syncThreeConcurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(4);
         expect(yMatrix1.edgeCount).toBe(3);
@@ -1656,13 +1626,13 @@ describe('Fixed Root Weakly Connected Graph', () => {
     // 3 -> 2 <- 1 -> root
     it('restore connectedness with a path containing different edge directions', () => {
         yMatrix1.addNodeWithEdge('node1', '->', 'root', 'node1', { x: 0, y: 0 }, 'edge1-r');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix2.addNodeWithEdge('node2', '<-', 'node1', 'node2', { x: 0, y: 0 }, 'edge1-2');
-        sync23Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix2, yMatrix3]);
         yMatrix1.removeEdge('node1', 'root');
         yMatrix2.removeEdge('node1', 'node2');
         yMatrix3.addNodeWithEdge('node3', '->', 'node2', 'node3', { x: 0, y: 0 }, 'edge3-2');
-        syncThreeConcurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(4);
         expect(yMatrix1.edgeCount).toBe(3);
@@ -1672,14 +1642,14 @@ describe('Fixed Root Weakly Connected Graph', () => {
     it('restore connectedness with a path containing a loop', () => {
         yMatrix1.addNodeWithEdge('node1', '->', 'root', 'node1', { x: 0, y: 0 }, 'edge1-r');
         yMatrix1.addEdge('root', 'node1', 'edger-1');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix2.addNodeWithEdge('node2', '<-', 'node1', 'node2', { x: 0, y: 0 }, 'edge1-2');
-        sync23Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix2, yMatrix3]);
         yMatrix1.removeEdge('node1', 'root');
         yMatrix1.removeEdge('root', 'node1');
         yMatrix2.removeEdge('node1', 'node2');
         yMatrix3.addNodeWithEdge('node3', '->', 'node2', 'node3', { x: 0, y: 0 }, 'edge3-2');
-        syncThreeConcurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(4);
         expect(yMatrix1.edgeCount).toBe(3);
@@ -1689,13 +1659,13 @@ describe('Fixed Root Weakly Connected Graph', () => {
     it('restore connectedness with a path containing self loop', () => {
         yMatrix1.addNodeWithEdge('node1', '->', 'root', 'node1', { x: 0, y: 0 }, 'edge1-r');
         yMatrix1.addEdge('node1', 'node1', 'edge1-1');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         yMatrix2.addNodeWithEdge('node2', '->', 'node1', 'node2', { x: 0, y: 0 }, 'edge2-1');
-        sync23Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix2, yMatrix3]);
         yMatrix1.removeEdge('node1', 'root');
         yMatrix2.removeEdge('node2', 'node1');
         yMatrix3.addNodeWithEdge('node3', '->', 'node2', 'node3', { x: 0, y: 0 }, 'edge3-2');
-        syncThreeConcurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(4);
         expect(yMatrix1.edgeCount).toBe(3);
@@ -1705,14 +1675,14 @@ describe('Fixed Root Weakly Connected Graph', () => {
         yMatrix1.addNodeWithEdge('node1', '<-', 'root', 'node1', { x: 0, y: 0 }, 'edger-1');
         yMatrix1.addNodeWithEdge('node2', '<-', 'node1', 'node2', { x: 0, y: 0 }, 'edge1-2');
         yMatrix1.addNodeWithEdge('node3', '<-', 'node2', 'node3', { x: 0, y: 0 }, 'edge2-3');
-        syncThreeConcurrently();      
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);      
         yMatrix1.removeEdge('node2', 'node3');
         yMatrix1.removeEdge('node1', 'node2');
         yMatrix1.removeEdge('root', 'node1');
         yMatrix2.addNodeWithEdge('node4', '->', 'node2', 'node4', { x: 0, y: 0 }, 'edge4-2');
         yMatrix2.addEdge('root', 'node4', 'edger-4');
         yMatrix3.addNodeWithEdge('node5', '<-', 'node3', 'node5', { x: 0, y: 0 }, 'edge3-5');
-        syncThreeConcurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.getNode('node1')).toBeUndefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -1733,14 +1703,14 @@ describe('Fixed Root Weakly Connected Graph', () => {
         yMatrix1.addNodeWithEdge('node1', '<-', 'root', 'node1', { x: 0, y: 0 }, 'edger-1');
         yMatrix1.addNodeWithEdge('node2', '<-', 'node1', 'node2', { x: 0, y: 0 }, 'edge1-2');
         yMatrix1.addNodeWithEdge('node3', '<-', 'node2', 'node3', { x: 0, y: 0 }, 'edge2-3');
-        syncThreeConcurrently();      
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);      
         yMatrix1.removeEdge('node2', 'node3');
         yMatrix1.removeEdge('node1', 'node2');
         yMatrix1.removeEdge('root', 'node1');
         yMatrix2.addNodeWithEdge('node4', '->', 'node2', 'node4', { x: 0, y: 0 }, 'edge4-2');
         yMatrix2.addEdge('root', 'node4', 'edger-4');
         yMatrix3.addNodeWithEdge('node5', '<-', 'node3', 'node5', { x: 0, y: 0 }, 'edge3-5');
-        syncThreeConcurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.getNode('node1')).toBeUndefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -1760,14 +1730,14 @@ describe('Fixed Root Weakly Connected Graph', () => {
     it('restore connectedness with a paths connecting three components', () => {
         yMatrix1.addNodeWithEdge('node1', '<-', 'root', 'node1', { x: 0, y: 0 }, 'edger-1');
         yMatrix1.addNodeWithEdge('node2', '<-', 'node1', 'node2', { x: 0, y: 0 }, 'edge1-2');
-        sync12Concurrently();      
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);      
         yMatrix1.removeEdge('node1', 'node2');
         yMatrix1.removeEdge('root', 'node1');
         yMatrix2.addNodeWithEdge('node3', '<-', 'node2', 'node3', { x: 0, y: 0 }, 'edge2-3');
         yMatrix2.addNodeWithEdge('node4', '<-', 'node2', 'node4', { x: 0, y: 0 }, 'edge2-4');
         yMatrix2.addEdge('node4', 'node3', 'edge4-3');
         yMatrix2.addNodeWithEdge('node5', '->', 'node2', 'node5', { x: 0, y: 0 }, 'edge5-2');
-        sync12Concurrently();
+        FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();
@@ -1814,18 +1784,18 @@ describe('Fixed Root Weakly Connected Graph', () => {
 0,removeEdge,3 -> 4 */
 it('failed in property test', () => {
     yMatrix1.addNodeWithEdge('0', '->', 'root', `$node0`, { x: 0, y: 0 }, `$edge0+root`);
-    syncThreeConcurrently();  
+    FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);  
     yMatrix3.removeEdge('0', 'root');
     yMatrix1.addNodeWithEdge('1', '<-', '0', `$node0`, { x: 0, y: 0 }, `$edge0+1`);
     yMatrix1.addEdge('0', '0', 'edge0-0');
     yMatrix3.removeEdge('root', 'root');
     yMatrix1.addNodeWithEdge('2', '->', '1', `$node1`, { x: 0, y: 0 }, `$edge2+1`);
     yMatrix1.addNodeWithEdge('3', '->', '1', `$node1`, { x: 0, y: 0 }, `$edge3+1`);
-    sync12Concurrently();
+    FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2]);
     yMatrix2.addEdge('1', '2', 'edge1-2');
     yMatrix1.addNodeWithEdge('4', '<-', '0', `$node0`, { x: 0, y: 0 }, `$edge0+4`);
     yMatrix1.removeEdge('3', '4');
-    syncThreeConcurrently();
+    FixedRootWeaklyConnectedGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);
     expect(yMatrix1.isWeaklyConnected()).toBe(true); 
     expect(yMatrix2.isWeaklyConnected()).toBe(true);   
     expect(yMatrix1.getIncomingNodesAsJson()).toEqual(yMatrix2.getIncomingNodesAsJson());

@@ -124,11 +124,13 @@ function is<T extends Command['op']>(operation: Command, t: T): operation is Com
     return operation.op === t
 }
 
+export type SyncFun = (clients: number[], seed: string) => void | Promise<void>
+export type AllowedOpsGraphType<AllowedOps extends Command['op']> = Pick<OptinMethods, Exclude<AllowedOps, 'sync'>> & Common
 
 export async function applyCommands<AllowedOps extends Command['op']>(
     commands: CommandFunArg<AllowedOps>[],
-    graph: (idx: number) => Pick<OptinMethods, Exclude<AllowedOps, 'sync'>> & Common,
-    sync: 'sync' extends AllowedOps ? (clients: number[], seed: string) => void | Promise<void> : undefined,
+    graph: (idx: number) => AllowedOpsGraphType<AllowedOps>,
+    sync: 'sync' extends AllowedOps ? SyncFun : SyncFun | undefined,
     newNodeId: () => id | undefined,
     afterEach?: (args: { client: string, op: Command['op'], arguments: string }) => void | Promise<void>) {
     for (const [clientIdx, operation, rnd1, rnd2] of commands) {

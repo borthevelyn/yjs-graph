@@ -2,6 +2,7 @@ import * as Y from 'yjs'
 import { EdgeId, EventEmitter, FlowEdge, FlowNode, id, ObjectYMap, splitEdgeId } from '../Types'
 import { MarkerType, XYPosition } from '@xyflow/react';
 import { Graph } from './Graph';
+import { syncDefault, syncPUSPromAll } from './SynchronizationMethods';
 
 type EdgeInformation = ObjectYMap<{
     id: string,
@@ -26,8 +27,10 @@ export class AdjacencyList implements Graph {
     private selectedEdges: Set<EdgeId>;
     private eventEmitter: EventEmitter | undefined
 
-    constructor(yMatrix: AdjacencyListGraph, eventEmitter?: EventEmitter) {
-        this.yMatrix = yMatrix;
+    private readonly yMatrixId = 'adjacency_list_ydoc'
+
+    constructor(yDoc: Y.Doc, eventEmitter?: EventEmitter) {
+        this.yMatrix = yDoc.getMap(this.yMatrixId);
         this.selectedNodes = new Set();
         this.selectedEdges = new Set();
         this.eventEmitter = eventEmitter
@@ -49,36 +52,38 @@ export class AdjacencyList implements Graph {
         return true
     }
 
-    public removeInvalidEdges() {
+    public makeGraphValid() {
+        const start = performance.now()
         this.removeDanglingEdges();
         this.removeDuplicateEdges();
+        return { time: performance.now() - start}
     }
 
     private removeDanglingEdges() {
         for (const source of this.yMatrix.values()) {
-            source.get('edgeInformation').forEach((target, index) => {
-                const targetId = target.get('id');
+            for (let i = source.get('edgeInformation').length - 1; i >= 0; i--) {
+                const targetId = source.get('edgeInformation').get(i).get('id');
                 if (this.yMatrix.get(targetId) !== undefined)
                     return
 
-                source.get('edgeInformation').delete(index, 1);
+                source.get('edgeInformation').delete(i, 1);
                 this.selectedEdges.delete(`${source.get('id')}+${targetId}`);
-            })
+            }
         }
     }
 
     private removeDuplicateEdges() {
         for (const source of this.yMatrix.values()) {
             const uniqueEdgesForNode: Set<id> = new Set();
-            source.get('edgeInformation').forEach((edge, index) => {
-                const edgeId = edge.get('id');
+            for (let i = source.get('edgeInformation').length - 1; i >= 0; i--) {
+                const edgeId = source.get('edgeInformation').get(i).get('id');
                 if (uniqueEdgesForNode.has(edgeId)) {
-                    source.get('edgeInformation').delete(index, 1);
+                    source.get('edgeInformation').delete(i, 1);
                     this.selectedEdges.delete(`${source.get('id')}+${edgeId}`);
                 } else {
                     uniqueEdgesForNode.add(edgeId);
-                } 
-            })
+                }
+            }
         }
     }
 
@@ -184,6 +189,22 @@ export class AdjacencyList implements Graph {
         });
     }
 
+
+    static syncDefault(graphs: AdjacencyList[]) {
+        return syncDefault(graphs, graphs.map(graph => graph.yMatrix.doc!), graph => graph.makeGraphValid())
+    }
+    static async syncPUS(graphs: AdjacencyList[], maxSleep: number, rnd: (idx: number) => number) {
+        return await syncPUSPromAll(
+            graphs,
+            graphs.map(x => x.yMatrix.doc!),
+            rnd,
+            yDoc => new AdjacencyList(yDoc),
+            graph => graph.hasNoDanglingEdges(),
+            graph => graph.makeGraphValid(),
+            maxSleep
+        )
+    }
+
     changeNodePosition(nodeId: string, position: XYPosition): void {
         this.yMatrix.doc!.transact(() => {
             const nodeInfo = this.yMatrix.get(nodeId);
@@ -253,7 +274,6 @@ export class AdjacencyList implements Graph {
     }
 
     edgesAsFlow(): FlowEdge[] {
-        this.removeInvalidEdges();
         const nestedEdges = 
             Array.from(this.yMatrix.entries()).map(([sourceNode, nodeInfo]) =>
                 Array.from(nodeInfo.get('edgeInformation')).map<FlowEdge>((edge) => {
@@ -289,7 +309,6 @@ export class AdjacencyList implements Graph {
     }
 
     getEdge(source: string, target: id): FlowEdge | undefined {
-        this.removeInvalidEdges();
         let edge = this.yMatrix.get(source)?.get('edgeInformation').toArray().find((edgeInfo) => edgeInfo.get('id') === target);
         if (edge === undefined)
             return undefined
@@ -330,7 +349,6 @@ export class AdjacencyList implements Graph {
     }
 
     get edgeCount(): number {
-        this.removeInvalidEdges();
         return Array.from(this.yMatrix.values()).reduce((acc, nodeInfo) => acc + nodeInfo.get('edgeInformation').length, 0);
     }
 

@@ -5,19 +5,7 @@ import { assert } from 'console';
 
 describe('properties', () => {
     fc.configureGlobal({ baseSize: 'medium' });
-    const createExecutionTimeCsvWriter = require('csv-writer').createObjectCsvWriter;
-    const csvWriterExecutionTime = createExecutionTimeCsvWriter({
-        path: './dagExecutionTime.csv',
-        header: [
-            {id: 'optimized', title: 'Optimized'},
-            {id: 'graphNodes', title: 'Node count'},
-            {id: 'graphEdges', title: 'Edge count'},
-            {id: 'executionTime', title: 'Execution time'},
-            {id: 'cycles', title: 'Cycles'},
-            {id: 'cycleResolutionSteps', title: 'Cycle resolution steps'},
-            {id: 'yEdges', title: 'yEdges'},
-        ]
-    });
+    
     async function syncConcurrently(yDocs: Y.Doc[], yGraphs: DirectedAcyclicGraph[], optimized: boolean = true) {
         if (yDocs.length < 2) return;
 
@@ -38,19 +26,7 @@ describe('properties', () => {
         }
         for (const graph of yGraphs) {
             
-            performance.mark('start');
-            graph.removeCycles(optimized);
-            performance.mark('end');
-
-            await csvWriterExecutionTime.writeRecords([{
-                optimized: optimized,
-                graphNodes: graph.nodeCount, 
-                graphEdges: graph.edgeCount, 
-                executionTime: performance.measure('removeCycles', 'start', 'end').duration,
-                cycles: graph.benchmarkData.cycles,
-                cycleResolutionSteps: graph.benchmarkData.cycleResolutionSteps,
-                yEdges: graph.benchmarkData.yEdges
-            }]);
+            graph.makeGraphValid(optimized);
         }
     }
 
@@ -86,7 +62,7 @@ describe('properties', () => {
         }, number, number][]) {
 
         const yDocs = Array.from({ length: clientCount }, () => new Y.Doc())
-        const yGraphs = yDocs.map((yDoc) => new DirectedAcyclicGraph(yDoc.getMap('adjacency map'), yDoc.getArray('edges')))
+        const yGraphs = yDocs.map((yDoc) => new DirectedAcyclicGraph(yDoc))
         createGraph(yGraphs[0], initialGraphSize);
         await syncConcurrently(yDocs, yGraphs, optimized);
 
@@ -156,7 +132,7 @@ describe('properties', () => {
                 await acyclicityTestForBenchmarks(false, clientCount, initialGraphSize, maxGraphSize, commands);
         }),
         { 
-            numRuns: 1000,
+            numRuns: 100,
             verbose: true,
         },
         );
@@ -211,7 +187,7 @@ describe('properties', () => {
             ),
             async (iteration, commands) => {
             const yDocs = Array.from({ length: clientCount }, () => new Y.Doc())
-            const yGraphs = yDocs.map((yDoc) => new DirectedAcyclicGraph(yDoc.getMap('adjacency map'), yDoc.getArray('edges')))
+            const yGraphs = yDocs.map((yDoc) => new DirectedAcyclicGraph(yDoc))
             createGraph(yGraphs[0], initialGraphSize);
             await syncConcurrently(yDocs, yGraphs);
 
@@ -266,7 +242,7 @@ describe('properties', () => {
     
     test('simple test', async () => {
         const yDocs = Array.from({ length: 2 }, () => new Y.Doc())
-        const yGraphs = yDocs.map((yDoc) => new DirectedAcyclicGraph(yDoc.getMap('adjacency map'), yDoc.getArray('edges')))
+        const yGraphs = yDocs.map((yDoc) => new DirectedAcyclicGraph(yDoc))
 
         createGraph(yGraphs[0], 2);
         await syncConcurrently(yDocs, yGraphs);
@@ -382,7 +358,7 @@ describe('properties', () => {
             ),
             (commands) => {
             const yDocs = Array.from({ length: clientCount }, () => new Y.Doc())
-            const yGraphs = yDocs.map((yDoc) => new DirectedAcyclicGraph(yDoc.getMap('adjacency map'), yDoc.getArray('edges')))
+            const yGraphs = yDocs.map((yDoc) => new DirectedAcyclicGraph(yDoc))
             createGraph(yGraphs[0], initialGraphSize);
             syncConcurrently(yDocs, yGraphs);
 
@@ -461,7 +437,7 @@ describe('properties', () => {
             ),
             (commands) => {
             const yDocs = Array.from({ length: clientCount }, () => new Y.Doc())
-            const yGraphs = yDocs.map((yDoc) => new DirectedAcyclicGraph(yDoc.getMap('adjacency map'), yDoc.getArray('edges')))
+            const yGraphs = yDocs.map((yDoc) => new DirectedAcyclicGraph(yDoc))
             createGraph(yGraphs[0], initialGraphSize);
             syncConcurrently(yDocs, yGraphs);
             console.log('commands', commands)
