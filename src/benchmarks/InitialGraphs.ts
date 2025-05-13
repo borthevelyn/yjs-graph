@@ -1,3 +1,4 @@
+import { FixedRootConnectedUndirectedGraph } from "../graphs/FixedRootConnectedUndirectedGraph"
 import { FixedRootWeaklyConnectedGraph } from "../graphs/FixedRootWeaklyConnectedGraph"
 import { Graph } from "../graphs/Graph"
 
@@ -38,13 +39,21 @@ export function makeCompleteGraph(g: Graph, count: number) {
         for (let j = i; j < count; j++) {
             g.addEdge(i.toString(), j.toString(), 'label')
             g.addEdge(j.toString(), i.toString(), 'label')
-    }
+        }
 }
 
 export function makeLineGraphFRWCG(g: FixedRootWeaklyConnectedGraph, count: number) {
     g.addNodeWithEdge('0', '<-', 'root', 'label', { x: 0, y: 0 }, 'label')
     for (let i = 0; i < count; i++){
         g.addNodeWithEdge((i + 1).toString(), '<-', i.toString(), 'label', { x: 0, y: 0 }, 'label')
+        g.addEdge('root', (i + 1).toString(), 'label')
+    }
+}
+
+export function makeLineGraphFRCUG(g: FixedRootConnectedUndirectedGraph, count: number) {
+    g.addNodeWithEdge('0', 'root', 'label', { x: 0, y: 0 }, 'label')
+    for (let i = 0; i < count; i++){
+        g.addNodeWithEdge((i + 1).toString(), i.toString(), 'label', { x: 0, y: 0 }, 'label')
         g.addEdge('root', (i + 1).toString(), 'label')
     }
 }

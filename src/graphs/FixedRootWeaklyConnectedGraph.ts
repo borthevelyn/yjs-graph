@@ -16,7 +16,8 @@ type BenchmarkData = {
     restoredNodesWithEdges: number,
     restoredEdges: number,
     restoredPaths: number,
-    time: number
+    time: number,
+    resolveInvalidEdgesTime: number,
 }
 
 type clock = {
@@ -205,6 +206,13 @@ function findAllPaths(graphElements: Array<RemovedGraphElement>): Set<Restorable
                 }
         })
         .filter(x => x !== undefined)
+        .filter((path, idx, arr) => {
+            return arr.findIndex(path2 => {
+                const pathElems = new Set(path.edges.flatMap(x => [...x.edgePayload.usedRemovedElements]).concat([...path.finalEdge.edgePayload.usedRemovedElements]))
+                const path2Elems = new Set(path2.edges.flatMap(x => [...x.edgePayload.usedRemovedElements]).concat([...path2.finalEdge.edgePayload.usedRemovedElements]))
+                return pathElems.symmetricDifference(path2Elems).size === 0
+            }) === idx
+        })
     )
 }
 /**
@@ -600,7 +608,13 @@ export class FixedRootWeaklyConnectedGraph {
     // O(DanglingEdges)
     private removeRemainingDanglingEdges(danglingEdges: Set<RemovedGraphElement & { type: 'edge' }>, clock?: clock): void {
         this.yDoc.transact(() => {
-            for (const danglingEdge of danglingEdges) {
+            // This sorting is not necessarily important, but without it, the iteration order of 
+            // different clients might be different: Then, the insertion order into the removed
+            // graph elements array is also different and this might not be desired: After a sync that 
+            // would be resolved and all invariants still hold, but it may be rightfully expected
+            // that after a sync, all values, also the order of the removed graph elements
+            // is identical
+            for (const danglingEdge of Array.from(danglingEdges).toSorted((a, b) => a.item.edgeId.localeCompare(b.item.edgeId))) {
                 const [source, target] = splitEdgeId(danglingEdge.item.edgeId);
 
                 // Check if edge is not dangling anymore
@@ -614,6 +628,7 @@ export class FixedRootWeaklyConnectedGraph {
                 }
                 if (this.nodeMap(target)?.incomingNodes.has(source)) {
                     this.uncheckedNodeMap(target).incomingNodes.delete(source);
+                    this.removedGraphElements.push([danglingEdge])
                     continue;
                 }
                 assert(false, 'Dangling edge could not be removed');
@@ -741,9 +756,11 @@ export class FixedRootWeaklyConnectedGraph {
     // O(PathsInRemovedGraphElements * V^2 + (danglingEdges + V^2 + pathsInRemovedGraphElements))
     private computePathConnectingComponentsVar1(connectedComponents: Set<Set<id>>, allPathsWithCostInGraph: Set<[RestorablePath, BigInt]>, danglingEdges: Set<RemovedGraphElement>): [RestorablePath, Set<RemovedGraphElement>, Set<Set<id>>,  Set<[RestorablePath, BigInt]>] | undefined {
         const allPathsSorted =  Array.from(allPathsWithCostInGraph).sort((a, b) => a[1] < b[1] ? -1 : 1);
+        assert(![...allPathsWithCostInGraph].some((path, idx) => [...allPathsWithCostInGraph].some((path2, idx2) => idx !== idx2 &&  path2[1] === path[1])), 'the costs have to be unique');
+
         for (const [path, ] of allPathsSorted) {
-            const first = begin(path)!
-            const last = end(path)!
+            const first = begin(path) ?? splitEdgeId(path.finalEdge.id)[0]
+            const last = end(path) ?? splitEdgeId(path.finalEdge.id)[1]
             for (const component of connectedComponents) {
                 for (const otherComponent of connectedComponents) {
                     if (component === otherComponent)
@@ -769,10 +786,11 @@ export class FixedRootWeaklyConnectedGraph {
                         
                         const mergedComponents = mergeComponents(connectedComponents, componentsToBeMerged, pathNodes)
 
+                        // filter paths which would only connect nodes which are already connected (e.g. a path is contained in a connected component)
                         const pathsContainedInConnectedComponents =
                             new Set(
                                 allPathsSorted
-                                .filter(x => mergedComponents.isSupersetOf(new Set(x[0].edges.map(y => y.nodeId).concat(splitEdgeId(x[0].finalEdge.id)))))
+                                .filter(x => [...mergedComponents].some(mc => mc.isSupersetOf(new Set(x[0].edges.flatMap(y => splitEdgeId(y.edgeId)).concat(splitEdgeId(x[0].finalEdge.id))))))
                             );
 
                         return [path, danglingEdgesInPath, mergedComponents, pathsContainedInConnectedComponents];
@@ -788,8 +806,17 @@ export class FixedRootWeaklyConnectedGraph {
     // + O(paths log(paths) * pathlength^2)
     // + O((PathsInRemovedGraphElements + (V^2 + pathsInRemovedGraphElements)))
     // => O(pathsInRemovedGraphElements * (pathlength + danglingEdges + components * O(V))) + O(paths log(paths) * pathlength^2) + V^2 
-    private computePathConnectingComponents(connectedComponents: Set<Set<id>>, allPathsWithCostInGraph: Set<[RestorablePath, BigInt]>, danglingEdges: Set<RemovedGraphElement>): [RestorablePath, Set<RemovedGraphElement>, Set<Set<id>>,  Set<[RestorablePath, BigInt]>] | undefined {
+    private computePathConnectingComponentsVar2(connectedComponents: Set<Set<id>>, allPathsWithCostInGraph: Set<[RestorablePath, BigInt]>, danglingEdges: Set<RemovedGraphElement>): [RestorablePath, Set<RemovedGraphElement>, Set<Set<id>>,  Set<[RestorablePath, BigInt]>] | undefined {
+        // Sort paths by hash
+        // const allPathsHashed = Array.from(allPathsWithCostInGraph).toSorted(([path1, cost1], [path2, cost2]) => {
+        //     function pathHash(path: RestorablePath): number {
+        //         return path.edges.reduce((s, n, idx) => s + seedrandom(`${n.edgeId}${n.nodeId}`)() * Math.pow(10, idx + 1), seedrandom(`${path.finalEdge.id}`)())
+        //     }
+        //     return pathHash(path1) - pathHash(path2)
+        // })
+
         // Sort the paths by cost (ascending)
+        // const allPathsSorted =  allPathsHashed.sort((a, b) => a[1] < b[1] ? -1 : 1);
         const allPathsSorted =  Array.from(allPathsWithCostInGraph).sort((a, b) => a[1] < b[1] ? -1 : 1);
 
         // Sort by the number of components a path connects (descending)
@@ -797,38 +824,38 @@ export class FixedRootWeaklyConnectedGraph {
         // O(pathsInRemovedGraphElements * (pathlength + danglingEdges + components * O(V)))
         const connectingComponentsCountPerPath = new Map<RestorablePath, [Set<string>, Set<Set<id>>, Set<RemovedGraphElement>]>(allPathsSorted.map(([path, cost]) => {
 
-        const start = begin(path) ?? splitEdgeId(path.finalEdge.id)[0]
-        const ending = end(path) ?? splitEdgeId(path.finalEdge.id)[1]
+            const start = begin(path) ?? splitEdgeId(path.finalEdge.id)[0]
+            const ending = end(path) ?? splitEdgeId(path.finalEdge.id)[1]
 
-        if (![...connectedComponents].some(component => component.has(start))
-            || ![...connectedComponents].some(component => component.has(ending)))
-            return [path, [new Set(), new Set(), new Set()]]
+            if (![...connectedComponents].some(component => component.has(start))
+                || ![...connectedComponents].some(component => component.has(ending)))
+                return [path, [new Set(), new Set(), new Set()]]
 
-        const allVisitedNodes = new Set(path.edges.flatMap(x => splitEdgeId(x.edgeId)).concat(splitEdgeId(path.finalEdge.id)));
+            const allVisitedNodes = new Set(path.edges.flatMap(x => splitEdgeId(x.edgeId)).concat(splitEdgeId(path.finalEdge.id)));
 
-        if (![...allVisitedNodes].every(node => 
-            node === start || node === ending
-                ? [...connectedComponents].some(component => component.has(node))
-                : [...connectedComponents].every(component => !component.has(node))))
-            return [path, [new Set(), new Set(), new Set()]]
+            if (![...allVisitedNodes].every(node => 
+                node === start || node === ending
+                    ? [...connectedComponents].some(component => component.has(node))
+                    : [...connectedComponents].every(component => !component.has(node))))
+                return [path, [new Set(), new Set(), new Set()]]
 
 
-        const danglingEdgesInPath = 
-            new Set(
-                Array.from(danglingEdges)
-                .filter(x => splitEdgeId(x.item.edgeId).some(y => allVisitedNodes.has(y)))
-                .filter(x => splitEdgeId(x.item.edgeId).every(node => allVisitedNodes.has(node) 
-                    || [...connectedComponents].some(comp => comp.has(node)))
-                )
-            );
+            const danglingEdgesInPath = 
+                new Set(
+                    Array.from(danglingEdges)
+                    .filter(x => splitEdgeId(x.item.edgeId).some(y => allVisitedNodes.has(y)))
+                    .filter(x => splitEdgeId(x.item.edgeId).every(node => allVisitedNodes.has(node) 
+                        || [...connectedComponents].some(comp => comp.has(node)))
+                    )
+                );
 
-        const danglingEdgeNodesToBeRestored = new Set([...danglingEdgesInPath].map(x => splitEdgeId(x.item.edgeId)).flat());
+            const danglingEdgeNodesToBeRestored = new Set([...danglingEdgesInPath].map(x => splitEdgeId(x.item.edgeId)).flat());
 
-        const allNodesToBeRestored = allVisitedNodes.union(danglingEdgeNodesToBeRestored);
+            const allNodesToBeRestored = allVisitedNodes.union(danglingEdgeNodesToBeRestored);
 
-        return [path, [allVisitedNodes, new Set([...connectedComponents].filter(component => 
-            component.intersection(allNodesToBeRestored).size > 0)
-        ), danglingEdgesInPath]]
+            return [path, [allVisitedNodes, new Set([...connectedComponents].filter(component => 
+                component.intersection(allNodesToBeRestored).size > 0)
+            ), danglingEdgesInPath]]
         }))
 
         // O(paths log(paths))
@@ -866,7 +893,7 @@ export class FixedRootWeaklyConnectedGraph {
                 const pathsContainedInConnectedComponents =
                     new Set(
                         allPathsSorted
-                        .filter(x => mergedComponents.isSupersetOf(new Set(x[0].edges.map(y => y.nodeId).concat(splitEdgeId(x[0].finalEdge.id)))))
+                        .filter(x => [...mergedComponents].some(mc => mc.isSupersetOf(new Set(x[0].edges.flatMap(y => splitEdgeId(y.edgeId)).concat(splitEdgeId(x[0].finalEdge.id))))))
                     );
 
                 return [path, danglingEdgesInPath, mergedComponents, pathsContainedInConnectedComponents];
@@ -1075,105 +1102,7 @@ export class FixedRootWeaklyConnectedGraph {
         restoredNodesWithEdges: 0,
         restoredEdges: 0,
         restoredPaths: 0,
-    }
-
-    public makeGraphWeaklyConnectedVariant2(): BenchmarkData {
-        const clock = Object.fromEntries(Y.decodeStateVector(Y.encodeStateVector(this.yDoc)));
-        return this.yDoc.transact(() => {
-            this.i++;
-            this.benchmarkData = {
-                danglingEdges: 0,
-                connectedComponents: 0,
-                paths: 0,
-                restoredNodesWithEdges: 0,
-                restoredEdges: 0,
-                restoredPaths: 0,
-            }
-
-            const start = performance.now()
-
-            let danglingEdges = new Set(this.getDanglingEdges());
-            this.benchmarkData.danglingEdges = danglingEdges.size;
-            let connectedComponents = this.getConnectedComponents();
-            this.benchmarkData.connectedComponents = connectedComponents.size;
-            while (connectedComponents.size > 1) {
-                const tryToConnectComponentsWithGraphElement = this.getGraphElementIdxAndMergedComponents(connectedComponents, danglingEdges);
-                if (tryToConnectComponentsWithGraphElement === undefined) 
-                    break;
-
-                const [graphElementIdxConnectingTwoComponents, mergedComponents, danglingEdgesToRepair] = tryToConnectComponentsWithGraphElement;
-                const graphElementConnectingTwoComponents = this.removedGraphElements.get(graphElementIdxConnectingTwoComponents);
-                
-                switch (graphElementConnectingTwoComponents.type) {
-                    case 'edgeWithNode': {
-                        const nodeConnectingTwoComponents = graphElementConnectingTwoComponents.item;
-                        this.addYRemovedEdgeWithNode(nodeConnectingTwoComponents, danglingEdgesToRepair);
-                        danglingEdges = danglingEdges.difference(danglingEdgesToRepair);
-                        this.benchmarkData.restoredNodesWithEdges++;
-                        break;
-                    }
-                    case 'edge': {
-                        const edgeConnectingTwoComponents = graphElementConnectingTwoComponents.item;
-                        const [source, target] = splitEdgeId(edgeConnectingTwoComponents.edgeId);
-                        const edgeLabel = edgeConnectingTwoComponents.edgeLabel;
-                        // Added edge is removed from the removed edges list in addEdge
-                        this.addEdge(source, target, edgeLabel);
-                        this.benchmarkData.restoredEdges++;
-                        break;
-                    }
-                }
-                
-                connectedComponents = mergedComponents;
-            }
-
-            const pathCost = (path: RestorablePath): BigInt => {
-                let cost = 0n;
-                const sortedDanglingEdges = Array.from(danglingEdges).sort((a, b) => a.item.edgeId.localeCompare(b.item.edgeId));
-                const allGraphElements = this.removedGraphElements.toArray().concat(sortedDanglingEdges);	
-                const usedRemovedElements = path.edges.reduce((s, n) => s.union(n.edgePayload.usedRemovedElements), path.finalEdge.edgePayload.usedRemovedElements)
-                for (const elem of usedRemovedElements) {
-                    const indexReversed = allGraphElements.toReversed().findIndex(x => elem === x);
-
-                    if (indexReversed === -1) {
-                        console.warn('Element does not exist in the removed graph elements list (computePathConnectingComponents)', elem);
-                    }
-                    cost = cost + (1n << BigInt(indexReversed));
-                }
-                return cost;
-            }
-            
-            let pathsWithCost: Set<[RestorablePath, BigInt]> = 
-                connectedComponents.size > 1 
-                ? new Set(
-                    Array.from(
-                        findAllPaths(this.removedGraphElements.toArray().concat(Array.from(danglingEdges))))
-                        .map(x => [x, pathCost(x)])
-                )
-                : new Set();
-            
-            this.benchmarkData.paths = pathsWithCost.size;
-
-            while (connectedComponents.size > 1) {
-                const tryToConnectComponentsWithPath = this.computePathConnectingComponents(connectedComponents, pathsWithCost, danglingEdges);
-                if (tryToConnectComponentsWithPath !== undefined) {
-                    const [path, danglingEdgesInPath, mergedComponents, pathsContainedInConnectedComponents] = tryToConnectComponentsWithPath;
-                    this.addYRemovedPath(path, danglingEdgesInPath);
-                    connectedComponents = mergedComponents;
-                    danglingEdges = danglingEdges.difference(danglingEdgesInPath);
-                    pathsWithCost = pathsWithCost.difference(pathsContainedInConnectedComponents)
-                    this.benchmarkData.restoredPaths++;
-                }
-
-                assert(tryToConnectComponentsWithPath !== undefined, 'Could not connect components');
-            }
-
-            // Remove remaining dangling edges which were not used to connect components
-            this.removeRemainingDanglingEdges(danglingEdges, clock);
-
-            assert(this.getDanglingEdges().length === 0, 'Dangling edges should be removed');
-
-            return { ...this.benchmarkData, time: performance.now() - start }
-        });
+        resolveInvalidEdgesTime: 0,
     }
 
     private i = 0;
@@ -1212,7 +1141,7 @@ export class FixedRootWeaklyConnectedGraph {
 
     // cost if the graph is already correct:
     // O(V * E)
-    public makeGraphWeaklyConnected(): BenchmarkData {
+    public makeGraphWeaklyConnected(useVariant2: boolean = false): BenchmarkData {
         const clock = Object.fromEntries(Y.decodeStateVector(Y.encodeStateVector(this.yDoc)));
         return this.yDoc.transact(() => {
             this.i++;
@@ -1223,11 +1152,22 @@ export class FixedRootWeaklyConnectedGraph {
                 restoredNodesWithEdges: 0,
                 restoredEdges: 0,
                 restoredPaths: 0,
+                resolveInvalidEdgesTime: 0,
             }
 
             const start = performance.now()
 
+            // make consistent
+            const startResolveInvalidEdges = performance.now()
+            this.nodeIds.forEach((_, id) => {
+                this.uncheckedNodeMap(id).edgeInformation.forEach((ei, target) => 
+                    this.nodeMap(target)?.incomingNodes.set(id, ei))
+                this.uncheckedNodeMap(id).incomingNodes.forEach((ei, target) => 
+                    this.nodeMap(target)?.edgeInformation.set(id, ei))
+            })
             let danglingEdges = new Set(this.getDanglingEdges());
+            const elapsedResolveInvalidEdgesTime =  performance.now() - startResolveInvalidEdges;
+
             this.benchmarkData.danglingEdges = danglingEdges.size;
             let connectedComponents = this.getConnectedComponents();
             this.benchmarkData.connectedComponents = connectedComponents.size;
@@ -1310,8 +1250,8 @@ export class FixedRootWeaklyConnectedGraph {
                 ? new Set(
                     Array.from(
                         findAllPaths(this.removedGraphElements.toArray().concat(Array.from(danglingEdges))))
-                        .map(x => [x, pathCost(x)])
-                )
+                        .map<[RestorablePath, BigInt]>(x => [x, pathCost(x)])
+                    )
                 : new Set();
             
             this.benchmarkData.paths = allPathsWithCostInGraph.size;
@@ -1323,13 +1263,27 @@ export class FixedRootWeaklyConnectedGraph {
             // + O(components * (removedGraphElements^2 + removedGraphElements * danglingEdgesToPath))
             // = O(components * (removedGraphElements! * ((danglingEdges + components * V) + log(removedGraphElements!)) + V^2 + danglingEdgesToPath))
             while (connectedComponents.size > 1) {
-                const tryToConnectComponentsWithPath = this.computePathConnectingComponents(connectedComponents, allPathsWithCostInGraph, danglingEdges);
+                const tryToConnectComponentsWithPath = 
+                    useVariant2 ? 
+                    this.computePathConnectingComponentsVar2(connectedComponents, allPathsWithCostInGraph, danglingEdges)
+                    : this.computePathConnectingComponentsVar1(connectedComponents, allPathsWithCostInGraph, danglingEdges);
                 if (tryToConnectComponentsWithPath !== undefined) {
                     const [path, danglingEdgesInPath, mergedComponents, pathsContainedInConnectedComponents] = tryToConnectComponentsWithPath;
                     this.addYRemovedPath(path, danglingEdgesInPath);
                     connectedComponents = mergedComponents;
                     danglingEdges = danglingEdges.difference(danglingEdgesInPath);
                     allPathsWithCostInGraph = allPathsWithCostInGraph.difference(pathsContainedInConnectedComponents)
+                    assert([...pathsContainedInConnectedComponents].some(([path2]) => path2 === path), 'Path should be contained in the paths to be removed');
+                    assert(![...allPathsWithCostInGraph]
+                        .some(([path, cost]) => 
+                            [...mergedComponents].some(mc =>
+                                mc.isSupersetOf(
+                                    new Set(path.edges.flatMap(e => splitEdgeId(e.edgeId)).concat(splitEdgeId(path.finalEdge.id)))
+                                )
+                            )
+                        ),
+                        'All paths contained in a merged component should be removed'
+                    )
                     this.benchmarkData.restoredPaths++;
                 }
 
@@ -1338,9 +1292,12 @@ export class FixedRootWeaklyConnectedGraph {
 
             // Remove remaining dangling edges which were not used to connect components
             // O (danglingEdges)
+            const startRemoveRemainingDanglingEdges = performance.now()
             this.removeRemainingDanglingEdges(danglingEdges, clock);
+            this.benchmarkData.resolveInvalidEdgesTime = (performance.now() - startRemoveRemainingDanglingEdges) + elapsedResolveInvalidEdgesTime;
 
             assert(this.getDanglingEdges().length === 0, 'Dangling edges should be removed');
+            assert(this.isConsistent(), 'Edge information is not consistent')
 
             return { ...this.benchmarkData, time: performance.now() - start }
         });
@@ -1350,9 +1307,7 @@ export class FixedRootWeaklyConnectedGraph {
         return syncDefault(
             graphs,
             graphs.map(graph => graph.yDoc),
-            useVariant2 
-                ? graph => graph.makeGraphWeaklyConnectedVariant2()
-                : graph => graph.makeGraphWeaklyConnected()
+            graph => graph.makeGraphWeaklyConnected(useVariant2)
             )
     }
     static async syncPUS(graphs: FixedRootWeaklyConnectedGraph[], maxSleep: number, rnd: (idx: number) => number, useVariant2: boolean = false) {
@@ -1362,9 +1317,7 @@ export class FixedRootWeaklyConnectedGraph {
             rnd,
             yDoc => new FixedRootWeaklyConnectedGraph(yDoc),
             graph => graph.getDanglingEdges().length === 0 && graph.isWeaklyConnected(),
-            useVariant2 
-                ? graph => graph.makeGraphWeaklyConnectedVariant2()
-                : graph => graph.makeGraphWeaklyConnected(),
+            graph => graph.makeGraphWeaklyConnected(useVariant2),
             maxSleep
         )
     }
@@ -1412,5 +1365,19 @@ export class FixedRootWeaklyConnectedGraph {
 
     getEdge(source: id, target: id): EdgeInformation | undefined {
         return this.nodeMap(source)?.edgeInformation.get(target);
+    }
+
+    isConsistent(): boolean {
+        return [...this.nodeIds]
+            .every(([id]) => 
+                [...this.nodeMap(id)!.edgeInformation]
+                .every(([target]) => 
+                    this.nodeMap(target)?.incomingNodes.has(id) !== false
+                ) &&
+                [...this.nodeMap(id)!.incomingNodes]
+                .every(([source]) =>
+                    this.nodeMap(source)?.edgeInformation.has(id) !== false
+                )
+            )
     }
 }

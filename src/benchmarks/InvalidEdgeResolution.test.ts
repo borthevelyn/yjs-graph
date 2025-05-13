@@ -30,7 +30,7 @@ describe('benchmarks', () => {
                 clientCount: 2,
                 graphVariant: variant,
                 initialGraph: InitialGraph.LineWithRays,
-                crtime: time,
+                danglingEdgeResolutionTime: time,
                 crdanglingEdgeCount: count,
                 crvariant: ConflictResolutionVariant.OneEdgePerRay
             }])
@@ -53,7 +53,7 @@ describe('benchmarks', () => {
                 clientCount: 2,
                 graphVariant: variant,
                 initialGraph: InitialGraph.LineWithRays,
-                crtime: time,
+                danglingEdgeResolutionTime: time,
                 crdanglingEdgeCount: count,
                 crvariant: ConflictResolutionVariant.OneEdgePerRay
             }])
@@ -62,6 +62,7 @@ describe('benchmarks', () => {
     test('one dangling edge per ray, delete all rays', async () => {
         const writer = makeBenchmarkCsvWriter<EssentialHeaders & CRDanglingEdgeHeaders>('cr_oneEdgePerRay.csv')
         const graphSizes = [10, 20, 50, 100, 150, 300, 500]
+        const iterations = 50
 
         // a line with ray graph is created for each graph variant
         // each variant has two clients
@@ -70,53 +71,54 @@ describe('benchmarks', () => {
         // this produces one dangling edge per deleted node
         // then the conflict resolution can be measured
         // this is repeated for multiple graph sizes
-
-        for (const size of graphSizes) {
-            const dag1 = new DirectedAcyclicGraph(new Y.Doc())
-            const dag2 = new DirectedAcyclicGraph(new Y.Doc())
-    
-            const adjl1 = new AdjacencyList(new Y.Doc())
-            const adjl2 = new AdjacencyList(new Y.Doc())
-    
-            const adjm1 = new AdjacencyMap(new Y.Doc())
-            const adjm2 = new AdjacencyMap(new Y.Doc())
-    
-            const adjs1 = new AdjacencySet(new Y.Doc())
-            const adjs2 = new AdjacencySet(new Y.Doc())
-    
-            const adjmf1 = new AdjacencyMapWithFasterNodeDeletion(new Y.Doc())
-            const adjmf2 = new AdjacencyMapWithFasterNodeDeletion(new Y.Doc())    
-    
-            const graphs: [GraphVariant, Graph, Graph, () => number[]][] = [
-                [GraphVariant.DAG, dag1, dag2, 
-                    () => DirectedAcyclicGraph.syncDefault([dag1, dag2]).map(x => x.time)
-                ], [GraphVariant.AdjList, adjl1, adjl2,
-                    () => AdjacencyList.syncDefault([adjl1, adjl2]).map(x => x.time)
-                ], [GraphVariant.AdjMap, adjm1, adjm2,
-                    () => AdjacencyMap.syncDefault([adjm1, adjm2]).map(x => x.time)
-                ], [GraphVariant.AdjSet, adjs1, adjs2,
-                    () => AdjacencySet.syncDefault([adjs1, adjs2]).map(x => x.time)
-                ], [GraphVariant.AdjMapFasterDelete, adjmf1, adjmf2,
-                    () => AdjacencyMapWithFasterNodeDeletion.syncDefault([adjmf1, adjmf2]).map(x => x.time)
+        for (let iter = 1; iter <= iterations; iter++) {
+            for (const size of graphSizes) {
+                const dag1 = new DirectedAcyclicGraph(new Y.Doc())
+                const dag2 = new DirectedAcyclicGraph(new Y.Doc())
+        
+                const adjl1 = new AdjacencyList(new Y.Doc())
+                const adjl2 = new AdjacencyList(new Y.Doc())
+        
+                const adjm1 = new AdjacencyMap(new Y.Doc())
+                const adjm2 = new AdjacencyMap(new Y.Doc())
+        
+                const adjs1 = new AdjacencySet(new Y.Doc())
+                const adjs2 = new AdjacencySet(new Y.Doc())
+        
+                const adjmf1 = new AdjacencyMapWithFasterNodeDeletion(new Y.Doc())
+                const adjmf2 = new AdjacencyMapWithFasterNodeDeletion(new Y.Doc())    
+        
+                const graphs: [GraphVariant, Graph, Graph, () => number[]][] = [
+                    [GraphVariant.DAG, dag1, dag2, 
+                        () => DirectedAcyclicGraph.syncDefault([dag1, dag2]).map(x => x.resolveInvalidEdgesTime)
+                    ], [GraphVariant.AdjList, adjl1, adjl2,
+                        () => AdjacencyList.syncDefault([adjl1, adjl2]).map(x => x.time)
+                    ], [GraphVariant.AdjMap, adjm1, adjm2,
+                        () => AdjacencyMap.syncDefault([adjm1, adjm2]).map(x => x.time)
+                    ], [GraphVariant.AdjSet, adjs1, adjs2,
+                        () => AdjacencySet.syncDefault([adjs1, adjs2]).map(x => x.time)
+                    ], [GraphVariant.AdjMapFasterDelete, adjmf1, adjmf2,
+                        () => AdjacencyMapWithFasterNodeDeletion.syncDefault([adjmf1, adjmf2]).map(x => x.time)
+                    ]
                 ]
-            ]
-    
-            for (const [variant, graph1, graph2, sync] of graphs) {
-                await benchmarkOneEdgePerRay(graph1, graph2, sync, variant, size, writer)
+        
+                for (const [variant, graph1, graph2, sync] of graphs) {
+                    await benchmarkOneEdgePerRay(graph1, graph2, sync, variant, size, writer)
+                }
             }
-        }
 
-        for (const size of graphSizes) {    
-            const frwc1 = new FixedRootWeaklyConnectedGraph(new Y.Doc())
-            const frwc2 = new FixedRootWeaklyConnectedGraph(new Y.Doc())
-            await benchmarkOneEdgePerRayFRWCG(
-                frwc1,
-                frwc2,
-                () => FixedRootWeaklyConnectedGraph.syncDefault([frwc1, frwc2]).map(x => x.time),
-                GraphVariant.FRWCG,
-                size,
-                writer
-            )
+            for (const size of graphSizes) {    
+                const frwc1 = new FixedRootWeaklyConnectedGraph(new Y.Doc())
+                const frwc2 = new FixedRootWeaklyConnectedGraph(new Y.Doc())
+                await benchmarkOneEdgePerRayFRWCG(
+                    frwc1,
+                    frwc2,
+                    () => FixedRootWeaklyConnectedGraph.syncDefault([frwc1, frwc2]).map(x => x.resolveInvalidEdgesTime),
+                    GraphVariant.FRWCG,
+                    size,
+                    writer
+                )
+            }
         }
     }, 5000000)
 });

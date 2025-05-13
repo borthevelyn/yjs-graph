@@ -1,5 +1,5 @@
 import * as Y from 'yjs'
-import { FixedRootConnectedUndirectedGraph } from '../graphs/FixedRootWeaklyConnectedUndirectedGraph'
+import { FixedRootConnectedUndirectedGraph } from '../graphs/FixedRootConnectedUndirectedGraph'
  /* 
  Assumptions: 
  1. It is not allowed to add nodes with the same id
@@ -69,12 +69,12 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.edgeCount).toBe(0);
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.getNode('node1')).toBeUndefined();
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.nodeCount).toBe(1);
         expect(yMatrix2.edgeCount).toBe(0);
         expect(yMatrix2.getNode('root')).toBeDefined();
         expect(yMatrix2.getNode('node1')).toBeUndefined();
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -89,12 +89,12 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.edgeCount).toBe(0);
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.getNode('node1')).toBeUndefined();
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.nodeCount).toBe(1);
         expect(yMatrix2.edgeCount).toBe(0);
         expect(yMatrix2.getNode('root')).toBeDefined();
         expect(yMatrix2.getNode('node1')).toBeUndefined();
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
     })
@@ -107,12 +107,12 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.edgeCount).toBe(0);
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.getNode('node1')).toBeUndefined();
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.nodeCount).toBe(1);
         expect(yMatrix2.edgeCount).toBe(0);
         expect(yMatrix2.getNode('root')).toBeDefined();
         expect(yMatrix2.getNode('node1')).toBeUndefined();
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
     })
@@ -126,12 +126,12 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.edgeCount).toBe(0);
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.getNode('node1')).toBeUndefined();
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.nodeCount).toBe(1);
         expect(yMatrix2.edgeCount).toBe(0);
         expect(yMatrix2.getNode('root')).toBeDefined();
         expect(yMatrix2.getNode('node1')).toBeUndefined();
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
     })
@@ -147,14 +147,14 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeUndefined();
         expect(yMatrix1.getEdge('root', 'node1')).toBeDefined();
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.nodeCount).toBe(2);
         expect(yMatrix2.edgeCount).toBe(1);
         expect(yMatrix2.getNode('root')).toBeDefined();
         expect(yMatrix2.getNode('node1')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeUndefined();
         expect(yMatrix2.getEdge('root', 'node1')).toBeDefined();
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
     })
@@ -171,14 +171,14 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeUndefined();
         expect(yMatrix1.getEdge('root', 'node1')).toBeDefined();
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.nodeCount).toBe(2);
         expect(yMatrix2.edgeCount).toBe(1);
         expect(yMatrix2.getNode('root')).toBeDefined();
         expect(yMatrix2.getNode('node1')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeUndefined();
         expect(yMatrix2.getEdge('root', 'node1')).toBeDefined();
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -195,14 +195,14 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeUndefined();
         expect(yMatrix1.getEdge('root', 'node1')).toBeDefined();
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.nodeCount).toBe(2);
         expect(yMatrix2.edgeCount).toBe(1);
         expect(yMatrix2.getNode('root')).toBeDefined();
         expect(yMatrix2.getNode('node1')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeUndefined();
         expect(yMatrix2.getEdge('root', 'node1')).toBeDefined();
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -220,14 +220,14 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeUndefined();
         expect(yMatrix1.getEdge('root', 'node1')).toBeDefined();
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.nodeCount).toBe(2);
         expect(yMatrix2.edgeCount).toBe(1);
         expect(yMatrix2.getNode('root')).toBeDefined();
         expect(yMatrix2.getNode('node1')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeUndefined();
         expect(yMatrix2.getEdge('root', 'node1')).toBeDefined();
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -246,7 +246,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getNode('node2')).toBeUndefined();
         expect(yMatrix1.getEdge('root', 'node1')).toBeUndefined();
         expect(yMatrix1.getEdge('node1', 'root')).toBeUndefined();
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.nodeCount).toBe(1);
         expect(yMatrix2.edgeCount).toBe(0);
         expect(yMatrix2.getNode('root')).toBeDefined();
@@ -271,7 +271,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.getEdge('root', 'node1')).toBeDefined();
         expect(yMatrix1.getEdge('node1', 'node2')).toBeDefined();
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.nodeCount).toBe(3);
         expect(yMatrix2.edgeCount).toBe(2);
         expect(yMatrix2.getNode('root')).toBeDefined();
@@ -279,7 +279,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix2.getNode('node2')).toBeDefined();
         expect(yMatrix2.getEdge('root', 'node1')).toBeDefined();
         expect(yMatrix2.getEdge('node1', 'node2')).toBeDefined();
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -289,7 +289,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         yMatrix1.addNodeWithEdge('node1', 'nodeX', 'node1', { x: 0, y: 0 }, 'edge1');
         expect(yMatrix1.nodeCount).toBe(1);
         expect(yMatrix1.getNode('root')).toBeDefined();
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
     })
     it('try to delete an edge, that is important for connectedness', () => {
         yMatrix1.addNodeWithEdge('node1', 'root', 'node1', { x: 0, y: 0 }, 'edge1');
@@ -299,21 +299,21 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getEdge('node1', 'node2')).toBeDefined();
         expect(yMatrix1.edgeCount).toBe(2);
         expect(yMatrix1.nodeCount).toBe(3);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
     })
     it('try to add an edge with node, where the target node of the edge does not exist in the graph', () => {
         yMatrix1.addEdge('root', 'node1', 'edge1');
         expect(yMatrix1.getEdge('root', 'node1')).toBeUndefined();
         expect(yMatrix1.edgeCount).toBe(0);
         expect(yMatrix1.nodeCount).toBe(1);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
     })
     it('try to add an edge with node, where the source node of the edge does not exist in the graph', () => {
         yMatrix1.addEdge('node1', 'root', 'edge1');
         expect(yMatrix1.getEdge('node1', 'root')).toBeUndefined();
         expect(yMatrix1.edgeCount).toBe(0);
         expect(yMatrix1.nodeCount).toBe(1);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
     })
     it('try to remove an edge, that is not important for connectedness, should work', () => {
         yMatrix1.addNodeWithEdge('node1', 'root', 'node1', { x: 0, y: 0 }, 'edge1');
@@ -330,7 +330,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getEdge('root', 'node1')).toBeDefined();
         expect(yMatrix1.edgeCount).toBe(2);
         expect(yMatrix1.nodeCount).toBe(3);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
     })
     // addNode(m), addNode(n), m != n
     it('add node1 in one map and node2 in the other map)', () => {
@@ -345,8 +345,8 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix2.nodeCount).toBe(3);
         expect(yMatrix1.edgeCount).toBe(2);
         expect(yMatrix2.edgeCount).toBe(2);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -361,12 +361,12 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.getEdge('node2', 'node1')).toBeDefined();
         expect(yMatrix1.getEdge('node2', 'node1')?.label).toBe('edge2-1');
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.getNode('node1')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
         expect(yMatrix2.getEdge('node2', 'node1')).toBeDefined();
         expect(yMatrix2.getEdge('node2', 'node1')?.label).toBe('edge2-1');
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -382,14 +382,14 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getEdge('node2', 'root')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(3);
         expect(yMatrix1.edgeCount).toBe(2);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.getNode('node1')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
         expect(yMatrix2.getEdge('node1', 'root')).toBeDefined();
         expect(yMatrix2.getEdge('node2', 'root')).toBeDefined();
         expect(yMatrix2.nodeCount).toBe(3);
         expect(yMatrix2.edgeCount).toBe(2);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -412,14 +412,14 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getEdge('node4', 'node1')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(5);
         expect(yMatrix1.edgeCount).toBe(4);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.getNode('node3')).toBeDefined();
         expect(yMatrix2.getNode('node4')).toBeDefined();
         expect(yMatrix2.getEdge('node3', 'node2')).toBeDefined();
         expect(yMatrix2.getEdge('node4', 'node1')).toBeDefined();
         expect(yMatrix2.nodeCount).toBe(5);
         expect(yMatrix2.edgeCount).toBe(4);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -441,7 +441,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getEdge('node3', 'node2')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(4);
         expect(yMatrix1.edgeCount).toBe(4);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.getNode('node1')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
         expect(yMatrix2.getNode('node3')).toBeDefined();
@@ -451,7 +451,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix2.getEdge('node3', 'node2')).toBeDefined();
         expect(yMatrix2.nodeCount).toBe(4);
         expect(yMatrix2.edgeCount).toBe(4);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -475,7 +475,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getEdge('node3', 'node2')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(4);
         expect(yMatrix1.edgeCount).toBe(3);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.getNode('node1')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
         expect(yMatrix2.getNode('node3')).toBeDefined();
@@ -487,7 +487,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix2.getEdge('node3', 'node2')).toBeDefined();
         expect(yMatrix2.nodeCount).toBe(4);
         expect(yMatrix2.edgeCount).toBe(3);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -503,12 +503,12 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getEdge('node1', 'root')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(2);
         expect(yMatrix1.edgeCount).toBe(1);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.getNode('node1')).toBeDefined();
         expect(yMatrix2.getEdge('node1', 'root')).toBeDefined();
         expect(yMatrix2.nodeCount).toBe(2);
         expect(yMatrix2.edgeCount).toBe(1);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -529,7 +529,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getEdge('root', 'node2')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(3);
         expect(yMatrix1.edgeCount).toBe(2);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.getNode('node1')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
         expect(yMatrix2.getEdge('node1', 'root')).toBeDefined();
@@ -538,7 +538,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix2.getEdge('root', 'node2')).toBeDefined();
         expect(yMatrix2.nodeCount).toBe(3);
         expect(yMatrix2.edgeCount).toBe(2);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -559,7 +559,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getEdge('root', 'node2')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(3);
         expect(yMatrix1.edgeCount).toBe(2);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.getNode('node1')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
         expect(yMatrix2.getEdge('node1', 'root')).toBeDefined();
@@ -568,7 +568,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix2.getEdge('root', 'node2')).toBeDefined();
         expect(yMatrix2.nodeCount).toBe(3);
         expect(yMatrix2.edgeCount).toBe(2);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -595,7 +595,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getEdge('node2', 'node4')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(5);
         expect(yMatrix1.edgeCount).toBe(4);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.getNode('node1')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
         expect(yMatrix2.getNode('node3')).toBeDefined();
@@ -608,7 +608,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix2.getEdge('node2', 'node4')).toBeDefined();
         expect(yMatrix2.nodeCount).toBe(5);
         expect(yMatrix2.edgeCount).toBe(4);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -626,14 +626,14 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getEdge('node1', 'root')).toBeUndefined();
         expect(yMatrix1.nodeCount).toBe(2);
         expect(yMatrix1.edgeCount).toBe(1);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.getNode('node1')).toBeUndefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
         expect(yMatrix2.getEdge('node2', 'root')).toBeDefined();
         expect(yMatrix2.getEdge('node1', 'root')).toBeUndefined();
         expect(yMatrix2.nodeCount).toBe(2);
         expect(yMatrix2.edgeCount).toBe(1);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -654,7 +654,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getEdge('node1', 'root')).toBeUndefined();
         expect(yMatrix1.nodeCount).toBe(3);
         expect(yMatrix1.edgeCount).toBe(2);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.getNode('node1')).toBeUndefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
         expect(yMatrix2.getNode('node3')).toBeDefined();
@@ -663,7 +663,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix2.getEdge('node1', 'root')).toBeUndefined();
         expect(yMatrix2.nodeCount).toBe(3);
         expect(yMatrix2.edgeCount).toBe(2);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -684,7 +684,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getEdge('root', 'node1')).toBeUndefined();
         expect(yMatrix1.nodeCount).toBe(3);
         expect(yMatrix1.edgeCount).toBe(2);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.getNode('node1')).toBeUndefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
         expect(yMatrix2.getNode('node3')).toBeDefined();
@@ -693,7 +693,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix2.getEdge('root', 'node1')).toBeUndefined();
         expect(yMatrix2.nodeCount).toBe(3);
         expect(yMatrix2.edgeCount).toBe(2);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -711,7 +711,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getEdge('node2', 'node1')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(3);
         expect(yMatrix1.edgeCount).toBe(2);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.getNode('node1')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
         expect(yMatrix2.getEdge('node2', 'node1')).toBeDefined();
@@ -719,7 +719,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix2.getEdge('node2', 'node1')).toBeDefined();
         expect(yMatrix2.nodeCount).toBe(3);
         expect(yMatrix2.edgeCount).toBe(2);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -738,7 +738,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getEdge('node2', 'node1')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(3);
         expect(yMatrix1.edgeCount).toBe(2);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.getNode('node1')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
         expect(yMatrix2.getEdge('node2', 'node1')).toBeDefined();
@@ -746,7 +746,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix2.getEdge('node2', 'node1')).toBeDefined();
         expect(yMatrix2.nodeCount).toBe(3);
         expect(yMatrix2.edgeCount).toBe(2);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -764,14 +764,14 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getEdge('node1', 'node2')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(3);
         expect(yMatrix1.edgeCount).toBe(2);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.getNode('node1')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
         expect(yMatrix2.getEdge('node1', 'root')).toBeDefined();
         expect(yMatrix2.getEdge('node1', 'node2')).toBeDefined();
         expect(yMatrix2.nodeCount).toBe(3);
         expect(yMatrix2.edgeCount).toBe(2);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -789,14 +789,14 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getEdge('node1', 'node2')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(3);
         expect(yMatrix1.edgeCount).toBe(2);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.getNode('node1')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
         expect(yMatrix2.getEdge('root', 'node1')).toBeDefined();
         expect(yMatrix2.getEdge('node1', 'node2')).toBeDefined();
         expect(yMatrix2.nodeCount).toBe(3);
         expect(yMatrix2.edgeCount).toBe(2);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -816,7 +816,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getEdge('root', 'node2')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(2);
         expect(yMatrix1.edgeCount).toBe(1);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.getNode('node1')).toBeUndefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
         expect(yMatrix2.getEdge('node2', 'root')).toBeDefined();
@@ -824,7 +824,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix2.getEdge('root', 'node2')).toBeDefined();
         expect(yMatrix2.nodeCount).toBe(2);
         expect(yMatrix2.edgeCount).toBe(1);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -844,7 +844,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getEdge('root', 'node2')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(2);
         expect(yMatrix1.edgeCount).toBe(1);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.getNode('node1')).toBeUndefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
         expect(yMatrix2.getEdge('node2', 'root')).toBeDefined();
@@ -852,7 +852,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix2.getEdge('root', 'node2')).toBeDefined();
         expect(yMatrix2.nodeCount).toBe(2);
         expect(yMatrix2.edgeCount).toBe(1);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -875,7 +875,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getEdge('node3', 'root')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(3);
         expect(yMatrix1.edgeCount).toBe(3);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.getNode('node1')).toBeUndefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
         expect(yMatrix2.getNode('node3')).toBeDefined();
@@ -885,7 +885,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix2.getEdge('node3', 'root')).toBeDefined();
         expect(yMatrix2.nodeCount).toBe(3);
         expect(yMatrix2.edgeCount).toBe(3);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -905,7 +905,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getEdge('node1', 'node2')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(3);
         expect(yMatrix1.edgeCount).toBe(2);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.getNode('node1')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
         expect(yMatrix2.getEdge('node2', 'node1')).toBeDefined();
@@ -913,7 +913,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix2.getEdge('node1', 'node2')).toBeDefined();
         expect(yMatrix2.nodeCount).toBe(3);
         expect(yMatrix2.edgeCount).toBe(2);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -933,7 +933,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getEdge('root', 'node2')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(2);
         expect(yMatrix1.edgeCount).toBe(1);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.getNode('node1')).toBeUndefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
         expect(yMatrix2.getEdge('node2', 'root')).toBeDefined();
@@ -941,7 +941,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix2.getEdge('root', 'node2')).toBeDefined();
         expect(yMatrix2.nodeCount).toBe(2);
         expect(yMatrix2.edgeCount).toBe(1);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -963,7 +963,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getEdge('root', 'node3')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(3);
         expect(yMatrix1.edgeCount).toBe(3);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.getNode('node1')).toBeUndefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
         expect(yMatrix2.getNode('node3')).toBeDefined();
@@ -972,7 +972,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix2.getEdge('root', 'node3')).toBeDefined();
         expect(yMatrix2.nodeCount).toBe(3);
         expect(yMatrix2.edgeCount).toBe(3);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -987,11 +987,11 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(1);
         expect(yMatrix1.edgeCount).toBe(0);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.getNode('root')).toBeDefined();
         expect(yMatrix2.nodeCount).toBe(1);
         expect(yMatrix2.edgeCount).toBe(0);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -1006,11 +1006,11 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(1);
         expect(yMatrix1.edgeCount).toBe(0);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.getNode('root')).toBeDefined();
         expect(yMatrix2.nodeCount).toBe(1);
         expect(yMatrix2.edgeCount).toBe(0);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -1028,13 +1028,13 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getEdge('node2', 'root')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(2);
         expect(yMatrix1.edgeCount).toBe(1);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.getNode('root')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
         expect(yMatrix2.getEdge('node2', 'root')).toBeDefined();
         expect(yMatrix2.nodeCount).toBe(2);
         expect(yMatrix2.edgeCount).toBe(1);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -1053,14 +1053,14 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getEdge('root', 'node2')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(2);
         expect(yMatrix1.edgeCount).toBe(1);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.getNode('root')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
         expect(yMatrix2.getEdge('node2', 'root')).toBeDefined();
         expect(yMatrix2.getEdge('root', 'node2')).toBeDefined();
         expect(yMatrix2.nodeCount).toBe(2);
         expect(yMatrix2.edgeCount).toBe(1);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -1079,14 +1079,14 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getEdge('root', 'node2')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(2);
         expect(yMatrix1.edgeCount).toBe(1);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.getNode('root')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
         expect(yMatrix2.getEdge('node2', 'root')).toBeDefined();
         expect(yMatrix1.getEdge('root', 'node2')).toBeDefined();
         expect(yMatrix2.nodeCount).toBe(2);
         expect(yMatrix2.edgeCount).toBe(1);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -1104,13 +1104,13 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getEdge('root', 'node2')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(2);
         expect(yMatrix1.edgeCount).toBe(1);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.getNode('root')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
         expect(yMatrix2.getEdge('root', 'node2')).toBeDefined();
         expect(yMatrix2.nodeCount).toBe(2);
         expect(yMatrix2.edgeCount).toBe(1);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -1131,7 +1131,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getEdge('node2', 'root')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(2);
         expect(yMatrix1.edgeCount).toBe(1);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.getNode('root')).toBeDefined();
         expect(yMatrix2.getNode('node1')).toBeUndefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
@@ -1140,7 +1140,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix2.getEdge('node2', 'root')).toBeDefined();
         expect(yMatrix2.nodeCount).toBe(2);
         expect(yMatrix2.edgeCount).toBe(1);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -1161,7 +1161,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getEdge('node2', 'root')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(2);
         expect(yMatrix1.edgeCount).toBe(1);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.getNode('root')).toBeDefined();
         expect(yMatrix2.getNode('node1')).toBeUndefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
@@ -1170,7 +1170,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix2.getEdge('node2', 'root')).toBeDefined();
         expect(yMatrix2.nodeCount).toBe(2);
         expect(yMatrix2.edgeCount).toBe(1);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -1192,7 +1192,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getEdge('node2', 'root')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(3);
         expect(yMatrix1.edgeCount).toBe(2);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.getNode('root')).toBeDefined();
         expect(yMatrix2.getNode('node1')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
@@ -1201,7 +1201,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix2.getEdge('node2', 'root')).toBeDefined();
         expect(yMatrix2.nodeCount).toBe(3);
         expect(yMatrix2.edgeCount).toBe(2);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -1217,12 +1217,12 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getNode('node1')).toBeUndefined();
         expect(yMatrix1.nodeCount).toBe(1);
         expect(yMatrix1.edgeCount).toBe(0);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.getNode('root')).toBeDefined();
         expect(yMatrix2.getNode('node1')).toBeUndefined();
         expect(yMatrix2.nodeCount).toBe(1);
         expect(yMatrix2.edgeCount).toBe(0);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -1238,11 +1238,11 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(1);
         expect(yMatrix1.edgeCount).toBe(0);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.getNode('root')).toBeDefined();
         expect(yMatrix2.nodeCount).toBe(1);
         expect(yMatrix2.edgeCount).toBe(0);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -1258,11 +1258,11 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(1);
         expect(yMatrix1.edgeCount).toBe(0);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.getNode('root')).toBeDefined();
         expect(yMatrix2.nodeCount).toBe(1);
         expect(yMatrix2.edgeCount).toBe(0);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -1278,11 +1278,11 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(1);
         expect(yMatrix1.edgeCount).toBe(0);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.getNode('root')).toBeDefined();
         expect(yMatrix2.nodeCount).toBe(1);
         expect(yMatrix2.edgeCount).toBe(0);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -1301,13 +1301,13 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getEdge('node1', 'root')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(2);
         expect(yMatrix1.edgeCount).toBe(1);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.getNode('root')).toBeDefined();
         expect(yMatrix2.getNode('node1')).toBeDefined();
         expect(yMatrix2.getEdge('node1', 'root')).toBeDefined();
         expect(yMatrix2.nodeCount).toBe(2);
         expect(yMatrix2.edgeCount).toBe(1);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -1326,13 +1326,13 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getEdge('root', 'node1')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(2);
         expect(yMatrix1.edgeCount).toBe(1);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.getNode('root')).toBeDefined();
         expect(yMatrix2.getNode('node1')).toBeDefined();
         expect(yMatrix2.getEdge('root', 'node1')).toBeDefined();
         expect(yMatrix2.nodeCount).toBe(2);
         expect(yMatrix2.edgeCount).toBe(1);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -1353,13 +1353,13 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getEdge('root', 'node2')).toBeUndefined();
         expect(yMatrix1.nodeCount).toBe(3);
         expect(yMatrix1.edgeCount).toBe(2);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.getNode('root')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
         expect(yMatrix2.getEdge('root', 'node2')).toBeUndefined();
         expect(yMatrix2.nodeCount).toBe(3);
         expect(yMatrix2.edgeCount).toBe(2);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -1380,13 +1380,13 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getEdge('node2', 'root')).toBeUndefined();
         expect(yMatrix1.nodeCount).toBe(3);
         expect(yMatrix1.edgeCount).toBe(2);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.getNode('root')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
         expect(yMatrix2.getEdge('node2', 'root')).toBeUndefined();
         expect(yMatrix2.nodeCount).toBe(3);
         expect(yMatrix2.edgeCount).toBe(2);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -1407,13 +1407,13 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(3);
         expect(yMatrix1.edgeCount).toBe(2);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.getNode('root')).toBeDefined();
         expect(yMatrix2.getNode('node1')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
         expect(yMatrix2.nodeCount).toBe(3);
         expect(yMatrix2.edgeCount).toBe(2);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -1432,13 +1432,13 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(3);
         expect(yMatrix1.edgeCount).toBe(2);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.getNode('root')).toBeDefined();
         expect(yMatrix2.getNode('node1')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
         expect(yMatrix2.nodeCount).toBe(3);
         expect(yMatrix2.edgeCount).toBe(2);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -1465,7 +1465,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getEdge('node1', 'root')).toBeUndefined();
         expect(yMatrix1.nodeCount).toBe(4);
         expect(yMatrix1.edgeCount).toBe(3);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.getNode('root')).toBeDefined();
         expect(yMatrix2.getNode('node1')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
@@ -1473,7 +1473,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix2.getEdge('node1', 'root')).toBeUndefined();
         expect(yMatrix2.nodeCount).toBe(4);
         expect(yMatrix2.edgeCount).toBe(3);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -1494,13 +1494,13 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getNode('node2')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(4);
         expect(yMatrix1.edgeCount).toBe(3);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.getNode('root')).toBeDefined();
         expect(yMatrix2.getNode('node1')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
         expect(yMatrix2.nodeCount).toBe(4);
         expect(yMatrix2.edgeCount).toBe(3);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -1526,7 +1526,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getEdge('node2', 'node3')).toBeUndefined();
         expect(yMatrix1.nodeCount).toBe(5);
         expect(yMatrix1.edgeCount).toBe(4);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
         expect(yMatrix2.getNode('root')).toBeDefined();
         expect(yMatrix2.getNode('node1')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
@@ -1536,7 +1536,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix2.getEdge('node2', 'node3')).toBeUndefined();
         expect(yMatrix2.nodeCount).toBe(5);
         expect(yMatrix2.edgeCount).toBe(4);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true);
+        expect(yMatrix2.isConnected()).toBe(true);
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -1554,7 +1554,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(4);
         expect(yMatrix1.edgeCount).toBe(3);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
     })
     // 3 -> 2 -> 1 -> root
     it('restore connectedness with a reversed path', () => {
@@ -1569,7 +1569,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(4);
         expect(yMatrix1.edgeCount).toBe(3);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
     })
     // 3 -> 2 <- 1 -> root
     it('restore connectedness with a path containing different edge directions', () => {
@@ -1584,7 +1584,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(4);
         expect(yMatrix1.edgeCount).toBe(3);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
     })
     // 3 -> 2 <- 1 <-> root, currently only one of the loop edges are restored
     it('restore connectedness with a path containing a loop', () => {
@@ -1601,7 +1601,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(4);
         expect(yMatrix1.edgeCount).toBe(3);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
     })
     // 3 -> 2 -> 1{self loop} -> root, self loop not restored
     it('restore connectedness with a path containing self loop', () => {
@@ -1617,7 +1617,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getNode('root')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(4);
         expect(yMatrix1.edgeCount).toBe(3);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
     })
     it('restore connectedness with the newest path', () => {
         yMatrix1.addNodeWithEdge('node1', 'root', 'node1', { x: 0, y: 0 }, 'edger-1');
@@ -1645,7 +1645,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getEdge('node3', 'node5')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(5);
         expect(yMatrix1.edgeCount).toBe(4);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
     })
     it('restore connectedness with the newest path, second variant', () => {
         yMatrix1.addNodeWithEdge('node1', 'root', 'node1', { x: 0, y: 0 }, 'edger-1');
@@ -1673,7 +1673,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getEdge('node3', 'node5')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(5);
         expect(yMatrix1.edgeCount).toBe(4);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true);
+        expect(yMatrix1.isConnected()).toBe(true);
     })
     it('restore connectedness with a paths connecting three components', () => {
         yMatrix1.addNodeWithEdge('node1', 'root', 'node1', { x: 0, y: 0 }, 'edger-1');
@@ -1700,7 +1700,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix1.getEdge('node2', 'node4')).toBeDefined();
         expect(yMatrix1.nodeCount).toBe(6);
         expect(yMatrix1.edgeCount).toBe(6);
-        expect(yMatrix1.isWeaklyConnected()).toBe(true); 
+        expect(yMatrix1.isConnected()).toBe(true); 
         expect(yMatrix2.getNode('root')).toBeDefined();
         expect(yMatrix2.getNode('node1')).toBeDefined();
         expect(yMatrix2.getNode('node2')).toBeDefined();
@@ -1715,7 +1715,7 @@ describe('Fixed Root Connected Undirected Graph', () => {
         expect(yMatrix2.getEdge('node2', 'node4')).toBeDefined();
         expect(yMatrix2.nodeCount).toBe(6);
         expect(yMatrix2.edgeCount).toBe(6);
-        expect(yMatrix2.isWeaklyConnected()).toBe(true); 
+        expect(yMatrix2.isConnected()).toBe(true); 
 
         expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
         expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
@@ -1744,8 +1744,8 @@ it('failed in property test', () => {
     yMatrix1.addNodeWithEdge('4', '0', `$node0`, { x: 0, y: 0 }, `$edge0+4`);
     yMatrix1.removeEdge('3', '4');
     FixedRootConnectedUndirectedGraph.syncDefault([yMatrix1, yMatrix2, yMatrix3]);
-    expect(yMatrix1.isWeaklyConnected()).toBe(true); 
-    expect(yMatrix2.isWeaklyConnected()).toBe(true);   
+    expect(yMatrix1.isConnected()).toBe(true); 
+    expect(yMatrix2.isConnected()).toBe(true);   
     expect(yMatrix1.getEdgesAsJson()).toEqual(yMatrix2.getEdgesAsJson());
     expect(yMatrix1.getYRemovedGraphElementsAsJson()).toEqual(yMatrix2.getYRemovedGraphElementsAsJson());
 })

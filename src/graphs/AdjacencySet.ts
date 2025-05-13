@@ -32,7 +32,6 @@ export class AdjacencySet implements Graph {
 
     private wrappedNodes: ReadonlyMap<string, { readonly edgeInformation: YSet<id>; readonly id: id }>
 
-    
     private readonly yMatrixId = 'adjacencyset_ydoc'
 
     constructor(yDoc: Y.Doc, eventEmitter?: EventEmitter) {
@@ -141,12 +140,12 @@ export class AdjacencySet implements Graph {
             return 
         }
         this.yMatrix.doc!.transact(() => {   
-            this.yMatrix.delete(nodeId)
             for (const nodeInfo of this.wrappedNodes.values()) {
                 nodeInfo.edgeInformation.delete(nodeId);     
                 this.selectedEdges.delete(`${nodeInfo.id}+${nodeId}`);
             }
             this.selectedNodes.delete(nodeId);
+            this.yMatrix.delete(nodeId)
         });
     }
 

@@ -557,7 +557,7 @@ export class FixedRootConnectedUndirectedGraph {
     // O(DanglingEdges)
     private removeRemainingDanglingEdges(danglingEdges: Set<RemovedGraphElement & { type: 'edge' }>, clock?: clock): void {
         this.yDoc.transact(() => {
-            for (const danglingEdge of danglingEdges) {
+            for (const danglingEdge of Array.from(danglingEdges).toSorted((a, b) => a.item.edgeId.localeCompare(b.item.edgeId))) {
                 const [source, target] = splitEdgeId(danglingEdge.item.edgeId);
 
                 // Check if edge is not dangling anymore
@@ -613,7 +613,7 @@ export class FixedRootConnectedUndirectedGraph {
     }
 
     // O(V + E)
-    public isWeaklyConnected(): boolean {
+    public isConnected(): boolean {
         return this.getConnectedComponents().size === 1;
     }
 
@@ -994,7 +994,7 @@ export class FixedRootConnectedUndirectedGraph {
         restoredPaths: 0,
     }
 
-   public makeGraphWeaklyConnectedVariant2(): BenchmarkData {
+   public makeGraphConnectedVariant2(): BenchmarkData {
         const clock = Object.fromEntries(Y.decodeStateVector(Y.encodeStateVector(this.yDoc)));
         return this.yDoc.transact(() => {
             this.i++;
@@ -1008,6 +1008,14 @@ export class FixedRootConnectedUndirectedGraph {
             }
 
             const start = performance.now()
+
+            // make consistent
+            this.nodeIds.forEach((_, id) => {
+                this.uncheckedNodeMap(id).edgeInformation.forEach((ei, target) => 
+                    this.nodeMap(target)?.edgeInformation.set(id, ei))
+            })
+            assert(this.isConsistent(), 'inconsistent, still')
+            
 
             let danglingEdges = new Set(this.getDanglingEdges());
             this.benchmarkData.danglingEdges = danglingEdges.size;
@@ -1129,7 +1137,7 @@ export class FixedRootConnectedUndirectedGraph {
 
     // cost if the graph is already correct:
     // O(V * E)
-  public makeGraphWeaklyConnected(): BenchmarkData {
+  public makeGraphConnected(): BenchmarkData {
     const clock = Object.fromEntries(Y.decodeStateVector(Y.encodeStateVector(this.yDoc)));
     return this.yDoc.transact(() => {
         this.i++;
@@ -1143,6 +1151,14 @@ export class FixedRootConnectedUndirectedGraph {
         }
 
         const start = performance.now()
+
+        // make consistent
+        this.nodeIds.forEach((_, id) => {
+            this.uncheckedNodeMap(id).edgeInformation.forEach((ei, target) => 
+                this.nodeMap(target)?.edgeInformation.set(id, ei))
+        })
+        assert(this.isConsistent(), 'inconsistent, still')
+
 
         let danglingEdges = new Set(this.getDanglingEdges());
         this.benchmarkData.danglingEdges = danglingEdges.size;
@@ -1263,13 +1279,23 @@ export class FixedRootConnectedUndirectedGraph {
     });
     }
 
+    isConsistent(): boolean {
+        return [...this.nodeIds]
+            .every(([id]) => 
+                [...this.nodeMap(id)!.edgeInformation]
+                .every(([target]) => 
+                    this.nodeMap(target)?.edgeInformation.has(id) !== false
+                )
+            )
+    }
+
     static syncDefault(graphs: FixedRootConnectedUndirectedGraph[], useVariant2: boolean = false) {
         return syncDefault(
             graphs,
             graphs.map(graph => graph.yDoc),
             useVariant2 
-                ? graph => graph.makeGraphWeaklyConnectedVariant2()
-                : graph => graph.makeGraphWeaklyConnected()
+                ? graph => graph.makeGraphConnectedVariant2()
+                : graph => graph.makeGraphConnected()
             )
     }
     static async syncPUS(graphs: FixedRootConnectedUndirectedGraph[], maxSleep: number, rnd: (idx: number) => number, useVariant2: boolean = false) {
@@ -1278,10 +1304,10 @@ export class FixedRootConnectedUndirectedGraph {
             graphs.map(x => x.yDoc),
             rnd,
             yDoc => new FixedRootConnectedUndirectedGraph(yDoc),
-            graph => graph.getDanglingEdges().length === 0 && graph.isWeaklyConnected(),
+            graph => graph.getDanglingEdges().length === 0 && graph.isConnected(),
             useVariant2 
-                ? graph => graph.makeGraphWeaklyConnectedVariant2()
-                : graph => graph.makeGraphWeaklyConnected(),
+                ? graph => graph.makeGraphConnectedVariant2()
+                : graph => graph.makeGraphConnected(),
             maxSleep
         )
     }

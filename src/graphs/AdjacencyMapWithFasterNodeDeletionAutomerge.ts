@@ -109,7 +109,16 @@ export class AdjacencyMapWithFasterNodeDeletionAutomerge extends AutomergeObject
                 delete innerMap.edgeInformation[nodeId];
                 this.selectedEdges.delete(`${incomingNode}+${nodeId}`);     
             }
-            // Removes the node and its outgoing edges 
+            for (const outgoinNode of Object.keys(doc.map[nodeId].edgeInformation)) {
+                const innerMap = doc.map[outgoinNode];
+                if (innerMap === undefined) {
+                    console.warn('Node does not exist. It should have an edge to the removed node(removeNode)')
+                    return;
+                }
+                delete innerMap.incomingNodes[nodeId];
+                this.selectedEdges.delete(`${nodeId}+${outgoinNode}`);
+            }
+            // Removes the node and its edges 
             delete doc.map[nodeId];
             this.selectedNodes.delete(nodeId);
         });

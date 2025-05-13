@@ -177,24 +177,33 @@ export async function syncPUSParSim<T, G extends object>(
         )
 
         for (const [state, idx] of statesToDo) {
-            state.updates.forEach(up => Y.applyUpdate(yDocs[idx], up))
+           
 
-            // assert(!isValid(graphs[idx]), 'graph is valid?')
             // apply missing updates (some might have been applied, other updates might have arrived)
             // w.r.t. network delay
             const receivedFinishedStates =
                 Array.from(new Array(states.length).keys())
                 .map<[ThreadState<T, G>, number]>(i => [states[i], i])
                 .filter((otherstate): otherstate is [ThreadState<T, G> & { state: 'finished'}, number] => 
-                    otherstate[1] !== idx && otherstate[0].state === 'finished' && max(otherstate[0].finishedTime, nextInit) + networkDelay < state.rndSleep + nextInit
+                    otherstate[1] !== idx && 
+                    otherstate[0].state === 'finished' && 
+                    otherstate[0].data[0].hadConflicts &&
+                    !otherstate[0].data[0].waitingHelped &&
+                    max(otherstate[0].finishedTime, nextInit) + networkDelay < state.rndSleep + nextInit
                 )
 
-            receivedFinishedStates
-                .forEach(state => Y.applyUpdate(yDocs[idx], Y.encodeStateAsUpdate(yDocs[state[1]], Y.encodeStateVector(yDocs[idx]))))
-            
+            if (receivedFinishedStates.length === 0) {
+                state.updates.forEach(up => Y.applyUpdate(yDocs[idx], up))
+                // assert(!isValid(graphs[idx]), 'graph is valid?')
+            }
+            else {
+                receivedFinishedStates
+                    .forEach(state => Y.applyUpdate(yDocs[idx], Y.encodeStateAsUpdate(yDocs[state[1]], Y.encodeStateVector(yDocs[idx]))))
+            }
+
             const waitingHelped = isValid(graphs[idx])
             assert(receivedFinishedStates.length > 0 || !waitingHelped, 'Waiting can only help with updates')
-            const data = makeValid(graphs[idx])
+            const data = waitingHelped ? undefined : makeValid(graphs[idx])
             states[idx] = {
                 state: 'finished',
                 data: [{

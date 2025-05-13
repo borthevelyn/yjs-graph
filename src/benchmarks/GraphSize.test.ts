@@ -1,6 +1,6 @@
 import * as Y from 'yjs';
 import { DirectedAcyclicGraph } from '../graphs/DirectedAcyclicGraph';
-import { test, fc } from '@fast-check/jest';
+import { test } from '@fast-check/jest';
 import { BasicOpHeader as BasicOpHeaders, Cause, EssentialHeaders, GraphVariant, makeBenchmarkCsvWriter } from './Benchmark';
 import seedrandom from 'seedrandom';
 import { AdjacencyList } from '../graphs/AdjacencyList';
@@ -15,10 +15,10 @@ import { CsvWriter } from 'csv-writer/src/lib/csv-writer';
 import { Graph } from '../graphs/Graph';
 import { FixedRootWeaklyConnectedGraph } from '../graphs/FixedRootWeaklyConnectedGraph';
 import { assert } from 'console';
-import { InitialGraph, makeCompleteGraph, makeLineGraphFRWCG, makeLineGraph, makeAcyclicCompleteGraph } from './InitialGraphs';
+import { InitialGraph, makeCompleteGraph, makeLineGraphFRWCG, makeLineGraph, makeAcyclicCompleteGraph, makeLineGraphFRCUG } from './InitialGraphs';
+import { FixedRootConnectedUndirectedGraph } from '../graphs/FixedRootConnectedUndirectedGraph';
 
 describe('properties', () => {
-    fc.configureGlobal({ baseSize: 'medium' });
 
     // fixed root weakly connected is not integrated, because it only has addNodeWithEdge
     async function benchmarkIncreasingOperationsEmpty(seed: string, count: number, writer: CsvWriter<EssentialHeaders & BasicOpHeaders>) {
@@ -28,9 +28,9 @@ describe('properties', () => {
         const adjMapwfnd = new AdjacencyMapWithFasterNodeDeletion(new Y.Doc())
         const adjSet = new AdjacencySet(new Y.Doc())
 
-        const adlAuto = new AdjacencyListAutomerge(automerge.init())
-        const admAuto = new AdjacencyMapAutomerge(automerge.init())
-        const admwfndAuto = new AdjacencyMapWithFasterNodeDeletionAutomerge(automerge.init())
+        const adlAuto = new AdjacencyListAutomerge(automerge.change(automerge.init(), (doc) => { doc.map = {} }))
+        const admAuto = new AdjacencyMapAutomerge(automerge.change(automerge.init(), (doc) => { doc.map = {} }))
+        const admwfndAuto = new AdjacencyMapWithFasterNodeDeletionAutomerge(automerge.change(automerge.init(), (doc) => { doc.map = {} }))
 
         const graphs: [GraphVariant, Graph][] = [
             [GraphVariant.DAG, dag], 
@@ -38,24 +38,40 @@ describe('properties', () => {
             [GraphVariant.AdjMap, adjMap], 
             [GraphVariant.AdjMapFasterDelete, adjMapwfnd], 
             [GraphVariant.AdjSet, adjSet], 
-            // [GraphVariant.AdjListAuto,adlAuto],
-            // [GraphVariant.AdjMapAuto, admAuto],
-            // [GraphVariant.AdjMapFasterDeleteAuto, admwfndAuto]
+            [GraphVariant.AdjListAuto,adlAuto],
+            [GraphVariant.AdjMapAuto, admAuto],
+            [GraphVariant.AdjMapFasterDeleteAuto, admwfndAuto]
         ]
         
         const rnd = seedrandom(seed)
-        let currentHighestNode = 0
         for (let i = 0; i < count; i++) {
-            if (rnd() > 0.5) {
-                // add node
-                const id = (currentHighestNode + 1).toString()
-                let allSuccess = true
+            // add edge
+            const source = Math.floor(i * rnd()).toString()
+            const target = Math.floor(i * rnd()).toString()
+            for (const [variant, graph] of graphs) {
+                const prevEdgeCount = graph.edgeCount
+                const start = performance.now()
+                graph.addEdge(source, target, 'label')
+                const time = performance.now() - start
+                await writer.writeRecords([{
+                    cause: Cause.OpAddEdge,
+                    clientCount: 1,
+                    edgeCount: prevEdgeCount,
+                    executionMillis: time,
+                    fullRun: graph.edgeCount > prevEdgeCount,
+                    graphVariant: variant,
+                    nodeCount: graph.nodeCount,
+                    initialGraph: InitialGraph.Empty
+                }])
+            
+                // add node    
+                const id = (i + 1).toString()
                 for (const [variant, graph] of graphs) {
                     const prevNodeCount = graph.nodeCount
                     const start = performance.now()
                     graph.addNode(id, 'label', { x: 0, y: 0 })
                     const time = performance.now() - start
-                    allSuccess = allSuccess && graph.nodeCount > prevNodeCount
+
                     await writer.writeRecords([{
                         cause: Cause.OpAddNode,
                         clientCount: 1,
@@ -67,50 +83,28 @@ describe('properties', () => {
                         initialGraph: InitialGraph.Empty
                     }])
                 }
-                if (allSuccess)
-                    currentHighestNode++
 
-            }
-            else {
-                // add edge
-                const source = Math.floor(currentHighestNode * rnd()).toString()
-                const target = Math.floor(currentHighestNode * rnd()).toString()
-                for (const [variant, graph] of graphs) {
-                    const prevEdgeCount = graph.edgeCount
-                    const start = performance.now()
-                    graph.addEdge(source, target, 'label')
-                    const time = performance.now() - start
-                    await writer.writeRecords([{
-                        cause: Cause.OpAddEdge,
-                        clientCount: 1,
-                        edgeCount: prevEdgeCount,
-                        executionMillis: time,
-                        fullRun: graph.edgeCount > prevEdgeCount,
-                        graphVariant: variant,
-                        nodeCount: graph.nodeCount,
-                        initialGraph: InitialGraph.Empty
-                    }])
-                }
             }
         }
-
     }
 
-    async function benchmarkIncreasingOperationsEmptyFRWCG(seed: string, count: number, writer: CsvWriter<EssentialHeaders & BasicOpHeaders>) {
-        const graph = new FixedRootWeaklyConnectedGraph(new Y.Doc())
+    async function benchmarkIncreasingOperationsEmptyConnectedGraphs(seed: string, count: number, writer: CsvWriter<EssentialHeaders & BasicOpHeaders>) {
         const rnd = seedrandom(seed)
-        graph.addNodeWithEdge('0', '<-', 'root', 'label', { x: 0, y: 0 }, 'label');
+        const frwcg = new FixedRootWeaklyConnectedGraph(new Y.Doc())
+        const frcug = new FixedRootConnectedUndirectedGraph(new Y.Doc())
+        frwcg.addNodeWithEdge('0', '<-', 'root', 'label', { x: 0, y: 0 }, 'label');
+        frcug.addNodeWithEdge('0', 'root', 'label', { x: 0, y: 0 }, 'label');
         let currentHighestNode = 0
         for (let i = 0; i < count; i++) {
             // add node with edge
             const target = (currentHighestNode + 1).toString()
             const source = Math.floor(currentHighestNode * rnd()).toString()
-            const prevEdgeCount = graph.edgeCount
-            const prevNodeCount = graph.nodeCount
+            const prevEdgeCount = frwcg.edgeCount
+            const prevNodeCount = frwcg.nodeCount
             const start = performance.now()
-            graph.addNodeWithEdge(target, '<-', source, 'label', { x: 0, y: 0 }, 'label');
+            frwcg.addNodeWithEdge(target, '<-', source, 'label', { x: 0, y: 0 }, 'label');
             const time = performance.now() - start
-            const success = graph.nodeCount > prevNodeCount && graph.edgeCount > prevEdgeCount
+            const success = frwcg.nodeCount > prevNodeCount && frwcg.edgeCount > prevEdgeCount
             await writer.writeRecords([{
                 cause: Cause.OpAddNodeWithEdge,
                 clientCount: 1,
@@ -118,6 +112,32 @@ describe('properties', () => {
                 executionMillis: time,
                 fullRun: success,
                 graphVariant: GraphVariant.FRWCG,
+                nodeCount: prevNodeCount,
+                initialGraph: InitialGraph.Empty
+            }])
+            
+            if (success)
+                currentHighestNode++
+            
+        }
+        currentHighestNode = 0;
+        for (let i = 0; i < count; i++) {
+            // add node with edge
+            const target = (currentHighestNode + 1).toString()
+            const source = Math.floor(currentHighestNode * rnd()).toString()
+            const prevEdgeCount = frcug.edgeCount
+            const prevNodeCount = frcug.nodeCount
+            const start = performance.now()
+            frcug.addNodeWithEdge(target, source, 'label', { x: 0, y: 0 }, 'label');
+            const time = performance.now() - start
+            const success = frcug.nodeCount > prevNodeCount && frcug.edgeCount > prevEdgeCount
+            await writer.writeRecords([{
+                cause: Cause.OpAddNodeWithEdge,
+                clientCount: 1,
+                edgeCount: prevEdgeCount,
+                executionMillis: time,
+                fullRun: success,
+                graphVariant: GraphVariant.FRCUG,
                 nodeCount: prevNodeCount,
                 initialGraph: InitialGraph.Empty
             }])
@@ -141,129 +161,84 @@ describe('properties', () => {
         const adjSet = new AdjacencySet(new Y.Doc())
         makeCompleteGraph(adjSet, count)
 
-        const adlAuto = new AdjacencyListAutomerge(automerge.init())
-        const admAuto = new AdjacencyMapAutomerge(automerge.init())
-        const admwfndAuto = new AdjacencyMapWithFasterNodeDeletionAutomerge(automerge.init())
+        const adlAuto = new AdjacencyListAutomerge(automerge.change(automerge.init(), (doc) => { doc.map = {} }))
+        makeCompleteGraph(adlAuto, count)
+        const admAuto = new AdjacencyMapAutomerge(automerge.change(automerge.init(), (doc) => { doc.map = {} }))
+        makeCompleteGraph(admAuto, count)
+        const admwfndAuto = new AdjacencyMapWithFasterNodeDeletionAutomerge(automerge.change(automerge.init(), (doc) => { doc.map = {} }))
+        makeCompleteGraph(admwfndAuto, count)
 
         const graphs: [GraphVariant, Graph][] = [
             [GraphVariant.AdjList, adjList], 
             [GraphVariant.AdjMap, adjMap], 
             [GraphVariant.AdjMapFasterDelete, adjMapwfnd], 
             [GraphVariant.AdjSet, adjSet],
-            // [GraphVariant.AdjListAuto,adlAuto],
-            // [GraphVariant.AdjMapAuto, admAuto],
-            // [GraphVariant.AdjMapFasterDeleteAuto, admwfndAuto]
+            [GraphVariant.AdjListAuto,adlAuto],
+            [GraphVariant.AdjMapAuto, admAuto],
+            [GraphVariant.AdjMapFasterDeleteAuto, admwfndAuto]
         ]
         
         const rnd = seedrandom(seed)
         let nodeCount = count
         for (let i = count; i >= 0; i--) {
-            if (rnd() > 0.5) {
-                // remove node
-                const id = nodeCount.toString()
-                for (const [variant, graph] of graphs) {
-                    const prevNodeCount = graph.nodeCount
-                    const start = performance.now()
-                    graph.removeNode(id)
-                    const time = performance.now() - start
-                    await writer.writeRecords([{
-                        cause: Cause.OpRemoveNode,
-                        clientCount: 1,
-                        edgeCount: graph.edgeCount,
-                        executionMillis: time,
-                        fullRun: graph.nodeCount < prevNodeCount,
-                        graphVariant: variant,
-                        nodeCount: prevNodeCount,
-                        initialGraph: InitialGraph.Complete
-                    }])
-                }
-                nodeCount--
+            // remove edge
+            const source = nodeCount.toString()
+            const target = Math.floor(nodeCount * rnd()).toString()
+            for (const [variant, graph] of graphs) {
+                const prevEdgeCount = graph.edgeCount
+                const start = performance.now()
+                graph.removeEdge(source, target)
+                const time = performance.now() - start
+                await writer.writeRecords([{
+                    cause: Cause.OpRemoveEdge,
+                    clientCount: 1,
+                    edgeCount: prevEdgeCount,
+                    executionMillis: time,
+                    fullRun: graph.edgeCount < prevEdgeCount,
+                    graphVariant: variant,
+                    nodeCount: graph.nodeCount,
+                    initialGraph: InitialGraph.Complete
+                }])
             }
-            else {
-                // remove edge
-                const source = nodeCount.toString()
-                const target = (nodeCount * rnd()).toString()
-                for (const [variant, graph] of graphs) {
-                    const prevEdgeCount = graph.edgeCount
-                    const start = performance.now()
-                    graph.removeEdge(source, target)
-                    const time = performance.now() - start
-                    await writer.writeRecords([{
-                        cause: Cause.OpRemoveEdge,
-                        clientCount: 1,
-                        edgeCount: prevEdgeCount,
-                        executionMillis: time,
-                        fullRun: graph.edgeCount < prevEdgeCount,
-                        graphVariant: variant,
-                        nodeCount: graph.nodeCount,
-                        initialGraph: InitialGraph.Complete
-                    }])
-                }
+        
+            // remove node
+            for (const [variant, graph] of graphs) {
+                const prevNodeCount = graph.nodeCount
+                const start = performance.now()
+                graph.removeNode(source)
+                const time = performance.now() - start
+                await writer.writeRecords([{
+                    cause: Cause.OpRemoveNode,
+                    clientCount: 1,
+                    edgeCount: graph.edgeCount,
+                    executionMillis: time,
+                    fullRun: graph.nodeCount < prevNodeCount,
+                    graphVariant: variant,
+                    nodeCount: prevNodeCount,
+                    initialGraph: InitialGraph.Complete
+                }])
             }
-        }
-    }
-    async function benchmarkDecreasingOperationsLineFRWCG(seed: string, count: number, writer: CsvWriter<EssentialHeaders & BasicOpHeaders>) {
-   
-        let nodeCount = count
-
-        const graph = new FixedRootWeaklyConnectedGraph(new Y.Doc())
-        makeLineGraphFRWCG(graph, count)
-        for (let i = count; i >= 0; i--) {
-            // remove node by removing two edges
-            const id = nodeCount.toString()
-
-            const prevId = (nodeCount - 1).toString()
-            const prevEdgeCount = graph.edgeCount
-            const prevNodeCount = graph.nodeCount
-            const start = performance.now()
-            graph.removeEdge(prevId, id)
-            const time = performance.now() - start
-            await writer.writeRecords([{
-                cause: Cause.OpRemoveEdge,
-                clientCount: 1,
-                edgeCount: prevEdgeCount,
-                executionMillis: time,
-                fullRun: graph.edgeCount < prevEdgeCount,
-                graphVariant: GraphVariant.FRWCG,
-                nodeCount: graph.nodeCount,
-                initialGraph: InitialGraph.LineWithRoot
-            }])
-            assert(prevNodeCount === graph.nodeCount, 'This operation should have been executed on a line graph and the node should still have a connection')
-
-            const prevEdgeCount2 = graph.edgeCount
-            const prevNodeCount2 = graph.nodeCount
-            const start2 = performance.now()
-            graph.removeEdge('root', id)
-            const time2 = performance.now() - start2
-            await writer.writeRecords([{
-                cause: Cause.OpRemoveNode,
-                clientCount: 1,
-                edgeCount: prevEdgeCount2,
-                executionMillis: time2,
-                fullRun: graph.nodeCount < prevNodeCount2 && graph.edgeCount < prevEdgeCount2,
-                graphVariant: GraphVariant.FRWCG,
-                nodeCount: prevNodeCount2,
-                initialGraph: InitialGraph.LineWithRoot
-            }])
-            assert(prevNodeCount === graph.nodeCount + 1, 'This operation should have been executed on a line graph and the node should have been deleted')
-
             nodeCount--
         }
     }
-    async function benchmarkDecreasingOperationsLineDAG(seed: string, count: number, writer: CsvWriter<EssentialHeaders & BasicOpHeaders>) {
-   
-        let nodeCount = count
-        const rnd = seedrandom(seed)
+    async function benchmarkDecreasingOperationsLineConnectedGraphs(count: number, writer: CsvWriter<EssentialHeaders & BasicOpHeaders>) {
+        const frwcg = new FixedRootWeaklyConnectedGraph(new Y.Doc())
+        makeLineGraphFRWCG(frwcg, count)
+        const frcug = new FixedRootConnectedUndirectedGraph(new Y.Doc())
+        makeLineGraphFRCUG(frcug, count)
 
-        const graph = new DirectedAcyclicGraph(new Y.Doc())
-        makeLineGraph(graph, count)
-        for (let i = count; i >= 0; i--) {
-            // remove node by removing two edges
-            const id = nodeCount.toString()
+        const graphs: [GraphVariant, FixedRootWeaklyConnectedGraph | FixedRootConnectedUndirectedGraph][] = [
+            [GraphVariant.FRWCG, frwcg], 
+            [GraphVariant.FRCUG, frcug], 
+        ]
+        for (let i = count; i >= 1; i--) {
+            for (const [graphVariant, graph] of graphs) {
+                // remove node by removing two edges
+                const id = i.toString()
 
-            {
-                const prevId = (nodeCount - 1).toString()
+                const prevId = (i - 1).toString()
                 const prevEdgeCount = graph.edgeCount
+                const prevNodeCount = graph.nodeCount
                 const start = performance.now()
                 graph.removeEdge(prevId, id)
                 const time = performance.now() - start
@@ -273,54 +248,106 @@ describe('properties', () => {
                     edgeCount: prevEdgeCount,
                     executionMillis: time,
                     fullRun: graph.edgeCount < prevEdgeCount,
-                    graphVariant: GraphVariant.DAG,
+                    graphVariant: graphVariant,
                     nodeCount: graph.nodeCount,
                     initialGraph: InitialGraph.LineWithRoot
                 }])
-            }
+                assert(prevNodeCount === graph.nodeCount, 'This operation should have been executed on a line graph and the node should still have a connection')
 
-            if (rnd() > 0.5)
-            {
-                const prevEdgeCount = graph.edgeCount
-                const prevNodeCount = graph.nodeCount
-                const start = performance.now()
+                const prevEdgeCount2 = graph.edgeCount
+                const prevNodeCount2 = graph.nodeCount
+                const start2 = performance.now()
                 graph.removeEdge('root', id)
-                const time = performance.now() - start
-                await writer.writeRecords([{
-                    cause: Cause.OpRemoveEdge,
-                    clientCount: 1,
-                    edgeCount: prevEdgeCount,
-                    executionMillis: time,
-                    fullRun: graph.edgeCount < prevEdgeCount,
-                    graphVariant: GraphVariant.DAG,
-                    nodeCount: prevNodeCount,
-                    initialGraph: InitialGraph.LineWithRoot
-                }])
-            }
-
-            {
-                const prevEdgeCount = graph.edgeCount
-                const prevNodeCount = graph.nodeCount
-                const start = performance.now()
-                graph.removeNode(id)
-                const time = performance.now() - start
+                const time2 = performance.now() - start2
                 await writer.writeRecords([{
                     cause: Cause.OpRemoveNode,
                     clientCount: 1,
-                    edgeCount: prevEdgeCount,
-                    executionMillis: time,
-                    fullRun: graph.nodeCount < prevNodeCount,
-                    graphVariant: GraphVariant.DAG,
-                    nodeCount: prevNodeCount,
-                    deletedEdgeCount: prevEdgeCount - graph.edgeCount,
+                    edgeCount: prevEdgeCount2,
+                    executionMillis: time2,
+                    fullRun: graph.nodeCount < prevNodeCount2 && graph.edgeCount < prevEdgeCount2,
+                    graphVariant: graphVariant,
+                    nodeCount: prevNodeCount2,
                     initialGraph: InitialGraph.LineWithRoot
                 }])
+                assert(prevNodeCount === graph.nodeCount + 1, 'This operation should have been executed on a line graph and the node should have been deleted')
             }
-
-            nodeCount--
         }
     }
-    async function benchmarkDecreasingOperationsAcyclicCompleteDAG(seed: string, count: number, writer: CsvWriter<EssentialHeaders & BasicOpHeaders>) {
+    async function benchmarkDecreasingOperationsLine(count: number, writer: CsvWriter<EssentialHeaders & BasicOpHeaders>) {
+   
+        const dag = new DirectedAcyclicGraph(new Y.Doc())
+        makeLineGraph(dag, count)
+        const adjList = new AdjacencyList(new Y.Doc())
+        makeLineGraph(adjList, count)
+        const adjMap = new AdjacencyMap(new Y.Doc())
+        makeLineGraph(adjMap, count)
+        const adjMapwfnd = new AdjacencyMapWithFasterNodeDeletion(new Y.Doc())
+        makeLineGraph(adjMapwfnd, count)
+        const adjSet = new AdjacencySet(new Y.Doc())
+        makeLineGraph(adjSet, count)
+
+        const adlAuto = new AdjacencyListAutomerge(automerge.change(automerge.init(), (doc) => { doc.map = {} }))
+        makeLineGraph(adlAuto, count)
+        const admAuto = new AdjacencyMapAutomerge(automerge.change(automerge.init(), (doc) => { doc.map = {} }))
+        makeLineGraph(admAuto, count)
+        const admwfndAuto = new AdjacencyMapWithFasterNodeDeletionAutomerge(automerge.change(automerge.init(), (doc) => { doc.map = {} }))
+        makeLineGraph(admwfndAuto, count)
+
+        const graphs: [GraphVariant, Graph][] = [
+            [GraphVariant.AdjList, adjList], 
+            [GraphVariant.AdjMap, adjMap], 
+            [GraphVariant.AdjMapFasterDelete, adjMapwfnd], 
+            [GraphVariant.AdjSet, adjSet],
+            [GraphVariant.AdjListAuto,adlAuto],
+            [GraphVariant.AdjMapAuto, admAuto],
+            [GraphVariant.AdjMapFasterDeleteAuto, admwfndAuto],
+            [GraphVariant.DAG, dag]
+        ]
+        
+        for (let i = count; i >= 1; i--) {
+            for (const [variant, graph] of graphs) {
+                // remove node by removing two edges
+                const id = i.toString()
+
+                {
+                    const prevId = (i - 1).toString()
+                    const prevEdgeCount = graph.edgeCount
+                    const start = performance.now()
+                    graph.removeEdge(prevId, id)
+                    const time = performance.now() - start
+                    await writer.writeRecords([{
+                        cause: Cause.OpRemoveEdge,
+                        clientCount: 1,
+                        edgeCount: prevEdgeCount,
+                        executionMillis: time,
+                        fullRun: graph.edgeCount < prevEdgeCount,
+                        graphVariant: variant,
+                        nodeCount: graph.nodeCount,
+                        initialGraph: InitialGraph.LineWithRoot
+                    }])
+                }
+                {
+                    const prevEdgeCount = graph.edgeCount
+                    const prevNodeCount = graph.nodeCount
+                    const start = performance.now()
+                    graph.removeNode(id)
+                    const time = performance.now() - start
+                    await writer.writeRecords([{
+                        cause: Cause.OpRemoveNode,
+                        clientCount: 1,
+                        edgeCount: prevEdgeCount,
+                        executionMillis: time,
+                        fullRun: graph.nodeCount < prevNodeCount,
+                        graphVariant: variant,
+                        nodeCount: prevNodeCount,
+                        deletedEdgeCount: prevEdgeCount - graph.edgeCount,
+                        initialGraph: InitialGraph.LineWithRoot
+                    }])
+                }
+            }
+        }
+    }
+    async function benchmarkDecreasingOperationsAcyclicCompleteDAG(count: number, writer: CsvWriter<EssentialHeaders & BasicOpHeaders>) {
    
         let nodeCount = count
 
@@ -353,21 +380,29 @@ describe('properties', () => {
 
     test('graphsize increasing operations', async () => {
         const writer = makeBenchmarkCsvWriter<EssentialHeaders & BasicOpHeaders>('graphSizeBasicOpsIncr.csv')
-        
-        await benchmarkIncreasingOperationsEmpty('sdga3w5', 500, writer)
-        await benchmarkIncreasingOperationsEmptyFRWCG('sdga3w5', 500, writer)
-        
+        const repeat = 10
+        for (let i = 0; i < repeat; i++) {
+            await benchmarkIncreasingOperationsEmpty('sdga3w5', 200, writer)
+            await benchmarkIncreasingOperationsEmptyConnectedGraphs('sdga3w5', 200, writer)
+        }    
     }, 5000000);
     
     // this takes much much longer than the increasing operations
-    test('graphsize decreasing operations', async () => {
-        const writer = makeBenchmarkCsvWriter<EssentialHeaders & BasicOpHeaders>('graphSizeBasicOpsDecr.csv')
-
-        await benchmarkDecreasingOperationsComplete('asdgasdg', 500, writer)
-        await benchmarkDecreasingOperationsLineFRWCG('asdgasdg', 500, writer)
-        await benchmarkDecreasingOperationsLineDAG('asdgasdg', 500, writer)
-        await benchmarkDecreasingOperationsAcyclicCompleteDAG('asdgasdg', 200, writer)
-
+    test('graphsize decreasing operations (complete)', async () => {
+        const writer = makeBenchmarkCsvWriter<EssentialHeaders & BasicOpHeaders>('graphSizeBasicOpsDecrComplete.csv')
+        const repeat = 10
+        for (let i = 0; i < repeat; i++) {
+            await benchmarkDecreasingOperationsComplete('asdgasdg', 200, writer)
+            await benchmarkDecreasingOperationsAcyclicCompleteDAG(200, writer)
+        }
     }, 5000000);
 
+    test('graphsize decreasing operations (line)', async () => {
+        const writer = makeBenchmarkCsvWriter<EssentialHeaders & BasicOpHeaders>('graphSizeBasicOpsDecrLine.csv')
+        const repeat = 10
+        for (let i = 0; i < repeat; i++) {
+            await benchmarkDecreasingOperationsLineConnectedGraphs(500, writer)
+            await benchmarkDecreasingOperationsLine(500, writer)
+        }
+    }, 5000000);
 });

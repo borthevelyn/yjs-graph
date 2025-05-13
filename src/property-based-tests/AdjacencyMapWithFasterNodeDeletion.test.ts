@@ -68,11 +68,16 @@ describe('properties', () => {
                         const nodeId = freeNodeIds.shift()!.toString();
                         yGraphs[clientIdx].addNode(nodeId, nodeId, operation.position)
                     } else if (operation.op === 'removeNode') {
-                        yGraphs[clientIdx].removeNode(operation.nodeId.toString())
+                        const node = Math.floor(operation.nodeId / maxGraphSize) * yGraphs[clientIdx].nodeCount
+                        yGraphs[clientIdx].removeNode(node.toString())
                     } else if (operation.op === 'addEdge') {
-                        yGraphs[clientIdx].addEdge(operation.from.toString(), operation.to.toString(), `edge${operation.from}+${operation.to}`)
+                        const source = Math.floor(operation.from / maxGraphSize) * yGraphs[clientIdx].nodeCount
+                        const target = Math.floor(operation.to / maxGraphSize) * yGraphs[clientIdx].nodeCount
+                        yGraphs[clientIdx].addEdge(source.toString(), target.toString(), `edge${source}+${target}`)
                     } else if (operation.op === 'removeEdge') {
-                        yGraphs[clientIdx].removeEdge(operation.from.toString(), operation.to.toString())
+                        const source = Math.floor(operation.from / maxGraphSize) * yGraphs[clientIdx].nodeCount
+                        const target = Math.floor(operation.to / maxGraphSize) * yGraphs[clientIdx].nodeCount
+                        yGraphs[clientIdx].removeEdge(source.toString(), target.toString())
                     } else if (operation.op === 'sync') {
                         let docs = yDocs.filter((_, index) => operation.clients.includes(index))
                         let graphs = yGraphs.filter((_, index) => operation.clients.includes(index))

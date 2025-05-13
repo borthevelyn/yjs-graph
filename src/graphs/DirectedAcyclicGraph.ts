@@ -3,14 +3,15 @@ import { id, FlowNode, FlowEdge, ObjectYMap, EventEmitter, EdgeId, splitEdgeId }
 import { Graph } from "./Graph";
 import * as Y from 'yjs'
 import assert from 'assert';
-import { syncDefault, syncPUSPromAll, syncPUSParSim } from "./SynchronizationMethods";
+import { syncDefault, syncPUSParSim } from "./SynchronizationMethods";
 
 type BenchmarkData = {
     cycles: number,
     cycleResolutionSteps: number,
     yEdges: number,
     optimized: boolean,
-    time: number
+    time: number,
+    resolveInvalidEdgesTime: number
 }
 
 type EdgeInformation = {
@@ -76,11 +77,14 @@ export class DirectedAcyclicGraph implements Graph {
     // removes edges that were removed from the graph
     private filterRemovedEdgeInYEdges(edgeId: EdgeId) {
         this.yMatrix.doc!.transact(() => {
+            const arr = this.yEdges.toArray();
             let edgeIndex;
             do {
-                edgeIndex = this.yEdges.toArray().findIndex(x => x.edgeId === edgeId);  
-                if (edgeIndex !== -1)
-                    this.yEdges.delete(edgeIndex);   
+                edgeIndex = arr.findIndex(x => x.edgeId === edgeId);  
+                if (edgeIndex !== -1) {
+                    arr.splice(edgeIndex, 1);
+                    this.yEdges.delete(edgeIndex);
+                }
             } while(edgeIndex >= 0);
         });
     }
@@ -390,6 +394,7 @@ export class DirectedAcyclicGraph implements Graph {
         cycleResolutionSteps: 0,
         yEdges: 0,
         optimized: true,
+        resolveInvalidEdgesTime: 0,
     }
 
     private removeCyclesOptimized(remainingCycles: Set<yEdgeInformation[]>, edgesContributingToCycles: Set<yEdgeInformation>): void {
@@ -464,17 +469,21 @@ export class DirectedAcyclicGraph implements Graph {
 
     }
 
-    public makeGraphValid(optimized: boolean = true): BenchmarkData {
+    public makeGraphValid(optimized: boolean = false): BenchmarkData {
         return this.yEdges.doc!.transact(() => {
             this.benchmarkData = {
                 cycles: 0,
                 cycleResolutionSteps: 0,
                 optimized,
                 yEdges: this.yEdges.length,
+                resolveInvalidEdgesTime: 0,
             }
             const start = performance.now()
 
+            const startInvalidEdgeTime = performance.now()
             this.removeInvalidEdges();
+            this.benchmarkData.resolveInvalidEdgesTime = performance.now() - startInvalidEdgeTime
+
             if (!this.isCyclic()) 
                 return { ...this.benchmarkData, time: performance.now() - start }
             

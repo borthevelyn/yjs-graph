@@ -111,7 +111,7 @@ interface OptinMethods {
     addEdge(source: id, target: id, label: string): void;
     removeNode(nodeId: id): void;
     removeEdge(source: id, target: id): void;
-    addNodeWithEdge(): void;
+    addNodeWithEdge(newNodeId: id, existingNodeId: id, nodeLabel: string, nodePosition: XYPosition, edgeLabel: string): boolean;
 }
 interface Common {
     get nodeCount(): number;

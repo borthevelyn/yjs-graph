@@ -55,6 +55,10 @@ describe('AdjacencyMapWithFasterNodeDeletion', () => {
     it('should delete a node in both maps', () => {
         graph1.addNode('node2', 'node2', { x: 0, y: 0 });
         AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        expect(graph1.getNode('node2')).toBeDefined();
+        expect(graph2.getNode('node2')).toBeDefined();
+        expect(graph1.nodeCount).toBe(1);
+        expect(graph2.nodeCount).toBe(1);
         graph1.removeNode('node2');
         AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
 

@@ -42,7 +42,9 @@ const allHeaders = [{
     id: 'crvariant', title: 'Conflict resolution variant'
 }, { 
     id: 'crtime', title: 'Conflict resolution time'
-}, { 
+},{ 
+    id: 'danglingEdgeResolutionTime', title: 'Dangling edge resolution time'
+},{ 
     id: 'crdanglingEdgeCount', title: 'Dangling edges handled'
 }, { 
     id: 'cycleResolutionSteps', title: 'Steps required to resolve cycles'
@@ -92,6 +94,7 @@ export enum GraphVariant {
     AdjMapFasterDelete = 'Adjacency Map With Faster Node Deletion',
     AdjMapFasterDeleteAuto = 'Adjacency Map With Faster Node Deletion Automerge',
     FRWCG = 'Fixed Root Weakly Connected Graph',
+    FRCUG = 'Fixed Root Connected Undirected Graph',
 }
 export enum Cause {
     OpSync = 'OpSync',
@@ -118,7 +121,7 @@ export enum ConflictResolutionVariant {
     Variant2 = 'Variant 2',
 }
 export type CRDanglingEdgeHeaders = {
-    crtime: number
+    danglingEdgeResolutionTime: number
     crvariant: ConflictResolutionVariant
     crdanglingEdgeCount: number
 }
