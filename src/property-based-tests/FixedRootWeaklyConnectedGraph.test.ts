@@ -51,7 +51,7 @@ describe('properties', () => {
         for (const graph of yGraphs) {
 
             performance.mark('start');
-            graph.makeGraphWeaklyConnected()
+            graph.makeGraphWeaklyConnected(true)
             performance.mark('end');
 
             await csvWriterExecutionTime.writeRecords([{
