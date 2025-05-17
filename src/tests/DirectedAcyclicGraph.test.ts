@@ -1817,12 +1817,12 @@ describe('DirectedAcyclicGraph', () => {
         yMatrix1.addNode('node1', 'node1', { x: 0, y: 0 });
         yMatrix1.addNode('node2', 'node2', { x: 10, y: 0 });
         yMatrix1.addNode('node3', 'node3', { x: 0, y: 10 });
-        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2], true);
         yMatrix1.addEdge('node2', 'node1', 'edge2-1');
         yMatrix1.addEdge('node3', 'node1', 'edge3-1');
         yMatrix1.addEdge('node2', 'node3', 'edge2-3');
         yMatrix2.addEdge('node1', 'node2', 'edge1-2');
-        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2]);
+        DirectedAcyclicGraph.syncDefault([yMatrix1, yMatrix2], true);
 
         expect(yMatrix1.getNode('node1')).toBeDefined();
         expect(yMatrix1.getNode('node2')).toBeDefined();

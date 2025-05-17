@@ -44,12 +44,14 @@ export function wrapYMap<YJsT, DesiredT>(map: Y.Map<YJsT>, transformer: (yjsVal:
 
 export class YSet<T> extends EventEmitter {
     yArray: Y.Array<T>;
+    backing: T[];
     doc: Y.Doc;
     set: Set<T>;
 
     constructor(yArray: Y.Array<T>) {
         super();
         this.yArray = yArray;
+        this.backing = yArray.toArray();
         if (yArray.doc === null) {
             throw new Error("yArray.doc is null");
         }
@@ -85,8 +87,10 @@ export class YSet<T> extends EventEmitter {
                 });
             });
 
-            if (changes.size > 0) 
+            if (changes.size > 0)  {
+                this.backing = this.yArray.toArray();
                 this.emit('change', changes);
+            }
             
         });
     }
@@ -105,13 +109,18 @@ export class YSet<T> extends EventEmitter {
             return
 
         this.doc.transact(() => {
-            for (let i = this.yArray.length - 1; i >= 0; i--) {
-                if (this.yArray.get(i) === val) {
-                    this.yArray.delete(i);
+            const indices = new Set<number>();
+            this.backing.forEach((v, idx) => {
+                if (v === val) {
+                    indices.add(idx);
                 }
-            }
-        }
-        );
+            })
+
+            indices.forEach((idx) => {
+                this.yArray.delete(idx);
+            });
+        });
+        this.backing = this.yArray.toArray();
     }
 
     has (val: any) {

@@ -76,7 +76,8 @@ export async function syncPUSPromAll<T, G extends object>(
                     waitingHelped: waitingHelped,
                     randomTime: sleepDur,
                     syncClientCount: yDocs.length,
-                    maxSleep: maxSleepDur
+                    maxSleep: maxSleepDur,
+                    networkDelay: 0
                 }, data]
             }
             // the graph is valid and up to date
@@ -88,7 +89,8 @@ export async function syncPUSPromAll<T, G extends object>(
                     copyTime: copyTime,
                     hadConflicts: false,
                     syncClientCount: yDocs.length,
-                    maxSleep: maxSleepDur
+                    maxSleep: maxSleepDur,
+                    networkDelay: 0
                 }, undefined]
             }
         })
@@ -132,7 +134,6 @@ export async function syncPUSParSim<T, G extends object>(
         Y.applyUpdate(copy, Y.encodeStateAsUpdate(yDocs[idx]))
         const copyTime = performance.now() - firstCopyStart
 
-        
         const updates = Array.from(new Array(yDocs.length).keys())
             .filter(i => i !== idx)
             .map(i => Y.encodeStateAsUpdate(yDocs[i], Y.encodeStateVector(yDocs[idx])))
@@ -144,15 +145,17 @@ export async function syncPUSParSim<T, G extends object>(
 
         if (isValid(copiedGraph)) {
             updates.forEach(up => Y.applyUpdate(yDocs[idx], up))
+            const workTime = performance.now() - firstCopyStart
             return {
                 state: 'finished',
-                finishedTime: initTime,
+                finishedTime: initTime + workTime,
                 data: [{
                     copyTime,
                     hadConflicts: false,
                     maxSleep: maxSleepDur,
                     syncClientCount: graphs.length,
-                    syncid: id
+                    syncid: id,
+                    networkDelay: networkDelay
                 }, undefined]
             }
         }
@@ -177,8 +180,7 @@ export async function syncPUSParSim<T, G extends object>(
         )
 
         for (const [state, idx] of statesToDo) {
-           
-
+            const startWorkTime = performance.now()
             // apply missing updates (some might have been applied, other updates might have arrived)
             // w.r.t. network delay
             const receivedFinishedStates =
@@ -194,7 +196,6 @@ export async function syncPUSParSim<T, G extends object>(
 
             if (receivedFinishedStates.length === 0) {
                 state.updates.forEach(up => Y.applyUpdate(yDocs[idx], up))
-                // assert(!isValid(graphs[idx]), 'graph is valid?')
             }
             else {
                 receivedFinishedStates
@@ -204,6 +205,7 @@ export async function syncPUSParSim<T, G extends object>(
             const waitingHelped = isValid(graphs[idx])
             assert(receivedFinishedStates.length > 0 || !waitingHelped, 'Waiting can only help with updates')
             const data = waitingHelped ? undefined : makeValid(graphs[idx])
+            const workTime = performance.now() - startWorkTime
             states[idx] = {
                 state: 'finished',
                 data: [{
@@ -213,13 +215,13 @@ export async function syncPUSParSim<T, G extends object>(
                     waitingHelped: waitingHelped,
                     randomTime: state.rndSleep,
                     syncClientCount: yDocs.length,
-                    maxSleep: maxSleepDur
+                    maxSleep: maxSleepDur,
+                    networkDelay: networkDelay
                 }, data],
-                finishedTime: nextInit + state.rndSleep
+                finishedTime: nextInit + workTime + state.rndSleep
             }
         }
 
-        // await new Promise(resolve => setTimeout(resolve, 1))
     }
 
     const retData = 
@@ -227,10 +229,5 @@ export async function syncPUSParSim<T, G extends object>(
         .filter(x => x.state === 'finished')
         .map(x => x.data)
 
-    // assert(retData.length === yDocs.length, 'every client has finished')
-    
-    // if (retData.some(d => d[0].hadConflicts)) {
-    //     assert(retData.some(d => d[0].hadConflicts && !d[0].waitingHelped), 'waiting must be false for at least one')
-    // }
     return retData
 }

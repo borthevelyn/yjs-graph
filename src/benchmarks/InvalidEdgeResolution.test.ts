@@ -7,8 +7,9 @@ import { AdjacencySet } from '../graphs/AdjacencySet';
 import { AdjacencyMapWithFasterNodeDeletion } from '../graphs/AdjacencyMapWithFasterNodeDeletion';
 import { CsvWriter } from 'csv-writer/src/lib/csv-writer';
 import { Graph } from '../graphs/Graph';
-import { InitialGraph, makeLineWithRaysFRWCG, makeLineWithRaysGraph } from './InitialGraphs';
+import { InitialGraph, makeLineWithRaysFRCUG, makeLineWithRaysFRWCG, makeLineWithRaysGraph } from './InitialGraphs';
 import { FixedRootWeaklyConnectedGraph } from '../graphs/FixedRootWeaklyConnectedGraph';
+import { FixedRootConnectedUndirectedGraph } from '../graphs/FixedRootConnectedUndirectedGraph';
 
 
 describe('benchmarks', () => {
@@ -59,9 +60,34 @@ describe('benchmarks', () => {
             }])
     }
 
+    async function benchmarkOneEdgePerRayFRCUG(graph1: FixedRootConnectedUndirectedGraph, graph2: FixedRootConnectedUndirectedGraph, sync: () => number[], variant: GraphVariant, count: number, writer: CsvWriter<EssentialHeaders & CRDanglingEdgeHeaders>) {
+        makeLineWithRaysFRCUG(graph1, count)
+        sync()
+
+        for (let i = 0; i < count; i++) {
+            graph1.removeEdge(`${i + 1}`, `${i + 1}_ray`)
+            graph2.addEdge(`${i}`, `${i + 1}_ray`, 'label')
+        }
+
+        const times = sync()
+
+        for (const time of times)
+            await writer.writeRecords([{
+                cause: Cause.OpConflictResolution,
+                clientCount: 2,
+                graphVariant: variant,
+                initialGraph: InitialGraph.LineWithRays,
+                danglingEdgeResolutionTime: time,
+                crdanglingEdgeCount: count,
+                crvariant: ConflictResolutionVariant.OneEdgePerRay
+            }])
+    }
+
+
+    // takes about 11 minutes
     test('one dangling edge per ray, delete all rays', async () => {
         const writer = makeBenchmarkCsvWriter<EssentialHeaders & CRDanglingEdgeHeaders>('cr_oneEdgePerRay.csv')
-        const graphSizes = [10, 20, 50, 100, 150, 300, 500]
+        const graphSizes = [10, 20, 50, 100, 200, 400, 600, 800, 1000]
         const iterations = 50
 
         // a line with ray graph is created for each graph variant
@@ -115,6 +141,19 @@ describe('benchmarks', () => {
                     frwc2,
                     () => FixedRootWeaklyConnectedGraph.syncDefault([frwc1, frwc2]).map(x => x.resolveInvalidEdgesTime),
                     GraphVariant.FRWCG,
+                    size,
+                    writer
+                )
+            }
+
+            for (const size of graphSizes) {    
+                const frwc1 = new FixedRootConnectedUndirectedGraph(new Y.Doc())
+                const frwc2 = new FixedRootConnectedUndirectedGraph(new Y.Doc())
+                await benchmarkOneEdgePerRayFRCUG(
+                    frwc1,
+                    frwc2,
+                    () => FixedRootConnectedUndirectedGraph.syncDefault([frwc1, frwc2]).map(x => x.resolveInvalidEdgesTime),
+                    GraphVariant.FRCUG,
                     size,
                     writer
                 )

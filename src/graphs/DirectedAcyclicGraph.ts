@@ -51,6 +51,7 @@ export function nodeListToEdgeList(nodeList: ReadonlyArray<id>): ReadonlyArray<E
 export class DirectedAcyclicGraph implements Graph {
     private yMatrix: AdjacencyMapGraph;
     private yEdges: Y.Array<yEdgeInformation>;
+    private yEdgesAsArray: yEdgeInformation[] | undefined;
 
     private selectedNodes: Set<id>;
     private selectedEdges: Set<EdgeId>;
@@ -77,7 +78,7 @@ export class DirectedAcyclicGraph implements Graph {
     // removes edges that were removed from the graph
     private filterRemovedEdgeInYEdges(edgeId: EdgeId) {
         this.yMatrix.doc!.transact(() => {
-            const arr = this.yEdges.toArray();
+            const arr = this.yEdgesAsArray ?? this.yEdges.toArray();
             let edgeIndex;
             do {
                 edgeIndex = arr.findIndex(x => x.edgeId === edgeId);  
@@ -88,6 +89,7 @@ export class DirectedAcyclicGraph implements Graph {
             } while(edgeIndex >= 0);
         });
     }
+
 
     public hasInvalidEdges() {
         const dangling = [...this.yMatrix.values()].some(source => [...source.get('edgeInformation').keys()].some(target => this.yMatrix.get(target) === undefined))
@@ -107,10 +109,10 @@ export class DirectedAcyclicGraph implements Graph {
                     if (this.yMatrix.get(target) !== undefined) {
                         continue
                     }
-                    this.removeEdge(source.get('id'), target);
+                    this.removeEdge(source.get('id'), target)
                 }
             }
-        });   
+        });
     }
     private removeDuplicateEdges() {
         const visitedEdges = new Map<EdgeId, number>();
@@ -124,7 +126,7 @@ export class DirectedAcyclicGraph implements Graph {
                 visitedEdges.set(item.edgeId, i);
             })
 
-            duplicateEdgeIdx.sort((a, b) => b - a).forEach(x => this.yEdges.delete(x))
+            duplicateEdgeIdx.sort((a, b) => b - a).forEach(x => { this.yEdges.delete(x); this.yEdgesAsArray?.splice(x, 1) });
         });
     }
     private makeNodeInformation(node: FlowNode, edges: Y.Map<EdgeInformation>) {
@@ -481,7 +483,9 @@ export class DirectedAcyclicGraph implements Graph {
             const start = performance.now()
 
             const startInvalidEdgeTime = performance.now()
+            this.yEdgesAsArray = this.yEdges.toArray();
             this.removeInvalidEdges();
+            this.yEdgesAsArray = undefined;
             this.benchmarkData.resolveInvalidEdgesTime = performance.now() - startInvalidEdgeTime
 
             if (!this.isCyclic()) 
@@ -585,7 +589,7 @@ export class DirectedAcyclicGraph implements Graph {
     static syncDefault(graphs: DirectedAcyclicGraph[], useVariant2: boolean = false) {
         return syncDefault(graphs, graphs.map(graph => graph.yMatrix.doc!), graph => graph.makeGraphValid(useVariant2))
     }
-    static async syncPUS(graphs: DirectedAcyclicGraph[], maxSleep: number, rnd: (idx: number) => number, useVariant2: boolean = false) {
+    static async syncPUS(graphs: DirectedAcyclicGraph[], maxSleepDur: number, networkDelay: number, rnd: (idx: number) => number, useVariant2: boolean = false) {
         return await syncPUSParSim(
             graphs,
             graphs.map(x => x.yMatrix.doc!),
@@ -593,7 +597,8 @@ export class DirectedAcyclicGraph implements Graph {
             yDoc => new DirectedAcyclicGraph(yDoc),
             graph => !graph.hasInvalidEdges() && graph.isAcyclic(),
             graph => graph.makeGraphValid(useVariant2),
-            maxSleep, maxSleep / 2.0
+            maxSleepDur,
+            networkDelay
         )
     }
 

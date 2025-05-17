@@ -33,7 +33,8 @@ type AllowedOps<Weights extends AllowedWeights> = {
 export type CommandFunArg<AllowedOps extends Command['op']> = [number, Command & { op: AllowedOps }, number, number]
 
 export function commandProperty<Weights extends AllowedWeights>(args: {
-    clientCount: number
+    minClientCount?: number
+    maxClientCount: number
     minOperationCount: number
     maxOperationCount: number
     maxGraphSize: number
@@ -43,7 +44,7 @@ export function commandProperty<Weights extends AllowedWeights>(args: {
     return fc.asyncProperty(
         fc.array(
             fc.tuple(
-                fc.integer({ min: 0, max: args.clientCount - 1 }), 
+                fc.integer({ min: args.minClientCount ? args.minClientCount -1 : 0, max: args.maxClientCount - 1 }), 
                 fc.oneof<WeightedArbitrary<Command & { op: AllowedOps<Weights> }>[]>(
                     {
                         arbitrary:
@@ -80,7 +81,7 @@ export function commandProperty<Weights extends AllowedWeights>(args: {
                         arbitrary:
                             fc.record<Command & { op: 'sync' }>({
                                 op: fc.constant<'sync'>('sync'),
-                                clients: fc.uniqueArray(fc.integer({ min: 0, max: args.clientCount-1 }), { minLength: 2, maxLength: args.clientCount }),
+                                clients: fc.uniqueArray(fc.integer({ min: args.minClientCount ? args.minClientCount -1 : 0, max: args.maxClientCount - 1 }), { minLength: 2, maxLength: args.maxClientCount }),
                             }),
                         weight: weights.sync ?? 0
                     } as WeightedArbitrary<Command & { op: AllowedOps<Weights> }>,

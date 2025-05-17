@@ -26,6 +26,8 @@ const allHeaders = [{
     id: 'randomTime', title: 'Randomized sleep time'
 }, { 
     id: 'maxSleep', title: 'Maximal sleep time'
+},{ 
+    id: 'networkDelay', title: 'Network delay'
 }, {
     id: 'executionMillis', title: 'Execution time (ms)'
 }, {
@@ -57,6 +59,7 @@ export type UpdateStormHeaders = {
     copyTime: number,
     syncClientCount: number,
     maxSleep: number,
+    networkDelay: number,
 } & ({
     hadConflicts: false
 } | {

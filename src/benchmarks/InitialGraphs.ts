@@ -42,6 +42,35 @@ export function makeCompleteGraph(g: Graph, count: number) {
         }
 }
 
+export function makeCompleteFRWCG(g: FixedRootWeaklyConnectedGraph, count: number) {
+    g.addNodeWithEdge('0', '<-', 'root', 'label', { x: 0, y: 0 }, 'label');
+    g.addEdge('root', '0', 'label')
+    for (let i = 0; i < count; i++) {
+        const nodeToAdd = i + 1
+        g.addNodeWithEdge(nodeToAdd.toString(), '->', i.toString(), 'label', { x: 0, y: 0 }, 'label')
+
+        for (let j = 0; j < nodeToAdd; j++) {
+            g.addEdge(j.toString(), nodeToAdd.toString(), 'label')
+            g.addEdge(nodeToAdd.toString(), j.toString(), 'label')
+        }
+        g.addEdge('root', nodeToAdd.toString(), 'label')
+        g.addEdge(nodeToAdd.toString(), 'root', 'label')
+    }
+}
+
+export function makeCompleteFRCUG(g: FixedRootConnectedUndirectedGraph, count: number) {
+    g.addNodeWithEdge('0', 'root', 'label', { x: 0, y: 0 }, 'label');
+    for (let i = 0; i < count; i++) {
+        const nodeToAdd = i + 1
+        g.addNodeWithEdge(nodeToAdd.toString(), i.toString(), 'label', { x: 0, y: 0 }, 'label')
+
+        for (let j = 0; j < nodeToAdd; j++) {
+            g.addEdge(j.toString(), nodeToAdd.toString(), 'label')
+        }
+        g.addEdge(nodeToAdd.toString(), 'root', 'label')
+    }
+}
+
 export function makeLineGraphFRWCG(g: FixedRootWeaklyConnectedGraph, count: number) {
     g.addNodeWithEdge('0', '<-', 'root', 'label', { x: 0, y: 0 }, 'label')
     for (let i = 0; i < count; i++){
@@ -118,5 +147,15 @@ export function makeLineWithRaysFRWCG(g: FixedRootWeaklyConnectedGraph, count: n
     for (let i = 0; i < count; i++) {
         g.addNodeWithEdge(`${i + 1}`, '<-', `${i}`, 'label', { x: 0, y: 0 }, 'label')
         g.addNodeWithEdge(`${i + 1}_ray`, '<-', `${i + 1}`, 'label', { x: 0, y: 0 }, 'label')
+    }
+}
+
+export function makeLineWithRaysFRCUG(g: FixedRootConnectedUndirectedGraph, count: number) {
+    g.addNodeWithEdge('0', 'root', 'label', { x: 0, y: 0 }, 'label')
+    g.addNodeWithEdge('0_ray', '0', 'label', { x: 0, y: 0 }, 'label')
+    
+    for (let i = 0; i < count; i++) {
+        g.addNodeWithEdge(`${i + 1}`, `${i}`, 'label', { x: 0, y: 0 }, 'label')
+        g.addNodeWithEdge(`${i + 1}_ray`, `${i + 1}`, 'label', { x: 0, y: 0 }, 'label')
     }
 }
