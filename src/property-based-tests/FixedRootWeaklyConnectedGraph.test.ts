@@ -63,7 +63,7 @@ describe('properties', () => {
                 paths: graph.benchmarkData.paths,
                 restoredEdges: graph.benchmarkData.restoredEdges,
                 restoredNodesWithEdges: graph.benchmarkData.restoredNodesWithEdges,
-                restoredPaths: graph.benchmarkData.restoredPaths,
+                restoredPaths: graph.benchmarkData.restoredPathLengths.length,
             }]);
         }
     }

@@ -3,7 +3,7 @@ import { XYPosition } from "@xyflow/react";
 import { id, EdgeId, ObjectYMap, splitEdgeId } from "../Types";
 import assert from 'assert';
 import { syncDefault, syncPUSPromAll } from './SynchronizationMethods';
-import { clock, EdgeInformationForRemovedEdges, mergeComponents, findAllPaths, RestorablePathUndirected, EdgeInformationForRemovedEdgesWithNodeUndirected, RemovedGraphElementUndirected, computePathConnectingComponentsVar2, computePathConnectingComponentsVar1 } from './ConnectedHelper';
+import { clock, EdgeInformationForRemovedEdges, mergeComponents, findAllPaths, RestorablePathUndirected, EdgeInformationForRemovedEdgesWithNodeUndirected, RemovedGraphElementUndirected, computePathConnectingComponentsVar2, computePathConnectingComponentsVar1, computePathConnectingComponentsVar3, computeAdjacencyMapGraphFromRemovedGraphElements, removeDuplicatesInRemovedGraphElements } from './ConnectedHelper';
 
 type BenchmarkData = {
     danglingEdges: number,
@@ -11,7 +11,7 @@ type BenchmarkData = {
     paths: number,
     restoredNodesWithEdges: number,
     restoredEdges: number,
-    restoredPaths: number,
+    restoredPathLengths: number[],
     time: number,
     resolveInvalidEdgesTime: number,
 }
@@ -268,15 +268,6 @@ export class FixedRootConnectedUndirectedGraph {
             if (edgeLabel === undefined)
                 return false
 
-            // 1. Remove both directions of the edge
-            node1EdgeInfo?.delete(node2);
-            node2EdgeInfo?.delete(node1);
-            
-            // 2. If a node should be removed with the edge, it is removed here
-            if (nodeRemovedWithEdge !== undefined) {
-                this.removeNode(nodeRemovedWithEdge.nodeData.get('id'));
-            }
-
             const vecToUse = vec ?? Object.fromEntries(Y.decodeStateVector(Y.encodeStateVector(this.yDoc)));
             const removedGraphElement: RemovedGraphElementUndirected = (nodeRemovedWithEdge !== undefined) ? ({ 
                 type: 'edgeWithNode', 
@@ -294,6 +285,17 @@ export class FixedRootConnectedUndirectedGraph {
                 })
                 :
                 ({ type: 'edge', item: { edgeId, edgeLabel, vectorclock: vecToUse } });
+
+
+            // 1. Remove both directions of the edge
+            node1EdgeInfo?.delete(node2);
+            node2EdgeInfo?.delete(node1);
+            
+            // 2. If a node should be removed with the edge, it is removed here
+            if (nodeRemovedWithEdge !== undefined) {
+                this.removeNode(nodeRemovedWithEdge.nodeData.get('id'));
+            }
+
             // 4. Add removed edge to the removed edges list
             this.removedGraphElements.push([removedGraphElement]);
 
@@ -438,10 +440,7 @@ export class FixedRootConnectedUndirectedGraph {
     // O(V + E)
     private isConnectedAfterEdgeRemoval(node1: id, node2: id): boolean {
         const excludedEdge = new Set<EdgeId>([`${node1}+${node2}`, `${node2}+${node1}`]);
-        const node1ToRootPath = this.findPath(node1, this.rootId, excludedEdge);
-        const node2ToRootPath = this.findPath(node2, this.rootId, excludedEdge);
-
-        return node1ToRootPath.length !== 0 && node2ToRootPath.length !== 0;
+        return this.findPath(node1, node2, excludedEdge).length !== 0;
     }
 
     // O(removedGraphElements * components^2 + max((componentsize * danglingEdges + components * nodesInDanglingEdgesToRepair + components^2), 1)
@@ -627,12 +626,12 @@ export class FixedRootConnectedUndirectedGraph {
         paths: 0,
         restoredNodesWithEdges: 0,
         restoredEdges: 0,
-        restoredPaths: 0,
+        restoredPathLengths: [],
         resolveInvalidEdgesTime: 0,
         time: 0,
     }
 
-    public makeGraphWeaklyConnected(useVariant2: boolean = false): BenchmarkData {
+    public makeGraphWeaklyConnected(useVirtualGraph: boolean = true, useVariant2: boolean = false): BenchmarkData {
         const clock = Object.fromEntries(Y.decodeStateVector(Y.encodeStateVector(this.yDoc)));
         return this.yDoc.transact(() => {
             this.benchmarkData = {
@@ -641,7 +640,7 @@ export class FixedRootConnectedUndirectedGraph {
                 paths: 0,
                 restoredNodesWithEdges: 0,
                 restoredEdges: 0,
-                restoredPaths: 0,
+                restoredPathLengths: [],
                 resolveInvalidEdgesTime: 0,
                 time: 0,
             }
@@ -660,6 +659,9 @@ export class FixedRootConnectedUndirectedGraph {
 
             if (connectedComponents.size === 1 && danglingEdges.size === 0) 
                 return { ...this.benchmarkData, time: performance.now() - start }
+
+
+            removeDuplicatesInRemovedGraphElements<false>(this.removedGraphElements)
 
             // O(components * (removedGraphElements * components^2 + danglingEdges * (componentsize + components)))
             // + O(components * (removedGraphElements + danglingEdges))
@@ -731,18 +733,23 @@ export class FixedRootConnectedUndirectedGraph {
             
             // O(V! * pathLength * (removedGraphElements + danglingEdges))
             // > O(removedGraphElements! * (removedGraphElements + danglingEdges))
-            let allPathsSorted: Array<[RestorablePathUndirected, BigInt]> = 
-                connectedComponents.size > 1 
-                ? Array.from(
+            let allPathsSorted: Array<[RestorablePathUndirected, BigInt]> | undefined
+            
+            if (!useVirtualGraph) {
+                allPathsSorted = 
+                    connectedComponents.size > 1 
+                    ? Array.from(
                         findAllPaths<false>(this.removedGraphElements.toArray().concat(Array.from(danglingEdges)))
                     )
                     .map<[RestorablePathUndirected, BigInt]>(x => [x, pathCost(x)])
                     .sort((a, b) => a[1] < b[1] ? -1 : 1)
                     .filter(([, cost], idx, arr) => idx === 0 || cost > arr[idx - 1][1])
-                : []
+                    : []
+
+                this.benchmarkData.paths = allPathsSorted.length;
+            }
 
             
-            this.benchmarkData.paths = allPathsSorted.length;
 
             // Assuming removedGraphElements as pathLength
             // Assuming removedGraphElements! as pathCount
@@ -750,11 +757,11 @@ export class FixedRootConnectedUndirectedGraph {
             // O(components * (removedGraphElements! * ((danglingEdges + components * V) + log(removedGraphElements!)) + V^2)
             // + O(components * (removedGraphElements^2 + removedGraphElements * danglingEdgesToPath))
             // = O(components * (removedGraphElements! * ((danglingEdges + components * V) + log(removedGraphElements!)) + V^2 + danglingEdgesToPath))
-            while (connectedComponents.size > 1) {
+            while (connectedComponents.size > 1 && !useVirtualGraph) {
                 const tryToConnectComponentsWithPath = 
                     useVariant2 ? 
-                    computePathConnectingComponentsVar2(connectedComponents, allPathsSorted, danglingEdges)
-                    : computePathConnectingComponentsVar1(connectedComponents, allPathsSorted, danglingEdges);
+                    computePathConnectingComponentsVar2(connectedComponents, allPathsSorted!, danglingEdges)
+                    : computePathConnectingComponentsVar1(connectedComponents, allPathsSorted!, danglingEdges);
                 if (tryToConnectComponentsWithPath !== undefined) {
                     const [path, danglingEdgesInPath, mergedComponents, pathsContainedInConnectedComponents] = tryToConnectComponentsWithPath;
                     this.addYRemovedPath(path, danglingEdgesInPath);
@@ -766,20 +773,33 @@ export class FixedRootConnectedUndirectedGraph {
                         // remove costs
                         let i = 0
                         for (const cost of pathsContainedInConnectedComponents) {
-                            const curr = allPathsSorted.slice(i)
+                            const curr = allPathsSorted!.slice(i)
                             const newI = curr.findIndex(s => s[1] === cost)
                             if (newI === -1)
                                 continue
 
                             i = newI + i
-                            allPathsSorted.splice(i, 1)
+                            allPathsSorted!.splice(i, 1)
                         }
                     }
-                    this.benchmarkData.restoredPaths++;
+                    this.benchmarkData.restoredPathLengths.push(path.edges.length + 1);
                 }
 
                 assert(tryToConnectComponentsWithPath !== undefined, 'Could not connect components');
             }
+
+            
+            while (connectedComponents.size > 1 && useVirtualGraph) {
+                const graph = computeAdjacencyMapGraphFromRemovedGraphElements(this.removedGraphElements.toArray().concat([...danglingEdges]))
+                const foundPath = computePathConnectingComponentsVar3(connectedComponents, graph, danglingEdges)
+                assert(foundPath !== undefined, 'There was no path found')
+                const [path, resolvedDanglingEdges, mergedComponents] = foundPath
+                this.addYRemovedPath(path, resolvedDanglingEdges)
+                danglingEdges = danglingEdges.difference(resolvedDanglingEdges)
+                connectedComponents = mergedComponents
+                this.benchmarkData.restoredPathLengths.push(path.edges.length + 1);
+            }
+
 
             // Remove remaining dangling edges which were not used to connect components
             // O (danglingEdges)
@@ -804,21 +824,21 @@ export class FixedRootConnectedUndirectedGraph {
             )
     }
 
-    static syncDefault(graphs: FixedRootConnectedUndirectedGraph[], useVariant2: boolean = false) {
+    static syncDefault(graphs: FixedRootConnectedUndirectedGraph[], useVirtualGraph: boolean = true, useVariant2: boolean = false) {
         return syncDefault(
             graphs,
             graphs.map(graph => graph.yDoc),
-            graph => graph.makeGraphWeaklyConnected(useVariant2)
+            graph => graph.makeGraphWeaklyConnected(useVirtualGraph, useVariant2)
             )
     }
-    static async syncPUS(graphs: FixedRootConnectedUndirectedGraph[], maxSleep: number, rnd: (idx: number) => number, useVariant2: boolean = false) {
+    static async syncPUS(graphs: FixedRootConnectedUndirectedGraph[], maxSleep: number, rnd: (idx: number) => number, useVirtualGraph: boolean = true, useVariant2: boolean = false) {
         return await syncPUSPromAll(
             graphs,
             graphs.map(x => x.yDoc),
             rnd,
             yDoc => new FixedRootConnectedUndirectedGraph(yDoc),
             graph => graph.getDanglingEdges().length === 0 && graph.isConnected(),
-            graph => graph.makeGraphWeaklyConnected(useVariant2),
+            graph => graph.makeGraphWeaklyConnected(useVirtualGraph, useVariant2),
             maxSleep
         )
     }

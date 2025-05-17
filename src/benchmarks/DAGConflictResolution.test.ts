@@ -62,7 +62,7 @@ describe('benchmarks', () => {
 
             await fc.assert(
                 commandProperty({
-                    clientCount,
+                    maxClientCount: clientCount,
                     maxGraphSize: maxGraphSize,
                     minOperationCount: minOperationsPerRoundCount,
                     maxOperationCount: maxOperationsPerRoundCount

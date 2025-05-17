@@ -1,5 +1,6 @@
 import { XYPosition } from "@xyflow/react";
 import { EdgeId, id, splitEdgeId } from "../Types";
+import * as Y from 'yjs';
 
 export type clock = {
     [client: string]: number | undefined
@@ -385,4 +386,225 @@ export function computePathConnectingComponentsVar2<T extends boolean>(connected
     }
 
     return undefined
+}
+
+
+
+
+type GraphInRemovedElems<T extends boolean> = Map<id, Map<id, RemovedGraphElement<T>[]>>
+
+export function computeAdjacencyMapGraphFromRemovedGraphElements<T extends boolean>(removedGraphElements: RemovedGraphElement<T>[]) {
+    const graph: GraphInRemovedElems<T> = new Map()
+    
+    for(const removedGraphElem of removedGraphElements) {
+        const [source, target] = splitEdgeId(removedGraphElem.item.edgeId)
+        const ls = graph.get(source)
+        if (ls === undefined)
+            graph.set(source, new Map([[target, [removedGraphElem]]]))
+        else {
+            const inner = ls.get(target)
+            if (inner === undefined)
+                ls.set(target, [removedGraphElem])
+            else
+                inner.push(removedGraphElem)
+        }
+    
+        const ls2 = graph.get(target)
+        if (ls2 === undefined)
+            graph.set(target, new Map([[source, [removedGraphElem]]]))
+        else {
+            const inner = ls2.get(source)
+            if (inner === undefined)
+                ls2.set(source, [removedGraphElem])
+            else
+                inner.push(removedGraphElem)
+        }
+    }
+
+    return graph
+}
+
+/**
+ * Calculates a path connecting two components. Returns the path to be restored, a set of dangling edges 
+ * which are used in the path and the merged components. Undefined if no path was found
+ * @param connectedComponents 
+ * @param graph 
+ * @param danglingEdges 
+ */
+export function computePathConnectingComponentsVar3<T extends boolean>(
+    connectedComponents: Set<Set<id>>,
+    graph: GraphInRemovedElems<T>,
+    danglingEdges: Set<RemovedGraphElementDirected>
+    ): [RestorablePath<T>, Set<RemovedGraphElementDirected>, Set<Set<id>>] | undefined
+{
+    // idea: try to connect components [0] and [1]. If on the way a node is found which is
+    //       already part of the graph, terminate, we have connected two components.
+
+    if (connectedComponents.size < 2)
+        return undefined
+
+    const components = [...connectedComponents]
+    const nodesInGraph = components.flatMap(x => [...x])
+
+    const startItems = 
+        [...components[0]]
+        // the starting component may contain nodes which are not connected to any removed element
+        // e.g. they are 'inside' of the component
+        .filter(x => graph.has(x))
+
+    const queue: [id, id[]][] = startItems.map<[id, id[]]>(x => [x, []])
+    const handledIds = new Set()
+    while (true) {
+        // get next queue item
+        const nextQueueItem = queue.shift()
+        if (nextQueueItem === undefined)
+            break
+
+        const [node, prevPath] = nextQueueItem
+
+        // check if already handled
+        if (handledIds.has(node))
+            continue
+
+        handledIds.add(node)
+
+        const currentPath = [...prevPath, node]
+
+        // add neighbors
+        for (const neighbor of graph.get(node)!.keys())
+            queue.push([neighbor, currentPath])
+
+        // -------
+        // check if path connects to another component
+        // -------
+
+        // this are the nodes that need to be restored
+        const nodesInBetween = prevPath.slice(1)
+
+        // check if we are still in the start component
+        // if so, we have not connected to another component
+        if (startItems.includes(node))
+            continue
+
+        const componentsContainingNode = 
+            components.filter(comp => comp.has(node))
+
+        if (componentsContainingNode.length === 0)
+            continue
+
+        // we now know that this node is contained in a component different from the start component
+        // -> we have found a path
+        if (componentsContainingNode.length > 1 || currentPath.length === 1)
+            throw new Error('should not happen, more than one component contains the node')
+
+        const danglingEdgesToBeRestored = 
+            new Set(
+                [...danglingEdges]
+                .filter(dang => {
+                    const [node1, node2] = splitEdgeId(dang.item.edgeId)
+                    return (nodesInGraph.includes(node1) && nodesInBetween.includes(node2)) ||
+                        (nodesInBetween.includes(node1) && nodesInGraph.includes(node2))
+                })
+            )
+
+        const mergedComponents = mergeComponents(
+            connectedComponents,
+            new Set([
+                components[0],
+                componentsContainingNode[0],
+                ...components.filter(x => [...danglingEdgesToBeRestored].some(d => splitEdgeId(d.item.edgeId).some(n => x.has(n))))]),
+            new Set(nodesInBetween)
+        )
+
+        const mappingToEdges: RestorablePath<T>['finalEdge'][] = 
+            currentPath
+            .map<RestorablePath<T>['finalEdge'] | undefined>((id, idx) => {
+                if (idx === 0)
+                    return undefined
+                const prevId = currentPath[idx - 1]
+                // edge connects id and prevId
+                const elemsConnecting = graph.get(id)!.get(prevId)!
+                const matchingElems =
+                    elemsConnecting
+                    .filter(x => x.item.edgeId === `${id}+${prevId}` || x.item.edgeId === `${prevId}+${id}`)
+
+                if (matchingElems.length === 0) {
+                    // ????
+                    throw new Error('Elems in the graph map do not match the stored items or there are no elems in the graph?')
+                }
+
+                // this is an arbitrary choice, maybe there are multiple elements matching?
+                const elem = matchingElems[0]
+
+                return {
+                    edgePayload: {
+                        label: elem.item.edgeLabel,
+                        usedRemovedElements: new Set([elem])
+                    },
+                    vectorclock: elem.item.vectorclock,
+                    id: elem.item.edgeId
+                }
+            })
+            .filter(x => x !== undefined)
+
+        const path: RestorablePath<T> = 
+            {
+                edges: mappingToEdges.slice(0, -1).map((edge, i) => {
+                    const matchingRemovedNodeElems = 
+                        [...graph.get(nodesInBetween[i])!.keys()]
+                        .flatMap(key => graph.get(nodesInBetween[i])!.get(key)!)
+                        .filter(elem => elem.type === 'edgeWithNode' && elem.item.nodeId === nodesInBetween[i])
+
+                    if (matchingRemovedNodeElems.length !== 1) {
+                        console.warn('Could not find exactly one item to restore node')
+                    }
+
+                    const nodeElem = matchingRemovedNodeElems[0] as RemovedGraphElementDirected & { item: EdgeInformationForRemovedEdgesWithNodeDirected }
+                    return {
+                        edgeId: edge.id,
+                        edgePayload: {
+                            label: edge.edgePayload.label,
+                            usedRemovedElements: edge.edgePayload.usedRemovedElements.union(new Set([nodeElem]))
+                        },
+                        vectorclock: edge.vectorclock,
+                        nodeId: nodeElem.item.nodeId,
+                        nodePayload: {
+                            label: nodeElem.item.nodeLabel,
+                            position: nodeElem.item.nodePosition
+                        }
+                    }
+                }),
+                finalEdge: mappingToEdges.at(-1)!
+            }
+
+        return [path, danglingEdgesToBeRestored, mergedComponents]
+        
+    }
+
+    return undefined
+}
+
+
+
+export function removeDuplicatesInRemovedGraphElements<T extends boolean>(removedGraphElements: Y.Array<RemovedGraphElement<T>>) {
+        // removes duplicates of removedGraphElements
+        removedGraphElements
+        .toArray()
+        // map to undefined or index to delete (undefined should be kept)
+        .map((v, idx, arr) => {
+            const prev = arr.slice(idx + 1)
+            const prevIdx = prev.findIndex(v2 => {
+                if (v.type !== v2.type || v2.item.edgeId !== v.item.edgeId)
+                    return false
+                if (v.type === 'edgeWithNode' && v2.type === 'edgeWithNode')
+                    return v.item.nodeId === v2.item.nodeId
+                return false
+            })
+            if (prevIdx >= 0)
+                return idx
+            else
+                return undefined
+        })
+        .reverse()
+        .forEach(v => { if (v !== undefined) removedGraphElements.delete(v) })
 }
