@@ -598,7 +598,7 @@ export function removeDuplicatesInRemovedGraphElements<T extends boolean>(direct
                     return false
                 if (directed && v2.item.edgeId !== v.item.edgeId)
                     return false
-                if (!directed && (v2.item.edgeId === v.item.edgeId || `${splitEdgeId(v.item.edgeId)[1]}+${splitEdgeId(v.item.edgeId)[0]}` === v2.item.edgeId))
+                if (!directed && (v2.item.edgeId !== v.item.edgeId && `${splitEdgeId(v.item.edgeId)[1]}+${splitEdgeId(v.item.edgeId)[0]}` !== v2.item.edgeId))
                     return false
                 if (v.type === 'edgeWithNode' && v2.type === 'edgeWithNode')
                     return v.item.nodeId === v2.item.nodeId

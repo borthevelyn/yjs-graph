@@ -78,9 +78,6 @@ function generatePartialConnectedGraph(seed: string, graph: TestGraph, size: num
     nodeMap.set('root', [['0', true]])
     nodeMap.set('0', [['root', false]])
     for (let i = 1; i < size - 1; i++) {
-        // graph.addNodeWithEdge(`${i}`, '<-', 'root', 'label', { x: 0, y: 0 }, 'label')
-        // nodeMap.set(`${i}`, [['root', false]])
-        // nodeMap.get('root')!.push([`${i}`, true])
         graph.addNodeWithEdge(`${i}`, '<-', `${i - 1}`, 'label', { x: 0, y: 0 }, 'label')
         nodeMap.set(`${i}`, [[`${ i - 1}`, false]])
         nodeMap.get(`${i - 1}`)!.push([`${i}`, true])
@@ -95,11 +92,13 @@ function generatePartialConnectedGraph(seed: string, graph: TestGraph, size: num
         while (nodeMap.get(id)!.length < edgesPerNode) {
             const unfinishedPartners = allIds
                 .filter(x => !nodeMap.get(id)!.some(([otherX,]) => otherX === x))
+                .filter(x => x !== id)
                 .map<[id, number]>(x => [x, nodeMap.get(x)!.length])
                 .filter(([, size]) => size < edgesPerNode)
 
             if (unfinishedPartners.length === 0) {
-                console.error('no possible partner')
+                console.warn('no possible partner')
+                break
             }
 
             const minEdgeCount = unfinishedPartners
@@ -139,11 +138,13 @@ function deleteEdgesInPartialGraph(seed: string, graph: TestGraph, nodeMap: Node
         const targetEdgeCount = Math.max(nodeMap.get(node)!.length - edgesToDel, 0)
 
         const undeletableEdges = new Set<id>()
-        while (nodeMap.get(node)!.length > targetEdgeCount + undeletableEdges.size) {
+        while (nodeMap.get(node)!.length > targetEdgeCount) {
             const edges = nodeMap.get(node)!.filter(([partnerId,]) => !undeletableEdges.has(partnerId))
 
-            if (edges.length === 0)
+            if (edges.length === 0) {
+                console.log(`couldn't delete enough edges`)
                 break
+            }
 
             const edgesAsList = [...edges]
             const [selectedId, selectedDirection] = edgesAsList[Math.floor(edgesAsList.length * rnd())]
@@ -348,22 +349,20 @@ describe('benchmarks', () => {
 
         async function writeBenchmark(data: BenchmarkData[], clientCount: number, graphVariant: GraphVariant, crvariant: ConflictResolutionVariant) {
             await writer.writeRecords(
-                data.flatMap(datum =>
-                    datum.restoredPaths.map(pathInfo => {
-                        return {
-                            cause: Cause.OpRestorePath,
-                            clientCount,
-                            componentCount: datum.connectedComponents,
-                            crvariant: crvariant,
-                            executionMillis: pathInfo.time,
-                            graphVariant,
-                            initialGraph: InitialGraph.Donut,
-                            removedGraphElements: datum.removedGraphElementsCount,
-                            restoredPathLength: pathInfo.length,
-                            pathInitializationTime: datum.pathInitalizationTime,
-                        }
-                    })
-                )
+                data.map(datum => {
+                    return {
+                        cause: Cause.OpConflictResolution,
+                        clientCount,
+                        componentCount: datum.connectedComponents,
+                        crvariant: crvariant,
+                        executionMillis: datum.restoredPaths.reduce((s, n) => s + n.time, 0) + datum.pathInitalizationTime,
+                        graphVariant,
+                        initialGraph: InitialGraph.Donut,
+                        removedGraphElements: datum.removedGraphElementsCount,
+                        pathInitializationTime: datum.pathInitalizationTime,
+                        restoredPaths: datum.restoredPaths.length
+                    }
+                })
             )
         }
 
@@ -393,6 +392,7 @@ describe('benchmarks', () => {
     }, 5000000)
 
 
+    // currently takes 3 minutes
     test('partial graph: total / components (single elements)', async () => {
         const writer = makeBenchmarkCsvWriter<EssentialHeaders & CRConnectednessHeaders>('connectedness_total_components.csv')
 
@@ -400,16 +400,16 @@ describe('benchmarks', () => {
         // the restoration should only use single elements (as that is most often possible)
         // therefore, the variant is not important as no paths should be restored
 
-        const seeds = ['asf', 'asdgzxvc', 'xcvzx', 'asdbvx']
-        const sizes = [10, 20, 30, 40]
+        const seeds = ['asf', 'asdgzxvc', 'xcvzx', 'asdbvx', 'asfzxv', 'efsg', '2fsdf', 'sdggt' /*, '124', 'ascxb', '1wdgsx'*/ ]
+        const sizes = [5, 10, 15, 20, 25, 30, 35, 40, 45]
         const edgesPerNode = 4
         const deletedEdgesPerClient: [number, number] = [1, 4]
-        const nodesToAppend = 15
+        // const nodesToAppend = 15
         
         async function benchmark(seed: string, size: number, directed: boolean) {
             const data = directed
-                ? benchmarkPartialGraph(seed, size, edgesPerNode, deletedEdgesPerClient, nodesToAppend, fixedRootWeaklyConnected(true))
-                : benchmarkPartialGraph(seed, size, edgesPerNode, deletedEdgesPerClient, nodesToAppend, fixedRootConnectedUndirected(true))
+                ? benchmarkPartialGraph(seed, size, edgesPerNode, deletedEdgesPerClient, size / 2, fixedRootWeaklyConnected(true))
+                : benchmarkPartialGraph(seed, size, edgesPerNode, deletedEdgesPerClient, size / 2, fixedRootConnectedUndirected(true))
 
             await writer.writeRecords(data.map(datum => {
                 return {

@@ -168,7 +168,7 @@ export type CRConnectednessHeaders = {
     removedGraphElements: number,
     executionMillis: number,
     componentCount: number,
-    restoredPathLength: number,
+    restoredPathLength?: number,
     pathInitializationTime: number,
     inputSize?: number
     restoredNodesWithEdges?: number
