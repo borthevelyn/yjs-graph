@@ -29,6 +29,14 @@ export enum InitialGraph {
      * A line graph where each node connects only to its predecessor, but each also has an outgoing connection to another node with no other connections.
      */
     LineWithRays = 'Line With Rays',
+    /**
+     * A graph where each node has a specific number of connections to other arbitrary nodes. The graph is connected.
+     */
+    Partial = 'Partial Graph',
+    /**
+     * A cyclic graph where each node has a connecting to a successor and predecessor.
+     */
+    Donut = 'Donut'
 }
 
 export function makeCompleteGraph(g: Graph, count: number) {

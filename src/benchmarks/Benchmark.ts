@@ -1,3 +1,5 @@
+/* eslint-disable no-unused-vars */
+
 import { createObjectCsvWriter } from 'csv-writer'
 import { CsvWriter } from "csv-writer/src/lib/csv-writer"
 import { InitialGraph } from "./InitialGraphs"
@@ -52,6 +54,22 @@ const allHeaders = [{
     id: 'cycleResolutionSteps', title: 'Steps required to resolve cycles'
 }, { 
     id: 'yEdgesCount', title: 'Number of yEdges'
+}, { 
+    id: 'removedGraphElements', title: 'Removed graph elements count'
+}, { 
+    id: 'componentCount', title: 'Component count'
+}, { 
+    id: 'restoredPathLength', title: 'Length of restored path'
+}, { 
+    id: 'pathInitializationTime', title: 'Path initialization (ms)'
+}, { 
+    id: 'inputSize', title: 'Initial node count'
+}, { 
+    id: 'restoredNodesWithEdges', title: 'Restored nodes with edges'
+}, { 
+    id: 'restoredEdges', title: 'Restored edges'
+}, { 
+    id: 'restoredPaths', title: 'Restored paths'
 }] as const
 
 export type UpdateStormHeaders = {
@@ -106,7 +124,8 @@ export enum Cause {
     OpAddNode = 'OpAddNode',
     OpRemoveEdge = 'OpRemoveEdge',
     OpRemoveNode = 'OpRemoveNode',
-    OpAddNodeWithEdge = 'OpAddNodeWithEdge'
+    OpAddNodeWithEdge = 'OpAddNodeWithEdge',
+    OpRestorePath = 'OpRestorePath'
 }
 
 export type EssentialHeaders = {
@@ -122,6 +141,7 @@ export enum ConflictResolutionVariant {
     AllEdgesToOneRay = 'All edges to one ray',
     Variant1 = 'Variant 1',
     Variant2 = 'Variant 2',
+    Variant3 = 'Variant 3',
 }
 export type CRDanglingEdgeHeaders = {
     danglingEdgeResolutionTime: number
@@ -140,6 +160,31 @@ export type CRCyclesDAGHeaders = {
     yEdgesCount: number
 }
 type AllHeadersIncludeCRCyclesDAGHeaders = AssertContainsKeys<keyof CRCyclesDAGHeaders>
+
+
+
+export type CRConnectednessHeaders = {
+    crvariant: ConflictResolutionVariant,
+    removedGraphElements: number,
+    executionMillis: number,
+    componentCount: number,
+    restoredPathLength: number,
+    pathInitializationTime: number,
+    inputSize?: number
+    restoredNodesWithEdges?: number
+    restoredEdges?: number
+    restoredPaths?: number
+
+    // nodeCount: number, 
+    // edgeCount: number, 
+    // executionMillis: number,
+    // componentCount: number,
+    // resolutionSteps: number,
+    // resolvedEdgeCount: number,
+    // resolvedNodeWithEdgeCount: number,
+    // resolvedPathCount: number,
+}
+type AllHeadersIncludeCRConnectednessHeaders = AssertContainsKeys<keyof CRConnectednessHeaders>
 
 export function makeBenchmarkCsvWriter<T extends EssentialHeaders>(path: `${string}.csv`) {
     return createObjectCsvWriter({

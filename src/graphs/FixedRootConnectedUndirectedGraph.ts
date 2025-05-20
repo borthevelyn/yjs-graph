@@ -3,18 +3,8 @@ import { XYPosition } from "@xyflow/react";
 import { id, EdgeId, ObjectYMap, splitEdgeId } from "../Types";
 import assert from 'assert';
 import { syncDefault, syncPUSPromAll } from './SynchronizationMethods';
-import { clock, EdgeInformationForRemovedEdges, mergeComponents, findAllPaths, RestorablePathUndirected, EdgeInformationForRemovedEdgesWithNodeUndirected, RemovedGraphElementUndirected, computePathConnectingComponentsVar2, computePathConnectingComponentsVar1, computePathConnectingComponentsVar3, computeAdjacencyMapGraphFromRemovedGraphElements, removeDuplicatesInRemovedGraphElements } from './ConnectedHelper';
+import { clock, EdgeInformationForRemovedEdges, mergeComponents, findAllPaths, RestorablePathUndirected, EdgeInformationForRemovedEdgesWithNodeUndirected, RemovedGraphElementUndirected, computePathConnectingComponentsVar2, computePathConnectingComponentsVar1, computePathConnectingComponentsVar3, computeAdjacencyMapGraphFromRemovedGraphElements, removeDuplicatesInRemovedGraphElements, BenchmarkData } from './ConnectedHelper';
 
-type BenchmarkData = {
-    danglingEdges: number,
-    connectedComponents: number,
-    paths: number,
-    restoredNodesWithEdges: number,
-    restoredEdges: number,
-    restoredPathLengths: number[],
-    time: number,
-    resolveInvalidEdgesTime: number,
-}
 
 type EdgeInformation = {
     label: string
@@ -620,15 +610,17 @@ export class FixedRootConnectedUndirectedGraph {
         });
     }
 
-    public benchmarkData: BenchmarkData = {
+    public benchmarkData: Omit<BenchmarkData, 'totalTime'> = {
         danglingEdges: 0,
         connectedComponents: 0,
         paths: 0,
         restoredNodesWithEdges: 0,
         restoredEdges: 0,
-        restoredPathLengths: [],
+        restoredPaths: [],
         resolveInvalidEdgesTime: 0,
-        time: 0,
+        removedGraphElementsCount: 0,
+        pathInitalizationTime: 0,
+        restoreSingleGraphElementsTime: 0
     }
 
     public makeGraphWeaklyConnected(useVirtualGraph: boolean = true, useVariant2: boolean = false): BenchmarkData {
@@ -640,9 +632,11 @@ export class FixedRootConnectedUndirectedGraph {
                 paths: 0,
                 restoredNodesWithEdges: 0,
                 restoredEdges: 0,
-                restoredPathLengths: [],
+                restoredPaths: [],
                 resolveInvalidEdgesTime: 0,
-                time: 0,
+                removedGraphElementsCount: 0,
+                pathInitalizationTime: 0,
+                restoreSingleGraphElementsTime: 0
             }
 
             const start = performance.now()
@@ -658,16 +652,19 @@ export class FixedRootConnectedUndirectedGraph {
             this.benchmarkData.connectedComponents = connectedComponents.size;
 
             if (connectedComponents.size === 1 && danglingEdges.size === 0) 
-                return { ...this.benchmarkData, time: performance.now() - start }
+                return { ...this.benchmarkData, totalTime: performance.now() - start }
 
 
-            removeDuplicatesInRemovedGraphElements<false>(this.removedGraphElements)
+            removeDuplicatesInRemovedGraphElements(false, this.removedGraphElements)
+            this.benchmarkData.removedGraphElementsCount = this.removedGraphElements.length
 
             // O(components * (removedGraphElements * components^2 + danglingEdges * (componentsize + components)))
             // + O(components * (removedGraphElements + danglingEdges))
             // = O(components * (removedGraphElements * (components^2 + 1) + danglingEdges  * (componentsize + components + 1)))
             // \eq O(components * (removedGraphElements * components^2 + danglingEdges  * (componentsize + components)))
 
+            
+            const restoreSingleGraphElementsStart = performance.now()
             while (connectedComponents.size > 1) {
                 // O(components * (removedGraphElements * components^2 + danglingEdges * (componentsize + components)))
                 const tryToConnectComponentsWithGraphElement = this.getGraphElementIdxAndMergedComponents(connectedComponents, danglingEdges);
@@ -700,6 +697,7 @@ export class FixedRootConnectedUndirectedGraph {
                 connectedComponents = mergedComponents;
             }
 
+            this.benchmarkData.restoreSingleGraphElementsTime = performance.now() - restoreSingleGraphElementsStart;
             let allGraphElementsRev: RemovedGraphElementUndirected[] | undefined = undefined
 
             // O(danglingEdges * log(danglingEdges))
@@ -735,7 +733,8 @@ export class FixedRootConnectedUndirectedGraph {
             // > O(removedGraphElements! * (removedGraphElements + danglingEdges))
             let allPathsSorted: Array<[RestorablePathUndirected, BigInt]> | undefined
             
-            if (!useVirtualGraph) {
+            if (!useVirtualGraph && connectedComponents.size > 1) {
+                const pathInitalizationStart = performance.now()
                 allPathsSorted = 
                     connectedComponents.size > 1 
                     ? Array.from(
@@ -746,6 +745,7 @@ export class FixedRootConnectedUndirectedGraph {
                     .filter(([, cost], idx, arr) => idx === 0 || cost > arr[idx - 1][1])
                     : []
 
+                this.benchmarkData.pathInitalizationTime = performance.now() - pathInitalizationStart
                 this.benchmarkData.paths = allPathsSorted.length;
             }
 
@@ -758,6 +758,7 @@ export class FixedRootConnectedUndirectedGraph {
             // + O(components * (removedGraphElements^2 + removedGraphElements * danglingEdgesToPath))
             // = O(components * (removedGraphElements! * ((danglingEdges + components * V) + log(removedGraphElements!)) + V^2 + danglingEdgesToPath))
             while (connectedComponents.size > 1 && !useVirtualGraph) {
+                const pathStart = performance.now()
                 const tryToConnectComponentsWithPath = 
                     useVariant2 ? 
                     computePathConnectingComponentsVar2(connectedComponents, allPathsSorted!, danglingEdges)
@@ -782,7 +783,11 @@ export class FixedRootConnectedUndirectedGraph {
                             allPathsSorted!.splice(i, 1)
                         }
                     }
-                    this.benchmarkData.restoredPathLengths.push(path.edges.length + 1);
+                    const pathTime = performance.now() - pathStart
+                    this.benchmarkData.restoredPaths.push({
+                        length: path.edges.length + 1,
+                        time: pathTime
+                    });
                 }
 
                 assert(tryToConnectComponentsWithPath !== undefined, 'Could not connect components');
@@ -790,6 +795,7 @@ export class FixedRootConnectedUndirectedGraph {
 
             
             while (connectedComponents.size > 1 && useVirtualGraph) {
+                const pathStart = performance.now()
                 const graph = computeAdjacencyMapGraphFromRemovedGraphElements(this.removedGraphElements.toArray().concat([...danglingEdges]))
                 const foundPath = computePathConnectingComponentsVar3(connectedComponents, graph, danglingEdges)
                 assert(foundPath !== undefined, 'There was no path found')
@@ -797,7 +803,11 @@ export class FixedRootConnectedUndirectedGraph {
                 this.addYRemovedPath(path, resolvedDanglingEdges)
                 danglingEdges = danglingEdges.difference(resolvedDanglingEdges)
                 connectedComponents = mergedComponents
-                this.benchmarkData.restoredPathLengths.push(path.edges.length + 1);
+                const pathTime = performance.now() - pathStart
+                this.benchmarkData.restoredPaths.push({
+                    length: path.edges.length + 1,
+                    time: pathTime
+                });
             }
 
 
@@ -810,7 +820,7 @@ export class FixedRootConnectedUndirectedGraph {
             assert(this.getDanglingEdges().length === 0, 'Dangling edges should be removed');
             assert(this.isConsistent(), 'Edge information is not consistent')
 
-            return { ...this.benchmarkData, time: performance.now() - start }
+            return { ...this.benchmarkData, totalTime: performance.now() - start }
         });
     }
 

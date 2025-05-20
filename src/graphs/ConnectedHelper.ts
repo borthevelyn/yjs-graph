@@ -586,7 +586,7 @@ export function computePathConnectingComponentsVar3<T extends boolean>(
 
 
 
-export function removeDuplicatesInRemovedGraphElements<T extends boolean>(removedGraphElements: Y.Array<RemovedGraphElement<T>>) {
+export function removeDuplicatesInRemovedGraphElements<T extends boolean>(directed: T, removedGraphElements: Y.Array<RemovedGraphElement<T>>) {
         // removes duplicates of removedGraphElements
         removedGraphElements
         .toArray()
@@ -594,7 +594,11 @@ export function removeDuplicatesInRemovedGraphElements<T extends boolean>(remove
         .map((v, idx, arr) => {
             const prev = arr.slice(idx + 1)
             const prevIdx = prev.findIndex(v2 => {
-                if (v.type !== v2.type || v2.item.edgeId !== v.item.edgeId)
+                if (v.type !== v2.type)
+                    return false
+                if (directed && v2.item.edgeId !== v.item.edgeId)
+                    return false
+                if (!directed && (v2.item.edgeId === v.item.edgeId || `${splitEdgeId(v.item.edgeId)[1]}+${splitEdgeId(v.item.edgeId)[0]}` === v2.item.edgeId))
                     return false
                 if (v.type === 'edgeWithNode' && v2.type === 'edgeWithNode')
                     return v.item.nodeId === v2.item.nodeId
@@ -607,4 +611,22 @@ export function removeDuplicatesInRemovedGraphElements<T extends boolean>(remove
         })
         .reverse()
         .forEach(v => { if (v !== undefined) removedGraphElements.delete(v) })
+}
+
+
+export type BenchmarkData = {
+    danglingEdges: number,
+    connectedComponents: number,
+    paths: number,
+    restoredNodesWithEdges: number,
+    restoredEdges: number,
+    restoredPaths: {
+        length: number
+        time: number
+    }[],
+    pathInitalizationTime: number,
+    totalTime: number,
+    resolveInvalidEdgesTime: number,
+    removedGraphElementsCount: number,
+    restoreSingleGraphElementsTime: number
 }

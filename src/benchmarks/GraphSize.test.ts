@@ -424,15 +424,15 @@ describe('properties', () => {
         const graph = new DirectedAcyclicGraph(new Y.Doc())
         makeAcyclicCompleteGraph(graph, count)
         for (let i = count; i >= 0; i--) {
-            const source = nodeCount.toString()
-            const target = Math.floor(nodeCount - 1).toString() 
+            const source = Math.floor(nodeCount - 1).toString()
+            const target = nodeCount.toString() 
             {
                 const prevEdgeCount = graph.edgeCount
                 const start = performance.now()
                 graph.removeEdge(source, target)
                 const time = performance.now() - start
                 await writer.writeRecords([{
-                    cause: Cause.OpRemoveNode,
+                    cause: Cause.OpRemoveEdge,
                     clientCount: 1,
                     edgeCount: prevEdgeCount,
                     executionMillis: time,
@@ -447,7 +447,7 @@ describe('properties', () => {
                 const prevEdgeCount = graph.edgeCount
                 const prevNodeCount = graph.nodeCount
                 const start = performance.now()
-                graph.removeNode(source)
+                graph.removeNode(target)
                 const time = performance.now() - start
                 await writer.writeRecords([{
                     cause: Cause.OpRemoveNode,
@@ -477,7 +477,7 @@ describe('properties', () => {
     // this takes much much longer than the increasing operations
     test('graphsize decreasing operations (complete)', async () => {
         const writer = makeBenchmarkCsvWriter<EssentialHeaders & BasicOpHeaders>('graphSizeBasicOpsDecrComplete.csv')
-        const repeat = 3
+        const repeat = 5
         for (let i = 0; i < repeat; i++) {
             await benchmarkDecreasingOperationsComplete('asdgasdg', 200, writer)
             await benchmarkDecreasingOperationsCompleteConnected(200, writer)

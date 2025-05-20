@@ -3,24 +3,14 @@ import { XYPosition } from "@xyflow/react";
 import { id, EdgeId, ObjectYMap, splitEdgeId, EdgeDirection } from "../Types";
 import assert from 'assert';
 import { syncDefault, syncPUSPromAll } from './SynchronizationMethods';
-import { RemovedGraphElementDirected, clock, EdgeInformationForRemovedEdges, RestorablePathDirected, EdgeInformationForRemovedEdgesWithNodeDirected, findAllPaths, mergeComponents, computePathConnectingComponentsVar2, computePathConnectingComponentsVar1, computePathConnectingComponentsVar3, computeAdjacencyMapGraphFromRemovedGraphElements, removeDuplicatesInRemovedGraphElements } from './ConnectedHelper';
+import { RemovedGraphElementDirected, clock, EdgeInformationForRemovedEdges, RestorablePathDirected, EdgeInformationForRemovedEdgesWithNodeDirected, findAllPaths, mergeComponents, computePathConnectingComponentsVar2, computePathConnectingComponentsVar1, computePathConnectingComponentsVar3, computeAdjacencyMapGraphFromRemovedGraphElements, removeDuplicatesInRemovedGraphElements, BenchmarkData } from './ConnectedHelper';
 
 
 function xor(a: boolean, b: boolean): boolean {
     return (a && !b) || (!a && b);
 }
 
-type BenchmarkData = {
-    danglingEdges: number,
-    connectedComponents: number,
-    paths: number,
-    restoredNodesWithEdges: number,
-    restoredEdges: number,
-    restoredPathLengths: number[],
-    time: number,
-    resolveInvalidEdgesTime: number,
-    removedGraphElementsCount: number,
-}
+
 
 
 type EdgeInformation = {
@@ -719,15 +709,17 @@ export class FixedRootWeaklyConnectedGraph {
         });
     }
 
-    public benchmarkData: Omit<BenchmarkData, 'time'> = {
+    public benchmarkData: Omit<BenchmarkData, 'totalTime'> = {
         danglingEdges: 0,
         connectedComponents: 0,
         paths: 0,
         restoredNodesWithEdges: 0,
         restoredEdges: 0,
-        restoredPathLengths: [],
+        restoredPaths: [],
         removedGraphElementsCount: 0,
         resolveInvalidEdgesTime: 0,
+        pathInitalizationTime: 0,
+        restoreSingleGraphElementsTime: 0
     }
 
     private i = 0;
@@ -776,9 +768,11 @@ export class FixedRootWeaklyConnectedGraph {
                 paths: 0,
                 restoredNodesWithEdges: 0,
                 restoredEdges: 0,
-                restoredPathLengths: [],
+                restoredPaths: [],
+                pathInitalizationTime: 0,
                 removedGraphElementsCount: 0,
                 resolveInvalidEdgesTime: 0,
+                restoreSingleGraphElementsTime: 0
             }
 
             const start = performance.now()
@@ -790,7 +784,7 @@ export class FixedRootWeaklyConnectedGraph {
             const elapsedResolveInvalidEdgesTime =  performance.now() - startResolveInvalidEdges;
 
 
-            removeDuplicatesInRemovedGraphElements<true>(this.removedGraphElements)
+            removeDuplicatesInRemovedGraphElements(true, this.removedGraphElements)
 
             this.benchmarkData.removedGraphElementsCount = this.removedGraphElements.length
 
@@ -799,13 +793,14 @@ export class FixedRootWeaklyConnectedGraph {
             this.benchmarkData.connectedComponents = connectedComponents.size;
 
             if (connectedComponents.size === 1 && danglingEdges.size === 0) 
-                return { ...this.benchmarkData, time: performance.now() - start }
+                return { ...this.benchmarkData, totalTime: performance.now() - start }
 
             // O(components * (removedGraphElements * components^2 + danglingEdges * (componentsize + components)))
             // + O(components * (removedGraphElements + danglingEdges))
             // = O(components * (removedGraphElements * (components^2 + 1) + danglingEdges  * (componentsize + components + 1)))
             // \eq O(components * (removedGraphElements * components^2 + danglingEdges  * (componentsize + components)))
 
+            const restoreSingleGraphElementsStart = performance.now()
             while (connectedComponents.size > 1) {
                 // O(components * (removedGraphElements * components^2 + danglingEdges * (componentsize + components)))
                 const tryToConnectComponentsWithGraphElement = this.getGraphElementIdxAndMergedComponents(connectedComponents, danglingEdges);
@@ -837,6 +832,7 @@ export class FixedRootWeaklyConnectedGraph {
                 
                 connectedComponents = mergedComponents;
             }
+            this.benchmarkData.restoreSingleGraphElementsTime = performance.now() - restoreSingleGraphElementsStart;
 
             let allGraphElementsRev: RemovedGraphElementDirected[] | undefined = undefined
 
@@ -872,8 +868,8 @@ export class FixedRootWeaklyConnectedGraph {
             // O(V! * pathLength * (removedGraphElements + danglingEdges))
             // > O(removedGraphElements! * (removedGraphElements + danglingEdges))
             let allPathsSorted: Array<[RestorablePathDirected, BigInt]> | undefined
-            if (!useVirtualGraph)
-            {
+            if (!useVirtualGraph && connectedComponents.size > 1){
+                const pathInitalizationStart = performance.now()
                 allPathsSorted = 
                     connectedComponents.size > 1 
                     ? Array.from(
@@ -884,7 +880,7 @@ export class FixedRootWeaklyConnectedGraph {
                         .filter(([, cost], idx, arr) => idx === 0 || cost > arr[idx - 1][1])
                     : []
 
-                
+                this.benchmarkData.pathInitalizationTime = performance.now() - pathInitalizationStart
                 this.benchmarkData.paths = allPathsSorted.length;
             }
 
@@ -895,6 +891,7 @@ export class FixedRootWeaklyConnectedGraph {
             // + O(components * (removedGraphElements^2 + removedGraphElements * danglingEdgesToPath))
             // = O(components * (removedGraphElements! * ((danglingEdges + components * V) + log(removedGraphElements!)) + V^2 + danglingEdgesToPath))
             while (connectedComponents.size > 1 && !useVirtualGraph) {
+                const pathStart = performance.now()
                 const tryToConnectComponentsWithPath = 
                     usePathVariant2 ? 
                     computePathConnectingComponentsVar2<true>(connectedComponents, allPathsSorted!, danglingEdges)
@@ -919,13 +916,18 @@ export class FixedRootWeaklyConnectedGraph {
                             allPathsSorted!.splice(i, 1)
                         }
                     }
-                    this.benchmarkData.restoredPathLengths.push(path.edges.length + 1);
+                    const pathTime = performance.now() - pathStart
+                    this.benchmarkData.restoredPaths.push({
+                        length: path.edges.length + 1,
+                        time: pathTime
+                    });
                 }
 
                 assert(tryToConnectComponentsWithPath !== undefined, 'Could not connect components');
             }
 
             while (connectedComponents.size > 1 && useVirtualGraph) {
+                const pathStart = performance.now()
                 const graph = computeAdjacencyMapGraphFromRemovedGraphElements<true>(this.removedGraphElements.toArray().concat([...danglingEdges]))
                 const foundPath = computePathConnectingComponentsVar3<true>(connectedComponents, graph, danglingEdges)
                 assert(foundPath !== undefined, 'There was no path found')
@@ -933,7 +935,11 @@ export class FixedRootWeaklyConnectedGraph {
                 this.addYRemovedPath(path, resolvedDanglingEdges)
                 danglingEdges = danglingEdges.difference(resolvedDanglingEdges)
                 connectedComponents = mergedComponents
-                this.benchmarkData.restoredPathLengths.push(path.edges.length + 1);
+                const pathTime = performance.now() - pathStart
+                this.benchmarkData.restoredPaths.push({
+                    length: path.edges.length + 1, 
+                    time: pathTime
+                });
             }
 
             // Remove remaining dangling edges which were not used to connect components
@@ -945,7 +951,7 @@ export class FixedRootWeaklyConnectedGraph {
             assert(this.getDanglingEdges().length === 0, 'Dangling edges should be removed');
             assert(this.isConsistent(), 'Edge information is not consistent')
 
-            return { ...this.benchmarkData, time: performance.now() - start }
+            return { ...this.benchmarkData, totalTime: performance.now() - start }
         });
     }
 
