@@ -1,5 +1,5 @@
 import { MarkerType, XYPosition } from "@xyflow/react";
-import * as automerge from "@automerge/automerge";
+import { next as automerge } from "@automerge/automerge";
 import { id, FlowNode, FlowEdge, EventEmitter, EdgeId, splitEdgeId} from "../Types";
 import { Graph, IncomingNodesGraph } from "./Graph";
 import { AutomergeObject } from "./AutomergeObject";
@@ -20,12 +20,16 @@ export class AdjacencyMapWithFasterNodeDeletionAutomerge extends AutomergeObject
     private selectedNodes: Set<id>;
     private selectedEdges: Set<EdgeId>;
 
-    constructor(amdoc: automerge.next.Doc<AdjacencyMapWithFasterNodeDeletionAutomergeGraph>, eventEmitter?: EventEmitter) {
+    constructor(amdoc: automerge.Doc<AdjacencyMapWithFasterNodeDeletionAutomergeGraph>, eventEmitter?: EventEmitter) {
         super(amdoc, eventEmitter)
         this.selectedNodes = new Set();
         this.selectedEdges = new Set();
     }
 
+    protected override resolveConflicts(): void {
+        this.removeDanglingEdges()
+    }
+    
     private removeDanglingEdges() {
         for (const source of Object.values(this.doc.map)) {
             for (const target of Object.keys(source.edgeInformation)) {
@@ -203,7 +207,6 @@ export class AdjacencyMapWithFasterNodeDeletionAutomerge extends AutomergeObject
     }
 
     edgesAsFlow(): FlowEdge[] {
-        this.removeDanglingEdges();
         const nestedEdges = 
             Object.entries(this.doc.map).map(([sourceNode, nodeInfo]) => {  
                 return Object.entries(nodeInfo.edgeInformation).map(([targetNode, edgeInfo]) => {
@@ -228,7 +231,6 @@ export class AdjacencyMapWithFasterNodeDeletionAutomerge extends AutomergeObject
     }
      
     getEdge(source: id, target: id): FlowEdge | undefined {
-        this.removeDanglingEdges();
         let edge = this.doc.map[source]?.edgeInformation[target];
         if (edge === undefined)
             return undefined;

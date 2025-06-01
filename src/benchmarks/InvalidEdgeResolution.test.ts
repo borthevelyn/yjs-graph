@@ -10,6 +10,10 @@ import { Graph } from '../graphs/Graph';
 import { InitialGraph, makeLineWithRaysFRCUG, makeLineWithRaysFRWCG, makeLineWithRaysGraph } from './InitialGraphs';
 import { FixedRootWeaklyConnectedGraph } from '../graphs/FixedRootWeaklyConnectedGraph';
 import { FixedRootConnectedUndirectedGraph } from '../graphs/FixedRootConnectedUndirectedGraph';
+import { AdjacencyListAutomerge } from '../graphs/AdjacencyListAutomerge';
+import * as automerge from "@automerge/automerge";
+import { AdjacencyMapAutomerge } from '../graphs/AdjacencyMapAutomerge';
+import { AdjacencyMapWithFasterNodeDeletionAutomerge } from '../graphs/AdjacencyMapWithFasterNodeDeletionAutomerge';
 
 
 describe('benchmarks', () => {
@@ -83,12 +87,12 @@ describe('benchmarks', () => {
             }])
     }
 
-
-    // takes about 11 minutes
+    // Invalid edge resolution
+    // Automerge variants are not included in the final plot, as they are too slow in this benchmark
     test('one dangling edge per ray, delete all rays', async () => {
-        const writer = makeBenchmarkCsvWriter<EssentialHeaders & CRDanglingEdgeHeaders>('cr_oneEdgePerRay.csv')
+        const writer = makeBenchmarkCsvWriter<EssentialHeaders & CRDanglingEdgeHeaders>('cr_oneEdgePerRay2.csv')
         const graphSizes = [10, 20, 50, 100, 200, 400, 600, 800, 1000]
-        const iterations = 50
+        const iterations = 1
 
         // a line with ray graph is created for each graph variant
         // each variant has two clients
@@ -112,8 +116,20 @@ describe('benchmarks', () => {
                 const adjs2 = new AdjacencySet(new Y.Doc())
         
                 const adjmf1 = new AdjacencyMapWithFasterNodeDeletion(new Y.Doc())
-                const adjmf2 = new AdjacencyMapWithFasterNodeDeletion(new Y.Doc())    
-        
+                const adjmf2 = new AdjacencyMapWithFasterNodeDeletion(new Y.Doc()) 
+                
+                const adlAuto1 = new AdjacencyListAutomerge(automerge.change(automerge.init(), (doc) => { doc.map = {} }))
+                const admAuto1 = new AdjacencyMapAutomerge(automerge.change(automerge.init(), (doc) => { doc.map = {} }))
+                const admwfndAuto1 = new AdjacencyMapWithFasterNodeDeletionAutomerge(automerge.change(automerge.init(), (doc) => { doc.map = {} }))
+
+                const adlAuto2 = new AdjacencyListAutomerge(automerge.change(automerge.init(), (doc) => { doc.map = {} }))
+                const admAuto2 = new AdjacencyMapAutomerge(automerge.change(automerge.init(), (doc) => { doc.map = {} }))
+                const admwfndAuto2 = new AdjacencyMapWithFasterNodeDeletionAutomerge(automerge.change(automerge.init(), (doc) => { doc.map = {} }))
+                
+                AdjacencyListAutomerge.sync(adlAuto1, adlAuto2)
+                AdjacencyMapAutomerge.sync(admAuto1, admAuto2)
+                AdjacencyMapWithFasterNodeDeletionAutomerge.sync(admwfndAuto1, admwfndAuto2)
+
                 const graphs: [GraphVariant, Graph, Graph, () => number[]][] = [
                     [GraphVariant.DAG, dag1, dag2, 
                         () => DirectedAcyclicGraph.syncDefault([dag1, dag2]).map(x => x.resolveInvalidEdgesTime)
@@ -125,7 +141,15 @@ describe('benchmarks', () => {
                         () => AdjacencySet.syncDefault([adjs1, adjs2]).map(x => x.time)
                     ], [GraphVariant.AdjMapFasterDelete, adjmf1, adjmf2,
                         () => AdjacencyMapWithFasterNodeDeletion.syncDefault([adjmf1, adjmf2]).map(x => x.time)
-                    ]
+                    ], 
+/*                      [GraphVariant.AdjMapAuto, admAuto1, admAuto2,
+                        () => AdjacencyMapAutomerge.syncDefault([admAuto1, admAuto2]).map(x => x.time)
+                    ],[GraphVariant.AdjListAuto, admAuto1, admAuto2,
+                        () => AdjacencyListAutomerge.syncDefault([adlAuto1, adlAuto2]).map(x => x.time)
+                    ],[GraphVariant.AdjMapFasterDeleteAuto, admwfndAuto1, admwfndAuto2,
+                        () => AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([admwfndAuto1, admwfndAuto2]).map(x => x.time)
+                    ], */
+
                 ]
         
                 for (const [variant, graph1, graph2, sync] of graphs) {

@@ -58,6 +58,7 @@ describe('benchmarks', () => {
         }
     }
     
+    // Update storm prevention
     test('DAG updatestorm benchmark', async () => {
         await fc.assert(commandProperty({
             maxClientCount: 10,

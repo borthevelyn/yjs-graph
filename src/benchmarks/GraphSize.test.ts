@@ -465,8 +465,9 @@ describe('properties', () => {
         }
     }
 
+    // Node and edge insertion in empty graph
     test('graphsize increasing operations', async () => {
-        const writer = makeBenchmarkCsvWriter<EssentialHeaders & BasicOpHeaders>('graphSizeBasicOpsIncr.csv')
+        const writer = makeBenchmarkCsvWriter<EssentialHeaders & BasicOpHeaders>('graphSizeBasicOpsIncr2.csv')
         const repeat = 10
         for (let i = 0; i < repeat; i++) {
             await benchmarkIncreasingOperationsEmpty('sdga3w5', 200, writer)
@@ -474,10 +475,11 @@ describe('properties', () => {
         }    
     }, 5000000);
     
+    // Node and edge removal in complete graph
     // this takes much much longer than the increasing operations
     test('graphsize decreasing operations (complete)', async () => {
         const writer = makeBenchmarkCsvWriter<EssentialHeaders & BasicOpHeaders>('graphSizeBasicOpsDecrComplete.csv')
-        const repeat = 5
+        const repeat = 8
         for (let i = 0; i < repeat; i++) {
             await benchmarkDecreasingOperationsComplete('asdgasdg', 200, writer)
             await benchmarkDecreasingOperationsCompleteConnected(200, writer)
@@ -485,6 +487,7 @@ describe('properties', () => {
         }
     }, 5000000);
 
+    // Node and edge removal in line graph
     test('graphsize decreasing operations (line)', async () => {
         const writer = makeBenchmarkCsvWriter<EssentialHeaders & BasicOpHeaders>('graphSizeBasicOpsDecrLine.csv')
         const repeat = 10

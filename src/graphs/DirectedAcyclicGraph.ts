@@ -90,6 +90,20 @@ export class DirectedAcyclicGraph implements Graph {
         });
     }
 
+    private filterRemovedNodeInYEdges(nodeId: id) {
+        this.yMatrix.doc!.transact(() => {
+            const arr = this.yEdgesAsArray ?? this.yEdges.toArray();
+            let edgeIndex;
+            do {
+                edgeIndex = arr.findIndex(x => splitEdgeId(x.edgeId).some(id => id === nodeId));
+                if (edgeIndex !== -1) {
+                    arr.splice(edgeIndex, 1);
+                    this.yEdges.delete(edgeIndex);
+                }
+            } while(edgeIndex >= 0);
+        });
+    }
+
 
     public hasInvalidEdges() {
         const dangling = [...this.yMatrix.values()].some(source => [...source.get('edgeInformation').keys()].some(target => this.yMatrix.get(target) === undefined))
@@ -555,9 +569,7 @@ export class DirectedAcyclicGraph implements Graph {
 
         this.yMatrix.doc!.transact(() => {
 
-            for (const target of this.yMatrix.get(nodeId)!.get('edgeInformation').keys()) {
-                this.filterRemovedEdgeInYEdges(`${nodeId}+${target}`);
-            }
+            this.filterRemovedNodeInYEdges(nodeId)
 
             this.yMatrix.delete(nodeId)
             for (const nodeInformation of this.yMatrix.values()) {
@@ -566,8 +578,6 @@ export class DirectedAcyclicGraph implements Graph {
                 
                 nodeInformation.get('edgeInformation').delete(nodeId);
                 const edgeId: EdgeId = `${nodeInformation.get('id')}+${nodeId}`;
-
-                this.filterRemovedEdgeInYEdges(edgeId);
 
                 this.selectedEdges.delete(edgeId);
             }

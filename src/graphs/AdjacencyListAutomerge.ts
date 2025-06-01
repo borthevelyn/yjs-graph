@@ -1,7 +1,7 @@
 import { MarkerType, XYPosition } from "@xyflow/react";
 import { id, FlowNode, FlowEdge, EventEmitter, EdgeId, splitEdgeId } from "../Types";
 import { Graph } from "./Graph";
-import * as automerge from "@automerge/automerge";
+import { next as automerge } from "@automerge/automerge";
 import { AutomergeObject } from "./AutomergeObject";
 
 type EdgeInformation = {
@@ -18,7 +18,7 @@ export class AdjacencyListAutomerge extends AutomergeObject<AdjacencyListAutomer
     private selectedNodes: Set<id>;
     private selectedEdges: Set<EdgeId>;
 
-    constructor(amdoc: automerge.next.Doc<AdjacencyListAutomergeGraph>, eventEmitter?: EventEmitter) {
+    constructor(amdoc: automerge.Doc<AdjacencyListAutomergeGraph>, eventEmitter?: EventEmitter) {
         super(amdoc, eventEmitter)
         this.selectedNodes = new Set();
         this.selectedEdges = new Set();
@@ -53,6 +53,14 @@ export class AdjacencyListAutomerge extends AutomergeObject<AdjacencyListAutomer
         }
     }
 
+    private removeInvalidEdges() {
+        this.removeDuplicateEdges()
+        this.removeDanglingEdges()
+    }
+
+    protected override resolveConflicts(): void {
+        this.removeInvalidEdges()
+    }
 
     addNode(nodeId: id, label: string, position: XYPosition): void {
         this.changeDoc(doc => {
@@ -131,6 +139,7 @@ export class AdjacencyListAutomerge extends AutomergeObject<AdjacencyListAutomer
                 }
             });
     }
+    
     changeNodePosition(nodeId: id, position: XYPosition): void {
         const nodeInfo = this.doc.map[nodeId];
         if (nodeInfo === undefined) {
@@ -186,8 +195,6 @@ export class AdjacencyListAutomerge extends AutomergeObject<AdjacencyListAutomer
         });
     }
     edgesAsFlow(): FlowEdge[] {
-        this.removeDanglingEdges();
-        this.removeDuplicateEdges();
         const nestedEdges = 
             Object.entries(this.doc.map).map(([sourceNode, nodeInfo]) => {  
                 return Object.entries(nodeInfo.edgeInformation).map(([targetNode, edgeInfo]) => {
@@ -210,9 +217,6 @@ export class AdjacencyListAutomerge extends AutomergeObject<AdjacencyListAutomer
         return this.doc.map[nodeId]?.flowNode;
     }
     getEdge(source: id, target: id): FlowEdge | undefined {
-        this.removeDanglingEdges();
-        this.removeDuplicateEdges();
-
         let targetIndex = this.doc.map[source]?.edgeInformation.findIndex(edgeInfo => edgeInfo.id === target);
         if (targetIndex === undefined || targetIndex === -1) {
             console.log('targetindex is -1', source, target, this.doc.map[source]?.edgeInformation);

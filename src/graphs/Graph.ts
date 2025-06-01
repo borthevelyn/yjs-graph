@@ -30,3 +30,11 @@ export interface WeaklyConnectedGraphWithFixedRoot extends Omit<Graph, 'addNode'
 export interface IncomingNodesGraph<NodeSet> {
     getIncomingNodes(nodeId: id): NodeSet | undefined;
 }
+
+export type AppGraphData = {
+    graph1: Graph
+    graph2: Graph
+    sync1to2: () => void
+    sync2to1: () => void
+    syncBoth: () => void
+}

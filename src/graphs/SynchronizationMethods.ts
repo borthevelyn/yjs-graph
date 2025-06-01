@@ -1,4 +1,4 @@
-import { randomUUID } from 'crypto';
+import { v4 } from 'uuid';
 import * as Y from 'yjs';
 import { UpdateStormHeaders } from '../benchmarks/Benchmark';
 import { assert } from 'console';
@@ -33,7 +33,7 @@ export async function syncPUSPromAll<T, G extends object>(
     makeValid: (graph: T) => G,
     maxSleepDur: number): Promise<[UpdateStormHeaders, undefined | G][]> {
 
-    const id = randomUUID().substring(0, 7)
+    const id = v4().substring(0, 7)
 
     // parallel for such that each peer runs concurrently
     return await Promise.all(
@@ -124,7 +124,7 @@ export async function syncPUSParSim<T, G extends object>(
     maxSleepDur: number,
     networkDelay: number = 0): Promise<[UpdateStormHeaders, undefined | G][]> {
 
-    const id = randomUUID().substring(0, 7)
+    const id = v4().substring(0, 7)
     const initTime = performance.now()
 
     const states = graphs.map<ThreadState<T, G>>((graph, idx) => {

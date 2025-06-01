@@ -141,7 +141,6 @@ export enum ConflictResolutionVariant {
     AllEdgesToOneRay = 'All edges to one ray',
     Variant1 = 'Variant 1',
     Variant2 = 'Variant 2',
-    Variant3 = 'Variant 3',
 }
 export type CRDanglingEdgeHeaders = {
     danglingEdgeResolutionTime: number
@@ -161,8 +160,6 @@ export type CRCyclesDAGHeaders = {
 }
 type AllHeadersIncludeCRCyclesDAGHeaders = AssertContainsKeys<keyof CRCyclesDAGHeaders>
 
-
-
 export type CRConnectednessHeaders = {
     crvariant: ConflictResolutionVariant,
     removedGraphElements: number,
@@ -174,15 +171,6 @@ export type CRConnectednessHeaders = {
     restoredNodesWithEdges?: number
     restoredEdges?: number
     restoredPaths?: number
-
-    // nodeCount: number, 
-    // edgeCount: number, 
-    // executionMillis: number,
-    // componentCount: number,
-    // resolutionSteps: number,
-    // resolvedEdgeCount: number,
-    // resolvedNodeWithEdgeCount: number,
-    // resolvedPathCount: number,
 }
 type AllHeadersIncludeCRConnectednessHeaders = AssertContainsKeys<keyof CRConnectednessHeaders>
 

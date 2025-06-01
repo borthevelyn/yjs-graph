@@ -29,7 +29,7 @@ describe('properties', () => {
         
         await fc.assert(
             commandProperty({
-                clientCount,
+                maxClientCount: clientCount,
                 maxGraphSize,
                 maxOperationCount: maxOperationsPerRoundCount,
                 minOperationCount: 8,
@@ -93,7 +93,7 @@ describe('properties', () => {
         const maxOperationsPerRoundCount = 30;
         await fc.assert(
             commandProperty({
-                clientCount,
+                maxClientCount: clientCount,
                 maxOperationCount: maxOperationsPerRoundCount,
                 minOperationCount: 15,
                 maxGraphSize

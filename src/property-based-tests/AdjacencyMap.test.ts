@@ -107,7 +107,7 @@ describe('properties', () => {
         runTest(clientCount, initialGraphSize, maxGraphSize, maxOperationsPerRoundCount);
     });
 
-    // 36 minutes ???
+
     test('general test with many clients', () => {
         const clientCount = 10;
         const initialGraphSize = 5;

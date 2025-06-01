@@ -22,8 +22,8 @@ function wrapUndirected(g: FixedRootConnectedUndirectedGraph): TestGraph & { get
         addNodeWithEdge(nodeId, edgeDirection, otherNodeId, nodeLabel, nodePosition, edgeLabel) {
             return g.addNodeWithEdge(nodeId, otherNodeId, nodeLabel, nodePosition, edgeLabel)
         },
-        removeEdge(source, target, vec) {
-            return g.removeEdge(source, target, vec)
+        removeEdge(source, target) {
+            return g.removeEdge(source, target)
         },
         getSource() {
             return g
@@ -198,8 +198,6 @@ function deleteFromDonutGraph(g: TestGraph, begin: number, count: number) {
 
 
 describe('benchmarks', () => {
-    
-
 
     test('simple two path restoration', async () => {
         const twoPathsInfo: TwoPathsInfo = {
@@ -243,22 +241,22 @@ describe('benchmarks', () => {
         sync: (graphs: Graph[]) => SyncData
     }
 
-    function fixedRootWeaklyConnected(useVirtualGraph: boolean, useVariant2: boolean = false): 
+    function fixedRootWeaklyConnected(useVariant2: boolean): 
         GraphTypeInfo<ReturnType<typeof FixedRootWeaklyConnectedGraph.syncDefault>, FixedRootWeaklyConnectedGraph>
     {
         return {
             makeNewGraph: () => new FixedRootWeaklyConnectedGraph(new Y.Doc()),
-            sync: graphs => FixedRootWeaklyConnectedGraph.syncDefault(graphs, useVirtualGraph, useVariant2)
+            sync: graphs => FixedRootWeaklyConnectedGraph.syncDefault(graphs, useVariant2)
         }
     }
 
     
-    function fixedRootConnectedUndirected(useVirtualGraph: boolean, useVariant2: boolean = false): 
+    function fixedRootConnectedUndirected(useVariant2: boolean): 
         GraphTypeInfo<ReturnType<typeof FixedRootConnectedUndirectedGraph.syncDefault>, ReturnType<typeof wrapUndirected>>
     {
         return {
             makeNewGraph: () => wrapUndirected(new FixedRootConnectedUndirectedGraph(new Y.Doc())),
-            sync: graphs => FixedRootConnectedUndirectedGraph.syncDefault(graphs.map(x => x.getSource()), useVirtualGraph, useVariant2)
+            sync: graphs => FixedRootConnectedUndirectedGraph.syncDefault(graphs.map(x => x.getSource()), useVariant2)
         }
     }
 
@@ -306,42 +304,8 @@ describe('benchmarks', () => {
 
         return graphTypeInfo.sync(graphs)
     }
-    test('partial graphs', async () => {
-        const writer = makeBenchmarkCsvWriter<EssentialHeaders>('connectedness_partial_graph.csv')
-        const nodeCount = 60
-        const edgesPerNode = 3
-        const deletedEdgesPerNodeAndClient: [number, number] = [3, 3]
-        const nodesToAppend = 1
 
-        // yields quite long paths (10 - 15)
-        // 80, 2, [2, 2], 1
-        const data1 = benchmarkPartialGraph('asfasf',  40, 2, [2, 2], 1, fixedRootWeaklyConnected(false, false))
-        const data2 = benchmarkPartialGraph('asfssf', 40, 2, [2, 2], 1, fixedRootConnectedUndirected(false, false))
-        // const data3 = benchmarkPartialGraph('asfsdgsf', 20, 5, [4, 6], 1, fixedRootWeaklyConnected(true))
-        const data4 = benchmarkPartialGraph('asfasf', 40, 2, [2, 2], 1, fixedRootWeaklyConnected(true))
-        writer.writeRecords([
-            {
-                ...data4,
-                cause: Cause.OpConflictResolution,
-                clientCount: 4,
-                graphVariant: GraphVariant.FRWCG,
-                initialGraph: InitialGraph.Partial,
-            }
-
-        ])
-        
-        console.log(data1)
-    })
-
-    test('donut graphs', async () => {
-        // const data = benchmarkDonutGraph(1600, [2, 4, 8, 16, 32, 64, 128, 256, 512, 513], fixedRootWeaklyConnected(true))
-        const data1 = benchmarkDonutGraph(1600, [2, 4, 8, 16, 32, 64, 128, 256, 512, 513], fixedRootWeaklyConnected(true))
-        const data2 = benchmarkDonutGraph(1600, [2, 4, 8, 16, 32, 64, 128, 256, 512, 513], fixedRootWeaklyConnected(false, false))
-        const data3 = benchmarkDonutGraph(1600, [2, 4, 8, 16, 32, 64, 128, 256, 512, 513], fixedRootWeaklyConnected(false, true))
-        const x = 3
-    })
-
-    // currently takes 90 seconds
+    // Connectedness Resolution with Paths 
     test('donut graph: time / removedElems', async () => {
         const writer = makeBenchmarkCsvWriter<EssentialHeaders & CRConnectednessHeaders>('connectedness_time_removedElems.csv')
         // tests each graph variant of directed and undirected connected graphs.
@@ -368,10 +332,10 @@ describe('benchmarks', () => {
 
         async function benchmark(size: number, counts: number[], graphVariant: GraphVariant, crvariant: ConflictResolutionVariant) {
             if (graphVariant === GraphVariant.FRWCG) {
-                await writeBenchmark(benchmarkDonutGraph(size, counts, fixedRootWeaklyConnected(crvariant === ConflictResolutionVariant.Variant3, crvariant === ConflictResolutionVariant.Variant2)), counts.length, graphVariant, crvariant)
+                await writeBenchmark(benchmarkDonutGraph(size, counts, fixedRootWeaklyConnected(crvariant === ConflictResolutionVariant.Variant2)), counts.length, graphVariant, crvariant)
             }
             else {
-                await writeBenchmark(benchmarkDonutGraph(size, counts, fixedRootConnectedUndirected(crvariant === ConflictResolutionVariant.Variant3, crvariant === ConflictResolutionVariant.Variant2)), counts.length, graphVariant, crvariant)
+                await writeBenchmark(benchmarkDonutGraph(size, counts, fixedRootConnectedUndirected(crvariant === ConflictResolutionVariant.Variant2)), counts.length, graphVariant, crvariant)
             }
         }
 
@@ -384,15 +348,15 @@ describe('benchmarks', () => {
             for (let j = 0; j < repeat; j++) {
                 // each `benchmark` is repeated counts often times in these functions (because of the sync and counts many clients)
                 await benchmark(size, currentCounts, GraphVariant.FRWCG, ConflictResolutionVariant.Variant1)
-                await benchmark(size, currentCounts, GraphVariant.FRWCG, ConflictResolutionVariant.Variant3)
+                await benchmark(size, currentCounts, GraphVariant.FRWCG, ConflictResolutionVariant.Variant2)
                 await benchmark(size, currentCounts, GraphVariant.FRCUG, ConflictResolutionVariant.Variant1)
-                await benchmark(size, currentCounts, GraphVariant.FRCUG, ConflictResolutionVariant.Variant3)
+                await benchmark(size, currentCounts, GraphVariant.FRCUG, ConflictResolutionVariant.Variant2)
             }
         }
     }, 5000000)
 
 
-    // currently takes 3 minutes
+    // Connectedness Resolution by Single Graph Elements
     test('partial graph: total / components (single elements)', async () => {
         const writer = makeBenchmarkCsvWriter<EssentialHeaders & CRConnectednessHeaders>('connectedness_total_components.csv')
 
@@ -416,7 +380,7 @@ describe('benchmarks', () => {
                     cause: Cause.OpConflictResolution,
                     clientCount: 4,
                     componentCount: datum.connectedComponents,
-                    crvariant: ConflictResolutionVariant.Variant3,
+                    crvariant: ConflictResolutionVariant.Variant2,
                     executionMillis: datum.restoreSingleGraphElementsTime,
                     graphVariant: directed ? GraphVariant.FRWCG : GraphVariant.FRCUG,
                     initialGraph: InitialGraph.Partial,

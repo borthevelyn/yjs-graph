@@ -1,5 +1,5 @@
 import { MarkerType, XYPosition } from "@xyflow/react";
-import * as automerge from "@automerge/automerge";
+import { next as automerge } from "@automerge/automerge";
 import { id, FlowNode, FlowEdge, EventEmitter, EdgeId, splitEdgeId } from "../Types";
 import { Graph } from "./Graph";
 import { AutomergeObject } from "./AutomergeObject";
@@ -16,10 +16,14 @@ export class AdjacencyMapAutomerge extends AutomergeObject<AdjacencyMapAutomerge
     private selectedNodes: Set<id>;
     private selectedEdges: Set<EdgeId>;
 
-    constructor(amdoc: automerge.next.Doc<AdjacencyMapAutomergeGraph>, eventEmitter?: EventEmitter) {
+    constructor(amdoc: automerge.Doc<AdjacencyMapAutomergeGraph>, eventEmitter?: EventEmitter) {
         super(amdoc, eventEmitter)
         this.selectedNodes = new Set();
         this.selectedEdges = new Set();
+    }
+
+    protected override resolveConflicts(): void {
+        this.removeDanglingEdges()
     }
 
     private removeDanglingEdges() {
@@ -59,9 +63,7 @@ export class AdjacencyMapAutomerge extends AutomergeObject<AdjacencyMapAutomerge
                 }, 
                 edgeInformation: {}
             }
-        }
-        );
-        console.log('document of newly created map (should not be null)', this.doc.map[nodeId]);
+        });
     }
 
     addEdge(source: id, target: id, label: string): void {
@@ -165,7 +167,6 @@ export class AdjacencyMapAutomerge extends AutomergeObject<AdjacencyMapAutomerge
     }
 
     edgesAsFlow(): FlowEdge[] {
-        this.removeDanglingEdges();
         const nestedEdges = 
             Object.entries(this.doc.map).map(([sourceNode, nodeInfo]) => {  
                 return Object.entries(nodeInfo.edgeInformation).map(([targetNode, edgeInfo]) => {
@@ -190,7 +191,6 @@ export class AdjacencyMapAutomerge extends AutomergeObject<AdjacencyMapAutomerge
     }
      
     getEdge(source: id, target: id): FlowEdge | undefined {
-        this.removeDanglingEdges();
         let edge = this.doc.map[source]?.edgeInformation[target];
         if (edge === undefined)
             return undefined;

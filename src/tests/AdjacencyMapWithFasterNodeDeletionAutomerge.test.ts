@@ -1,4 +1,4 @@
-import * as automerge from '@automerge/automerge'
+import { next as automerge } from '@automerge/automerge'
 import { AdjacencyMapWithFasterNodeDeletionAutomerge, AdjacencyMapWithFasterNodeDeletionAutomergeGraph } from '../graphs/AdjacencyMapWithFasterNodeDeletionAutomerge'
 
 /* 
@@ -26,7 +26,7 @@ describe('AdjacencyMapWithFasterNodeDeletion', () => {
 
     it('should add a node from yMatrix1 to both maps', () => {
         graph1.addNode('node1', 'node1', { x: 0, y: 0 });
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
 
         expect(graph1.getNode('node1')).toBeDefined();
         expect(graph2.getNode('node1')).toBeDefined();
@@ -40,7 +40,7 @@ describe('AdjacencyMapWithFasterNodeDeletion', () => {
 
     it('should add a node from yMatrix2 to both maps', () => {
         graph2.addNode('node1', 'node1', { x: 0, y: 0 });
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
 
         expect(graph1.getNode('node1')).toBeDefined();
         expect(graph2.getNode('node1')).toBeDefined();
@@ -54,13 +54,13 @@ describe('AdjacencyMapWithFasterNodeDeletion', () => {
 
     it('should delete a node in both maps', () => {
         graph1.addNode('node2', 'node2', { x: 0, y: 0 });
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
         expect(graph1.getNode('node2')).toBeDefined();
         expect(graph2.getNode('node2')).toBeDefined();
         expect(graph1.nodeCount).toBe(1);
         expect(graph2.nodeCount).toBe(1);
         graph1.removeNode('node2');
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
 
         expect(graph1.getNode('node1')).toBeUndefined();
         expect(graph1.getNode('node2')).toBeUndefined();
@@ -76,7 +76,7 @@ describe('AdjacencyMapWithFasterNodeDeletion', () => {
         graph1.addNode('node1', 'node1', { x: 0, y: 0 });
         graph1.addNode('node2', 'node2', { x: 0, y: 0 });
         graph1.addEdge('node1', 'node2', 'edge 1');
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
 
         const incomingNodesForNode1InMatrix1 = graph1.getIncomingNodes('node1');
         const incomingNodesForNode1Matrix2 = graph2.getIncomingNodes('node1');
@@ -109,7 +109,7 @@ describe('AdjacencyMapWithFasterNodeDeletion', () => {
         graph2.addNode('node1', 'node1', { x: 0, y: 0 });
         graph2.addNode('node2', 'node2', { x: 0, y: 0 });
         graph2.addEdge('node1', 'node2', 'edge1');
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
  
         const incomingNodesForNode1InMatrix1 = graph1.getIncomingNodes('node1');
         const incomingNodesForNode1Matrix2 = graph2.getIncomingNodes('node1');
@@ -142,9 +142,9 @@ describe('AdjacencyMapWithFasterNodeDeletion', () => {
         graph1.addNode('node1', 'Node 1', { x: 0, y: 0 });
         graph1.addNode('node2', 'Node 2', { x: 0, y: 0 });
         graph1.addEdge('node1', 'node2', 'edge1');
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
         graph1.removeEdge('node1', 'node2');
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
 
         const incomingNodesForNode2InMatrix1 = graph1.getIncomingNodes('node2');
         const incomingNodesForNode2Matrix2 = graph2.getIncomingNodes('node2');
@@ -165,7 +165,7 @@ describe('AdjacencyMapWithFasterNodeDeletion', () => {
     it('add node1 in one map and node2 in the other map)', () => {
         graph1.addNode('node1', 'node1', { x: 0, y: 0 });
         graph2.addNode('node2', 'node2', { x: 10, y: 0 });
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
 
         expect(graph1.getNode('node1')).toBeDefined();
         expect(graph1.getNode('node2')).toBeDefined();
@@ -178,10 +178,10 @@ describe('AdjacencyMapWithFasterNodeDeletion', () => {
 // addNode(m), addEdge(n1,n2), m == n2, but not synchronously
     it('add node1 in one map and then node2 with edge1-2 in the other map', () => {
         graph1.addNode('node1', 'node1', { x: 0, y: 0 });
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
         graph2.addNode('node2', 'node2', { x: 10, y: 0 });
         graph2.addEdge('node1', 'node2', 'edge1-2');
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
 
         const incomingNodesForNode2InMatrix1 = graph1.getIncomingNodes('node2');
         const incomingNodesForNode2InMatrix2 = graph2.getIncomingNodes('node2');
@@ -212,10 +212,10 @@ describe('AdjacencyMapWithFasterNodeDeletion', () => {
 // addNode(m), removeNode(n), m != n
     it('add node1 in one map and remove node2 the other map', () => {
         graph2.addNode('node2', 'node2', { x: 10, y: 0 });
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
         graph1.addNode('node1', 'node1', { x: 0, y: 0 });
         graph2.removeNode('node2');
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
 
         expect(graph1.getNode('node1')).toBeDefined();
         expect(graph1.getNode('node2')).toBeUndefined();
@@ -233,10 +233,10 @@ describe('AdjacencyMapWithFasterNodeDeletion', () => {
         graph2.addNode('node1', 'node1', { x: 0, y: 0 });
         graph2.addNode('node2', 'node2', { x: 10, y: 0 });
         graph2.addEdge('node1', 'node2', 'edge1-2');
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
         graph1.addNode('node3', 'node3', { x: 10, y: 0 });
         graph2.removeEdge('node1', 'node2');
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
 
         const incomingNodesForNode2InMatrix1 = graph1.getIncomingNodes('node2');
         const incomingNodesForNode2InMatrix2 = graph2.getIncomingNodes('node2');
@@ -267,10 +267,10 @@ describe('AdjacencyMapWithFasterNodeDeletion', () => {
         graph1.addNode('node1', 'node1', { x: 0, y: 0 });
         graph1.addNode('node2', 'node2', { x: 10, y: 0 });
         graph2.addNode('node3', 'node3', { x: 10, y: 0 });
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
         graph1.addEdge('node1', 'node2', 'edge1-2');
         graph2.addEdge('node1', 'node3', 'edge1-3');
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
 
         const incomingNodesForNode2InMatrix1 = graph1.getIncomingNodes('node2');
         const incomingNodesForNode2InMatrix2 = graph2.getIncomingNodes('node2');
@@ -315,10 +315,10 @@ describe('AdjacencyMapWithFasterNodeDeletion', () => {
         graph1.addNode('node1', 'node1', { x: 0, y: 0 });
         graph1.addNode('node2', 'node2', { x: 10, y: 0 });
         graph1.addNode('node3', 'node3', { x: 0, y: 10 });
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
         graph1.addEdge('node1', 'node2', 'edge1-2');
         graph2.addEdge('node3', 'node2', 'edge3-2');
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
 
         const incomingNodesForNode2InMatrix1 = graph1.getIncomingNodes('node2');
         const incomingNodesForNode2InMatrix2 = graph2.getIncomingNodes('node2');
@@ -358,10 +358,10 @@ describe('AdjacencyMapWithFasterNodeDeletion', () => {
         graph1.addNode('node2', 'node2', { x: 10, y: 0 });
         graph2.addNode('node3', 'node3', { x: 0, y: 10 });
         graph2.addNode('node4', 'node4', { x: 10, y: 10 });
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
         graph1.addEdge('node1', 'node2', 'edge1-2');
         graph2.addEdge('node3', 'node4', 'edge3-4');
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
 
         const incomingNodesForNode2InMatrix1 = graph1.getIncomingNodes('node2');
         const incomingNodesForNode2InMatrix2 = graph2.getIncomingNodes('node2');
@@ -407,10 +407,10 @@ describe('AdjacencyMapWithFasterNodeDeletion', () => {
     it('try to add edge twice', () => {
         graph1.addNode('node1', 'node1', { x: 0, y: 0 });
         graph1.addNode('node2', 'node2', { x: 10, y: 0 });
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
         graph2.addEdge('node1', 'node2', 'second edge1-2');
         graph1.addEdge('node1', 'node2', 'edge1-2');
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
 
         const incomingNodesForNode2InMatrix1 = graph1.getIncomingNodes('node2');
         const incomingNodesForNode2InMatrix2 = graph1.getIncomingNodes('node2');
@@ -442,13 +442,13 @@ describe('AdjacencyMapWithFasterNodeDeletion', () => {
     it('add edge1-2 in one map and remove node1 in the other map', () => {
         graph1.addNode('node1', 'node1', { x: 0, y: 0 });
         graph1.addNode('node2', 'node2', { x: 10, y: 0 });
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
         graph1.addEdge('node1', 'node2', 'edge1-2');
         graph2.removeNode('node1');
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
         // Garbage colection
         graph1.edgesAsFlow();
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2); 
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]); 
 
         expect(graph1.getNode('node1')).toBeUndefined();
         expect(graph1.getNode('node2')).toBeDefined();
@@ -472,13 +472,13 @@ describe('AdjacencyMapWithFasterNodeDeletion', () => {
     it('add edge1-2 in one map and remove node2 in the other map', () => {
         graph1.addNode('node1', 'node1', { x: 0, y: 0 });
         graph1.addNode('node2', 'node2', { x: 10, y: 0 });
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
         graph1.addEdge('node1', 'node2', 'edge1-2');  
         graph2.removeNode('node2');
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
         // Garbage colection
         graph1.edgesAsFlow();
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2); 
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]); 
 
         const incomingNodesForNode1InMatrix1 = graph1.getIncomingNodes('node1');
         const incomingNodesForNode1InMatrix2 = graph2.getIncomingNodes('node1');
@@ -503,10 +503,10 @@ describe('AdjacencyMapWithFasterNodeDeletion', () => {
 // addEdge(m1,m2), removeNode(n) m1 == n, m2 == n
     it('add edge1-1 in one map and remove node1 in the other map', () => {
         graph1.addNode('node1', 'node1', { x: 0, y: 0 });
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
         graph1.addEdge('node1', 'node1', 'edge1-1');
         graph2.removeNode('node1');
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
 
         expect(graph1.getNode('node1')).toBeUndefined();
         expect(graph2.getNode('node1')).toBeUndefined();
@@ -521,10 +521,10 @@ describe('AdjacencyMapWithFasterNodeDeletion', () => {
         graph1.addNode('node1', 'node1', { x: 0, y: 0 });
         graph1.addNode('node2', 'node2', { x: 0, y: 10 });
         graph1.addNode('node3', 'node3', { x: 10, y: 0 });
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
         graph1.addEdge('node1', 'node2', 'edge1-2');
         graph2.removeNode('node3');
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
 
         const incomingNodesForNode2InMatrix1 = graph1.getIncomingNodes('node2');
         const incomingNodesForNode2InMatrix2 = graph2.getIncomingNodes('node2');
@@ -557,10 +557,10 @@ describe('AdjacencyMapWithFasterNodeDeletion', () => {
         graph2.addNode('node3', 'node3', { x: 0, y: 10 });
         graph2.addNode('node4', 'node4', { x: 10, y: 10 });
         graph2.addEdge('node3', 'node4', 'edge3-4');
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
         graph1.addEdge('node1', 'node2', 'edge1-2');
         graph2.removeEdge('node3', 'node4');
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
 
         const incomingNodesForNode2InMatrix1 = graph1.getIncomingNodes('node2');
         const incomingNodesForNode2InMatrix2 = graph2.getIncomingNodes('node2');
@@ -600,10 +600,10 @@ describe('AdjacencyMapWithFasterNodeDeletion', () => {
         graph1.addNode('node2', 'node2', { x: 10, y: 0 });
         graph1.addNode('node3', 'node3', { x: 0, y: 10 });
         graph1.addEdge('node1', 'node3', 'edge1-3');
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
         graph1.addEdge('node1', 'node2', 'edge1-2');
         graph2.removeEdge('node1', 'node3');
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
 
         const incomingNodesForNode2InMatrix1 = graph1.getIncomingNodes('node2');
         const incomingNodesForNode2InMatrix2 = graph2.getIncomingNodes('node2');
@@ -639,10 +639,10 @@ describe('AdjacencyMapWithFasterNodeDeletion', () => {
         graph1.addNode('node2', 'node2', { x: 10, y: 0 });
         graph1.addNode('node3', 'node3', { x: 0, y: 10 });
         graph1.addEdge('node3', 'node2', 'edge3-2');
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
         graph1.addEdge('node1', 'node2', 'edge1-2');
         graph2.removeEdge('node3', 'node2');
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
 
         const incomingNodesForNode2InMatrix1 = graph1.getIncomingNodes('node2');
         const incomingNodesForNode2InMatrix2 = graph2.getIncomingNodes('node2');
@@ -677,10 +677,10 @@ describe('AdjacencyMapWithFasterNodeDeletion', () => {
 // removeNode(m), removeNode(n) n == m
     it('remove node1 in one map and remove node1 in the other map', () => {
         graph1.addNode('node1', 'node1', { x: 0, y: 0 });
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
         graph1.removeNode('node1');
         graph2.removeNode('node1');
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
 
         expect(graph1.getNode('node1')).toBeUndefined();
         expect(graph2.getNode('node1')).toBeUndefined();
@@ -692,10 +692,10 @@ describe('AdjacencyMapWithFasterNodeDeletion', () => {
     it('remove node1 in one map and remove node2 in the other map', () => {
         graph1.addNode('node1', 'node1', { x: 0, y: 0 });
         graph2.addNode('node2', 'node2', { x: 10, y: 0 });
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
         graph1.removeNode('node1');
         graph2.removeNode('node2');
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
 
         expect(graph1.getNode('node1')).toBeUndefined();
         expect(graph2.getNode('node2')).toBeUndefined();
@@ -708,10 +708,10 @@ describe('AdjacencyMapWithFasterNodeDeletion', () => {
         graph1.addNode('node1', 'node1', { x: 0, y: 0 });
         graph1.addNode('node2', 'node2', { x: 10, y: 0 });
         graph1.addEdge('node1', 'node2', 'edge1-2');
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
         graph1.removeNode('node1');
         graph2.removeEdge('node1', 'node2');
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
 
 
         expect(graph1.getNode('node1')).toBeUndefined();
@@ -734,10 +734,10 @@ describe('AdjacencyMapWithFasterNodeDeletion', () => {
         graph1.addNode('node1', 'node1', { x: 0, y: 0 });
         graph1.addNode('node2', 'node2', { x: 10, y: 0 });
         graph1.addEdge('node1', 'node2', 'edge1-2');
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
         graph1.removeEdge('node1', 'node2');
         graph2.removeNode('node2');
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
 
         expect(graph1.getNode('node2')).toBeUndefined();
         expect(graph1.getNode('node1')).toBeDefined();
@@ -760,10 +760,10 @@ describe('AdjacencyMapWithFasterNodeDeletion', () => {
         graph2.addNode('node2', 'node2', { x: 10, y: 0 });
         graph2.addNode('node3', 'node3', { x: 0, y: 10 });
         graph2.addEdge('node2', 'node3', 'edge2-3');
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
         graph1.removeNode('node1');
         graph2.removeEdge('node2', 'node3');
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
 
         expect(graph1.getNode('node1')).toBeUndefined();
         expect(graph1.getNode('node2')).toBeDefined();
@@ -786,10 +786,10 @@ describe('AdjacencyMapWithFasterNodeDeletion', () => {
     it('remove node1 in one map and remove edge1-1 in the other map', () => {
         graph1.addNode('node1', 'node1', { x: 0, y: 0 });
         graph2.addEdge('node1', 'node1', 'edge1-1');
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
         graph1.removeNode('node1');
         graph2.removeEdge('node1', 'node1');
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
 
         expect(graph1.getNode('node1')).toBeUndefined();
         expect(graph1.nodeCount).toBe(0);
@@ -805,10 +805,10 @@ describe('AdjacencyMapWithFasterNodeDeletion', () => {
         graph1.addNode('node1', 'node1', { x: 0, y: 0 });
         graph1.addNode('node2', 'node2', { x: 10, y: 0 });
         graph2.addEdge('node1', 'node1', 'edge1-2');
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
         graph1.removeEdge('node1', 'node2');
         graph2.removeEdge('node1', 'node2');
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
 
         expect(graph1.getNode('node1')).toBeDefined();
         expect(graph1.getNode('node2')).toBeDefined();
@@ -830,10 +830,10 @@ describe('AdjacencyMapWithFasterNodeDeletion', () => {
         graph1.addNode('node1', 'node1', { x: 0, y: 0 });
         graph1.addNode('node2', 'node2', { x: 10, y: 0 });
         graph2.addEdge('node3', 'node2', 'edge3-2');
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
         graph1.removeEdge('node1', 'node2');
         graph2.removeEdge('node3', 'node2');
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
 
         expect(graph1.getNode('node1')).toBeDefined();
         expect(graph1.getNode('node2')).toBeDefined();
@@ -859,10 +859,10 @@ describe('AdjacencyMapWithFasterNodeDeletion', () => {
         graph1.addNode('node3', 'node3', { x: 0, y: 10 });
         graph1.addEdge('node1', 'node2', 'edge1-2');
         graph1.addEdge('node2', 'node3', 'edge2-3');
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
         graph1.removeEdge('node1', 'node2');
         graph2.removeEdge('node2', 'node3');
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
 
         const incomingNodesForNode2InMatrix1 = graph1.getIncomingNodes('node2');
         const incomingNodesForNode2InMatrix2 = graph2.getIncomingNodes('node2');
@@ -897,10 +897,10 @@ describe('AdjacencyMapWithFasterNodeDeletion', () => {
         graph2.addNode('node4', 'node4', { x: 10, y: 10 });
         graph1.addEdge('node1', 'node2', 'edge1-2');
         graph2.addEdge('node3', 'node4', 'edge3-4');   
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
         graph1.removeEdge('node1', 'node2');
         graph2.removeEdge('node3', 'node4');
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
 
         const incomingNodesForNode2InMatrix1 = graph1.getIncomingNodes('node2');
         const incomingNodesForNode2InMatrix2 = graph2.getIncomingNodes('node2');
@@ -935,7 +935,7 @@ describe('AdjacencyMapWithFasterNodeDeletion', () => {
         graph1.addNode('node2', 'node2', { x: 10, y: 0 });
         graph1.addEdge('node1', 'node2', 'edge1-2');
         graph1.changeNodeSelection('node1', true);
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
 
         expect(graph1.isNodeSelected('node1')).toBe(true);
         expect(graph2.isNodeSelected('node1')).toBe(false);
@@ -947,7 +947,7 @@ describe('AdjacencyMapWithFasterNodeDeletion', () => {
         graph1.addEdge('node1', 'node2', 'edge1-2');
         graph1.changeNodeSelection('node1', true);
         graph1.changeNodeSelection('node1', false);
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
 
         expect(graph1.isNodeSelected('node1')).toBe(false);
         expect(graph2.isNodeSelected('node1')).toBe(false);
@@ -958,7 +958,7 @@ describe('AdjacencyMapWithFasterNodeDeletion', () => {
         graph1.addNode('node2', 'node2', { x: 10, y: 0 });
         graph1.addEdge('node1', 'node2', 'edge1-2');
         graph1.changeEdgeSelection('node1+node2', true);
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
 
         expect(graph1.isEdgeSelected('node1', 'node2')).toBe(true);
         expect(graph2.isEdgeSelected('node1', 'node2')).toBe(false);
@@ -970,7 +970,7 @@ describe('AdjacencyMapWithFasterNodeDeletion', () => {
         graph1.addEdge('node1', 'node2', 'edge1-2');
         graph1.changeEdgeSelection('node1+node2', true);
         graph1.changeEdgeSelection('node1+node2', false);
-        AdjacencyMapWithFasterNodeDeletionAutomerge.sync(graph1, graph2);
+        AdjacencyMapWithFasterNodeDeletionAutomerge.syncDefault([graph1, graph2]);
 
         expect(graph1.isEdgeSelected('node1', 'node2')).toBe(false);
         expect(graph2.isEdgeSelected('node1', 'node2')).toBe(false);

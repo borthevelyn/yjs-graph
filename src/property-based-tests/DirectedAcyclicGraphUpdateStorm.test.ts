@@ -2,9 +2,7 @@ import * as Y from 'yjs';
 import { DirectedAcyclicGraph } from '../graphs/DirectedAcyclicGraph';
 import { test, fc } from '@fast-check/jest';
 import { assert } from 'console';
-import seedrandom from 'seedrandom';
 import { applyCommands, type CommandFunArg, commandProperty } from './PropTestUtilities';
-import { randomUUID } from 'crypto';
 
 
 describe('properties', () => {
@@ -25,80 +23,6 @@ describe('properties', () => {
     });
 
 
-    const maxSleepDur = 20
-
-    /**
-     * Performs syncing of all given clients and docs with update storm prevention.
-     */
-    async function syncPUS(yDocs: Y.Doc[], yGraphs: DirectedAcyclicGraph[], rnd: (arg0: number) => number) {
-
-        const id = randomUUID()
-
-        // parallel for such that each peer runs concurrently
-        await Promise.all(
-            Array.from(new Array(yDocs.length).keys()).map(async idx => {
-                // from here, the graph might be invalid, thus operate on a copy
-                const firstCopyStart = performance.now()
-                const copy = new Y.Doc()
-                Y.applyUpdate(copy, Y.encodeStateAsUpdate(yDocs[idx]))
-                const copyTime = performance.now() - firstCopyStart
-
-                
-                const updates = Array.from(new Array(yDocs.length).keys())
-                    .filter(i => i !== idx)
-                    .map(i => Y.encodeStateAsUpdate(yDocs[i], Y.encodeStateVector(yDocs[idx])))
-
-                for (const update of updates) {
-                    Y.applyUpdate(copy, update)
-                }
-                const copiedGraph = new DirectedAcyclicGraph(copy.getMap('adjacency map'), copy.getArray('edges'))
-                
-                if (copiedGraph.hasInvalidEdges() || !copiedGraph.isAcyclic()) {
-                    // the graph is valid, but not up to date
-                    const sleepDur = rnd(idx) * maxSleepDur
-                    await new Promise(resolve => setTimeout(resolve, sleepDur)) // sleep random
-                    // recalculate missing updates (some might have been applied, other updates might have arrived)
-                    const newUpdates = Array.from(new Array(yDocs.length).keys())
-                        .filter(i => i !== idx)
-                        .map(i => Y.encodeStateAsUpdate(yDocs[i], Y.encodeStateVector(yDocs[idx])))
-                    
-                    // try to apply again
-                    // if successful, simply continue
-                    // if still unsuccessful, resolve conflicts, calculate resolving transaction
-                    newUpdates.forEach(up => Y.applyUpdate(yDocs[idx], up))
-                    const waitingHelped = !yGraphs[idx].hasInvalidEdges() && yGraphs[idx].isAcyclic()
-                    yGraphs[idx].makeGraphValid();
-                    await csvPUSWriter.writeRecords([{
-                        id: id,
-                        cycleCount: yGraphs[idx].benchmarkData.cycles,
-                        copyTime: copyTime,
-                        hadConflicts: true,
-                        waitingHelped: waitingHelped,
-                        randomTime: sleepDur,
-                        clientCount: yDocs.length,
-                        maxSleep: maxSleepDur
-                    }])
-                }
-                // the graph is valid and up to date
-                else {
-                    console.log('updates were applied without conflict')
-                    updates.forEach(up => Y.applyUpdate(yDocs[idx], up))
-                    await csvPUSWriter.writeRecords([{
-                        id: id,
-                        cycleCount: 0,
-                        copyTime: copyTime,
-                        hadConflicts: false,
-                        waitingHelped: false,
-                        randomTime: 0,
-                        clientCount: yDocs.length,
-                        maxSleep: maxSleepDur
-                    }])
-                }
-
-            })
-        );
-    }
-
     function createGraph(graph: DirectedAcyclicGraph, n: number) {
         for (let i = 1; i <= n; i++) {
             graph.addNode(i.toString(), i.toString(), { x: 0, y: 0 })
@@ -107,16 +31,16 @@ describe('properties', () => {
 
     async function initDAGTest(count: number, initialSize: number) {        
         const yDocs = Array.from({ length: count }, () => new Y.Doc())
-        const yGraphs = yDocs.map((yDoc) => new DirectedAcyclicGraph(yDoc.getMap('adjacency map'), yDoc.getArray('edges')))
+        const yGraphs = yDocs.map((yDoc) => new DirectedAcyclicGraph(yDoc))
         createGraph(yGraphs[0], initialSize);
-        await syncPUS(yDocs, yGraphs, idx => seedrandom(idx + 'first')());
+        DirectedAcyclicGraph.syncDefault(yGraphs)
         return { yDocs, yGraphs }
     }
     function defaultSync(yDocs: Y.Doc[], yGraphs: DirectedAcyclicGraph[]) {
         return async (clients: number[], seed: string) => {
             let docs = yDocs.filter((_, index) => clients.includes(index))
             let graphs = yGraphs.filter((_, index) => clients.includes(index))
-            await syncPUS(docs, graphs, idx => seedrandom(`${idx}${seed}`)());
+            DirectedAcyclicGraph.syncDefault(graphs)
         }
     }
 
@@ -148,7 +72,7 @@ describe('properties', () => {
             async arg => await csvWriterForBenchmarks.writeRecords([arg])
         )
         
-        await syncPUS(yDocs, yGraphs, idx => seedrandom(idx + 'last')());
+        DirectedAcyclicGraph.syncDefault(yGraphs)
         await csvWriterForBenchmarks.writeRecords([{client: 'next round', op: '', arguments: ''}]);
 
         for (let i = 0; i < yGraphs.length; i++) {
@@ -166,7 +90,7 @@ describe('properties', () => {
         await fc.assert(            
             commandProperty(
                 {
-                    clientCount,
+                    maxClientCount: clientCount,
                     maxOperationCount: maxOperationsPerRoundCount,
                     minOperationCount: minOperationsPerRoundCount,
                     maxGraphSize,
@@ -201,7 +125,7 @@ describe('properties', () => {
         assert(initialGraphSize < maxGraphSize);
         await fc.assert(
             commandProperty({
-                clientCount,
+                maxClientCount: clientCount,
                 iteration,
                 maxGraphSize,
                 maxOperationCount: maxOperationsPerRoundCount,
@@ -227,7 +151,7 @@ describe('properties', () => {
 
 
                 await csvWriter.writeRecords([{client: 'next round', op: '', arguments: ''}]);
-                await syncPUS(yDocs, yGraphs, idx => seedrandom(idx + 'last')());
+                DirectedAcyclicGraph.syncDefault(yGraphs)
                 for (let i = 0; i < yGraphs.length; i++) {
                     expect(yGraphs[i].isAcyclic()).toBe(true);
                     expect(yGraphs[i].nodeCount).toEqual(yGraphs[0].nodeCount);
@@ -245,13 +169,13 @@ describe('properties', () => {
     
     test('simple test', async () => {
         const yDocs = Array.from({ length: 2 }, () => new Y.Doc())
-        const yGraphs = yDocs.map((yDoc) => new DirectedAcyclicGraph(yDoc.getMap('adjacency map'), yDoc.getArray('edges')))
+        const yGraphs = yDocs.map((yDoc) => new DirectedAcyclicGraph(yDoc))
 
         createGraph(yGraphs[0], 2);
-        await syncPUS(yDocs, yGraphs, idx => seedrandom(idx + 'hard1')());
+        DirectedAcyclicGraph.syncDefault(yGraphs)
         yGraphs[0].addEdge('1', '2', 'edge1+2');
         yGraphs[1].addEdge('2', '1', 'edge2+1');
-        await syncPUS(yDocs, yGraphs,  idx => seedrandom(idx + 'hard2')());
+        DirectedAcyclicGraph.syncDefault(yGraphs)
         expect(yGraphs[0].isAcyclic()).toBe(true);
         expect(yGraphs[1].isAcyclic()).toBe(true);
         expect(yGraphs[0].nodeCount).toEqual(2);
@@ -323,7 +247,7 @@ describe('properties', () => {
         assert(initialGraphSize < maxGraphSize);
         await fc.assert(
             commandProperty({
-                clientCount,
+                maxClientCount: clientCount,
                 minOperationCount: 5,
                 maxOperationCount: maxOperationsPerRoundCount,
                 maxGraphSize
@@ -340,7 +264,7 @@ describe('properties', () => {
                 defaultSync(yDocs, yGraphs),
                 () => undefined)
                 
-            await syncPUS(yDocs, yGraphs, idx => seedrandom(idx + 'last')());
+            DirectedAcyclicGraph.syncDefault(yGraphs)
             
             for (let i = 0; i < yGraphs.length; i++) {
                 expect(yGraphs[i].isAcyclic()).toBe(true);

@@ -1,16 +1,10 @@
 import './App.css'
-import * as Y from 'yjs'
 import Graph from './components/Graph'
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import { type Graph as GraphApi } from './graphs/Graph'
 import '@xyflow/react/dist/style.css'
-import { useAdjacencyMap } from './hooks/useAdjacencyMap'
-import { useAdjacencyList } from './hooks/useAdjacencyList'
-import { useAdjacencyMapWithFasterNodeDeletion } from './hooks/useAdjacencyMapWithFasterNodeDeletion'
-import * as automerge from "@automerge/automerge"
-import { useAdjacencyMapAutomerge } from './hooks/useAdjacencyMapAutomerge'
-import { AdjacencyMapAutomerge, AdjacencyMapAutomergeGraph } from './graphs/AdjacencyMapAutomerge'
-import { AdjacencyMap } from './graphs/AdjacencyMap'
+import { useAdjacencyMapAutomerge, useAdjacencyListAutomerge, useAdjacencyMapWithFasterNodeDeletionAutomerge } from './hooks/useAutomergeGraph'
+import { useAdjacencyListYjs, useAdjacencyMapWithFasterNodeDeletionYjs, useAdjacencyMapYjs } from './hooks/useYjsGraph'
 
 
 function populateMatrix(graphApi: GraphApi) {  
@@ -26,83 +20,49 @@ function populateMatrix(graphApi: GraphApi) {
 }
 
 function App() {
-  const ydoc1 = useRef(new Y.Doc())
-  const ydoc2 = useRef(new Y.Doc()) 
 
-  let amdoc1 = automerge.init<AdjacencyMapAutomergeGraph>()
-  amdoc1 = automerge.change(amdoc1, d => {
-      d.map = {};
-  });
 
-  let amdoc2 = automerge.init<AdjacencyMapAutomergeGraph>()
-  amdoc2 = automerge.merge(amdoc2, automerge.clone(amdoc1))
-
-  const graphApi1 = useAdjacencyMapAutomerge({ amDoc: amdoc1})
-  const graphApi2 = useAdjacencyMapAutomerge({ amDoc: amdoc2}) 
-
-  function sync1to2() {
-    console.log('State clock 1', Y.encodeStateVector(ydoc1.current))
-    console.log('State clock 2', Y.encodeStateVector(ydoc2.current))
-    const state = Y.encodeStateAsUpdate(ydoc1.current, Y.encodeStateVector(ydoc2.current))
-    console.log(`Sending updates to second ydoc`)
-    Y.applyUpdate(ydoc2.current, state)
-  }
-
-  function sync2to1() {
-    const state = Y.encodeStateAsUpdate(ydoc2.current, Y.encodeStateVector(ydoc1.current))
-    Y.applyUpdate(ydoc1.current, state)
-  }
-
-  function syncConcurrently() {
-    const updates1to2 = Y.encodeStateAsUpdate(ydoc1.current, Y.encodeStateVector(ydoc2.current))
-    const updates2to1 = Y.encodeStateAsUpdate(ydoc2.current, Y.encodeStateVector(ydoc1.current))
-    Y.applyUpdate(ydoc1.current, updates2to1)
-    Y.applyUpdate(ydoc2.current, updates1to2)
-  }
-
+  const { graph1, graph2, sync1to2, sync2to1, syncBoth } = useAdjacencyMapWithFasterNodeDeletionAutomerge()
+  
   useEffect(() => {
-    populateMatrix(graphApi1)
-    //sync1to2()
-    AdjacencyMapAutomerge.syncFirstToSecond(graphApi1, graphApi2)
-  }, [])
+    populateMatrix(graph1)
+    sync1to2()
+  }, [graph1, sync1to2])
 
-  function syncObjects<T extends AdjacencyMapAutomerge>(g1: T, g2: T) {
-      AdjacencyMapAutomerge.sync(g1, g2)
-  }
 
   return (
     <>
-    <button onClick={() => { populateMatrix(graphApi1); AdjacencyMapAutomerge.syncFirstToSecond(graphApi1, graphApi2) }}>Populate</button>
-    <button onClick={() => AdjacencyMapAutomerge.syncFirstToSecond(graphApi1, graphApi2)}>Sync 1 to 2</button>
-    <button onClick={() => AdjacencyMapAutomerge.syncFirstToSecond(graphApi2, graphApi1)}>Sync 2 to 1</button>
-    <button onClick={() => AdjacencyMapAutomerge.sync(graphApi1, graphApi2)}>Sync concurrently</button>
+    <button onClick={() => { populateMatrix(graph1); sync1to2() }}>Populate</button>
+    <button onClick={() => sync1to2()}>Sync 1 to 2</button>
+    <button onClick={() => sync2to1()}>Sync 2 to 1</button>
+    <button onClick={() => syncBoth()}>Sync concurrently</button>
     <div style={{ height: '96vh', width: '100vw', display: 'inline-flex', alignItems: 'flex-start', justifyContent: 'space-between'}}>
       <div style={{ height: '100%', width: '50%', borderRight: '1px solid black' }}>
         <Graph
-          addEdge={(source, target, label) => graphApi1.addEdge(source, target, label)}
-          addNode={(id, label, position) => graphApi1.addNode(id, label, position)}
-          changeEdgeSelection={(id, selected) => graphApi1.changeEdgeSelection(id, selected)}
-          changeNodeDimension={(id, dim) => graphApi1.changeNodeDimension(id, dim)}
-          changeNodePosition={(id, position) => graphApi1.changeNodePosition(id, position)}
-          changeNodeSelection={(id, selected) => graphApi1.changeNodeSelection(id, selected)}
-          edgesAsFlow={() => graphApi1.edgesAsFlow()}
-          nodesAsFlow={() => graphApi1.nodesAsFlow()} 
-          removeEdge={(source, target) => graphApi1.removeEdge(source, target)}
-          removeNode={(id) => graphApi1.removeNode(id)}
+          addEdge={(source, target, label) => graph1.addEdge(source, target, label)}
+          addNode={(id, label, position) => graph1.addNode(id, label, position)}
+          changeEdgeSelection={(id, selected) => graph1.changeEdgeSelection(id, selected)}
+          changeNodeDimension={(id, dim) => graph1.changeNodeDimension(id, dim)}
+          changeNodePosition={(id, position) => graph1.changeNodePosition(id, position)}
+          changeNodeSelection={(id, selected) => graph1.changeNodeSelection(id, selected)}
+          edgesAsFlow={() => graph1.edgesAsFlow()}
+          nodesAsFlow={() => graph1.nodesAsFlow()} 
+          removeEdge={(source, target) => graph1.removeEdge(source, target)}
+          removeNode={(id) => graph1.removeNode(id)}
         />
       </div>
       <div style={{ height: '100%', width: '50%' }}>
         <Graph
-          addEdge={(source, target, label) => graphApi2.addEdge(source, target, label)}
-          addNode={(id, label, position) => graphApi2.addNode(id, label, position)}
-          changeEdgeSelection={(id, selected) => graphApi2.changeEdgeSelection(id, selected)}
-          changeNodeDimension={(id, dim) => graphApi2.changeNodeDimension(id, dim)}
-          changeNodePosition={(id, position) => graphApi2.changeNodePosition(id, position)}
-          changeNodeSelection={(id, selected) => graphApi2.changeNodeSelection(id, selected)}
-          edgesAsFlow={() => graphApi2.edgesAsFlow()}
-          nodesAsFlow={() => graphApi2.nodesAsFlow()} 
-          removeEdge={(source, target) => graphApi2.removeEdge(source, target)}
-          removeNode={(id) => graphApi2.removeNode(id)}
+          addEdge={(source, target, label) => graph2.addEdge(source, target, label)}
+          addNode={(id, label, position) => graph2.addNode(id, label, position)}
+          changeEdgeSelection={(id, selected) => graph2.changeEdgeSelection(id, selected)}
+          changeNodeDimension={(id, dim) => graph2.changeNodeDimension(id, dim)}
+          changeNodePosition={(id, position) => graph2.changeNodePosition(id, position)}
+          changeNodeSelection={(id, selected) => graph2.changeNodeSelection(id, selected)}
+          edgesAsFlow={() => graph2.edgesAsFlow()}
+          nodesAsFlow={() => graph2.nodesAsFlow()} 
+          removeEdge={(source, target) => graph2.removeEdge(source, target)}
+          removeNode={(id) => graph2.removeNode(id)}
           />
       </div>
     </div>

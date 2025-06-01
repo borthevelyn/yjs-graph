@@ -46,6 +46,7 @@ describe('benchmarks', () => {
         }))
     }
 
+    // Cycle resolution, variant 1 vs. variant 2
     test('Optimized vs. Not optimized cycle resolution', async () => {
         const writer = makeBenchmarkCsvWriter<CRCyclesDAGHeaders & EssentialHeaders>('cr_dag.csv')
 
